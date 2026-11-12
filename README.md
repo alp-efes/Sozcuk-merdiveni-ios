@@ -72,6 +72,8 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 
 Durum çubuğu Capacitor 8'in çekirdeğindeki SystemBars ile ayarlanır
 (`capacitor.config.json` → `SystemBars.style = DARK`: koyu zeminde açık yazı).
+Site güvenli alanı bilmediği için `ios.contentInset = "always"`: içerik çentiğin
+ve ana ekran çubuğunun altına girmez (ayrıntı: `CLAUDE.md`).
 Açılış ekranı Capacitor şablonunun `LaunchScreen.storyboard`'udur. Bu ikisi
 için ayrı eklenti (`@capacitor/status-bar`, `@capacitor/splash-screen`)
 kurulmadı: gerek yok.

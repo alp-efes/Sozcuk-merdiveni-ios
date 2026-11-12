@@ -102,7 +102,15 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 2. WebKit'te CSP `'self'`in `capacitor://localhost` ile eşleşmesi (açıkça da
    yazıldı). Oyun boş açılırsa ilk bakılacak yer burası.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,
-   `viewport-fit=cover` yok. İçeriğin durum çubuğunun altına girmediği
-   varsayıldı; kenarlarda `backgroundColor` (#121213) görünmeli.
+   `viewport-fit=cover` yok. Bu yüzden `capacitor.config.json` →
+   `ios.contentInset = "always"`: web görünümü içeriği durum çubuğu ile ana
+   ekran çubuğunun arasında tutar, aradaki şerit `backgroundColor` (#121213)
+   olur. Doğrulanmayan: `.app { height: 100dvh }` WKWebView'de kenar
+   boşlukları düşülmüş yüksekliği mi verir? Vermezse oyun kabuğunun altındaki
+   ~80 pt (dokunmatikte yalnızca "Nasıl oynanır?" ipucu; ekran klavyesi
+   dokunmatikte gizli) ilk açılışta ekranın altında kalır ve kaydırınca görünür.
+   Sayfa zaten dikey kaydırılıyor (altında "Nasıl Oynanır" var), yatay taşma
+   olmaz; başlık düğmelerinin Dynamic Island altında kalmasından iyidir.
+   Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine dokunmayın.
 4. `mailto:` bağlantısının Mail'i açması; `gizlilik.html` ↔ oyun geçişi.
 5. Ana ekranda "Sözcük Merdiveni" adının kısalması.

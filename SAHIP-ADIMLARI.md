@@ -139,7 +139,9 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
 4. Şunlara bakın ve sonucu takıma yazın:
    - Oyun açılıyor mu, günün bulmacası sitedekiyle aynı mı?
    - Uçak kipinde açılıyor mu?
-   - Üstte saat/pil yazıları okunuyor mu, içerik çentiğin altına giriyor mu?
+   - Üstte saat/pil yazıları okunuyor mu? Ses ve ↻ düğmeleri çentiğin ya da
+     Dynamic Island'ın altında kalıyor mu? Açılışta ekranın altında boş ya da
+     kesik bir şerit var mı?
    - Yanlış kelimede ve çözümde titreşim var mı?
    - "Sonucu paylaş" iOS paylaşım sayfasını açıyor mu; metindeki adres site mi?
    - Sayfanın altındaki *Gizlilik Politikası* ve e-posta bağlantısı çalışıyor mu?

@@ -99,6 +99,10 @@ test("Xcode ayarları", () => {
   assert.match(proje, /developmentRegion = tr;/);
   assert.match(proje, /PrivacyInfo\.xcprivacy in Resources \*\/,/, "gizlilik bildirimi pakete girmiyor");
   assert.doesNotMatch(proje, /DEVELOPMENT_TEAM|PROVISIONING_PROFILE/, "imzalama bilgisi depoya yazılmamalı");
+  // Site CSS'i güvenli alanı (env(safe-area-inset-*)) bilmiyor; içeriği çentik ve
+  // ana ekran çubuğundan web görünümü uzak tutar. Kalkarsa başlık durum çubuğunun altına girer.
+  assert.equal(JSON.parse(oku(KOK, "capacitor.config.json")).ios?.contentInset, "always", "ios.contentInset 'always' olmalı");
+  assert.doesNotMatch(siteIndex, /viewport-fit\s*=\s*cover/, "site viewport-fit=cover kullanıyor: contentInset kararını yeniden düşünün");
 
   const plist = oku(KOK, "ios/App/App/Info.plist");
   const deger = (anahtar) => (plist.match(new RegExp(`<key>${anahtar}</key>\\s*(<[^>]+>(?:[^<]*</string>)?)`)) || [])[1];
