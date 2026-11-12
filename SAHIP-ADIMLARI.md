@@ -144,23 +144,53 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
      kesik bir şerit var mı?
    - Yanlış kelimede ve çözümde titreşim var mı?
    - "Sonucu paylaş" iOS paylaşım sayfasını açıyor mu; metindeki adres site mi?
-   - Sayfanın altındaki *Gizlilik Politikası* ve e-posta bağlantısı çalışıyor mu?
+   - Sayfanın altındaki *Gizlilik Politikası*, *Lisanslar* ve e-posta
+     bağlantısı çalışıyor mu?
    - Ana ekranda ad nasıl görünüyor?
 
 ## 8. Mağazaya göndermeden önce (bu iskelette yok)
 
-Gönderimi yalnızca siz yaparsınız. Hazırlanması gerekenler:
+Gönderimi yalnızca siz yaparsınız. App Store Connect'te doldurulacaklar ve
+kararlar (alan adları Apple'ın İngilizce arayüzündeki gibidir; yerleri
+değişmiş olabilir):
 
-- **Gizlilik politikası adresi** (zorunlu, herkese açık web sayfası). Sitedeki
+- **Privacy Policy URL** (zorunlu, herkese açık web sayfası). Sitedeki
   `gizlilik.html` reklam ve çerezleri anlatır; uygulama için ayrı bir bölüm ya
-  da sayfa gerekir. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
+  da sayfa gerekir. Bu adres site deposundaki alp-efes/sozcuk-merdiveni#9'a
+  bağlı. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
   onaylamanız gerekir. **Gönderimden önce veri sorumlusunun adı** (sizin adınız
-  ya da şirketiniz) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
+  ya da şirketiniz; #9) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
   diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl") ve
   yürürlük tarihi de sizin onayınızı bekliyor.
-- **Gizlilik etiketi:** uygulama bugünkü haliyle veri toplamıyor ("Data Not
-  Collected"). Reklam ya da analitik eklenirse bu beyan değişir.
-- Yaş sınıflandırması anketi, ekran görüntüleri, açıklama, destek adresi.
+- **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
+  → "Data Not Collected". Reklam ya da analitik eklenirse bu beyan değişir.
+- **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
+  iletişim adresi sayfanın altında).
+- **Copyright:** hakların sahibi ve yılı, ör. `2026 Ad Soyad` ya da şirket adı.
+- **Content Rights:** "uygulama üçüncü taraf içerik içeriyor mu?" sorusuna
+  **Evet**: sözlük Zemberek-NLP'den (Apache 2.0) üretildi. Lisans bunu
+  kullanmaya izin veriyor; gereken bildirimler uygulamanın *Lisanslar*
+  sayfasında.
+- **Age Rating:** **4+** önerilir. Uygulamada şiddet, kumar, korku, kullanıcı
+  içeriği, mesajlaşma, reklam ve uygulama içi tarayıcı yok; anketteki
+  sorulara buna göre "Yok/Hayır" denir. Apple 2025'te anketi ve yaş
+  sınıflarını yeniledi; güncel soru metinleri **doğrulanmadı**, soruları
+  okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
+  giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
+  uygulamada yok.
+- **AB Dijital Hizmetler Yasası (DSA) "trader" beyanı:** AB'deki App Store'da
+  yayın için hesap düzeyinde sorulur (App Store Connect → *Business*;
+  menü yeri doğrulanmadı). Karar sizin:
+  - *Trader* olduğunuzu beyan ederseniz adresiniz, telefonunuz ve e-postanız
+    Apple'ca doğrulanır ve AB'deki ürün sayfasında herkese görünür.
+  - Diğer yol: AB'de yayınlamamak. *Pricing and Availability* altında
+    yalnızca Türkiye'yi seçin.
+  - "Trader değilim" beyanı da vardır; ileride reklam gibi ticari bir amaç
+    varsa uygun olmayabilir. Bu hukuki bir değerlendirmedir.
+- **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
+  takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
+  diye macOS'ta üretmek gerekiyor (`tools/magaza_gorsel.js`).
+- Açıklama, anahtar kelimeler, kategori (ör. *Games → Word*).
 - **Risk — Yönerge 4.2 (asgari işlev):** Apple, bir web sitesini sarmaktan
   ibaret uygulamaları reddedebilir. Uygulama içeriği paketten yükler,
   çevrimdışı çalışır ve yerel titreşim/paylaşım kullanır; bu riski azaltır ama
