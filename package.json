@@ -1,0 +1,27 @@
+{
+  "name": "sozcuk-merdiveni-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sözcük Merdiveni iOS uygulaması (Capacitor kabuğu)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "esitle": "node araclar/web-esitle.mjs",
+    "gorsel": "node araclar/gorsel.mjs",
+    "ios:ayarla": "node araclar/ios-ayarla.mjs",
+    "ios:sync": "npm run esitle && cap sync ios",
+    "test": "npm run esitle && node --test \"testler/*.test.mjs\""
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.2",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2",
+    "playwright": "1.63.0"
+  }
+}
