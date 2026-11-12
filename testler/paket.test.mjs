@@ -25,19 +25,55 @@ test("site dosyaları değiştirilmeden kopyalanır", () => {
   }
 });
 
+// Yalnızca metin olarak geçebilecek adresler; hiçbiri bağlantı ya da kaynak değildir.
+// Site adresi paylaşım metnine yazılır (yerel.js), diğerleri lisans metinlerindedir.
+const METIN_ADRESLERI = new Set([
+  "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
+  "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
+]);
+// Uygulamanın kendi sayfaları: yalnızca paketteki stil dosyası yüklenir
+const SAYFA_CSP = "default-src 'none'; style-src 'self' capacitor://localhost; base-uri 'none'; form-action 'none'";
+
 test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () => {
   for (const ad of WWW_DOSYALARI) {
-    // İzinli tek adres: paylaşım metnine yazılan site adresi (yerel.js) — istek atılmaz
-    const metin = oku(KOK, "www", ad).replaceAll("https://xn--szckyolu-n4a6d.com/", "");
-    assert.doesNotMatch(metin, /https?:\/\//, `${ad}: dış adres`);
+    const metin = oku(KOK, "www", ad);
+    for (const adres of metin.match(/https?:\/\/[^\s"'<>()]+/g) || []) {
+      assert.ok(METIN_ADRESLERI.has(adres.replace(/[.,;]+$/, "")), `${ad}: izinsiz adres ${adres}`);
+    }
     assert.doesNotMatch(metin, /gstatic|googlesyndication|googletagmanager|google-analytics|firebasejs|doubleclick/i,
                         `${ad}: reklam/analitik kalıntısı`);
+    if (!ad.endsWith(".html")) continue;
+    // Bağlantı ve kaynaklar yalnızca paketin içine ya da e-postaya gider
+    for (const [, deger] of metin.matchAll(/\s(?:href|src|srcset|action|poster|data)\s*=\s*["']?([^"'\s>]*)/gi)) {
+      assert.match(deger, /^(?:#[\w-]+|[\w-]+\.(?:html|css|js)|mailto:[\w.@-]+)$/, `${ad}: izinsiz bağlantı/kaynak ${deger}`);
+    }
   }
   const index = oku(KOK, "www", "index.html");
   assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/);
   assert.ok(index.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), "CSP yok");
   assert.doesNotMatch(CSP, /unsafe-inline|unsafe-eval|\*|https?:/, "CSP gevşetilmiş");
-  assert.match(oku(KOK, "www", "gizlilik.html"), /Content-Security-Policy" content="default-src 'none'/);
+  for (const ad of ["gizlilik.html", "lisanslar.html"]) {
+    assert.ok(oku(KOK, "www", ad).includes(`<meta http-equiv="Content-Security-Policy" content="${SAYFA_CSP}">`), `${ad}: CSP yok`);
+  }
+  assert.ok(index.includes('<a href="lisanslar.html">'), "oyundan lisanslara bağlantı yok");
+  assert.ok(oku(KOK, "www", "gizlilik.html").includes('<a href="lisanslar.html">'), "gizlilikten lisanslara bağlantı yok");
+});
+
+test("lisanslar sayfası pakete giren yazılımların lisanslarını aynen içerir", () => {
+  // Etiketleri ve boşluk farklarını at; geriye görünen metin kalır
+  const duz = (s) => s.replace(/<[^>]+>/g, " ").replaceAll("&lt;", "<").replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&").replace(/\s+/g, " ");
+  const sayfa = duz(oku(KOK, "web", "lisanslar.html"));
+  // Bir bağımlılık güncellenip lisansı değişirse burada yakalanır
+  for (const ad of Object.keys(JSON.parse(oku(KOK, "package.json")).dependencies)) {
+    const metin = oku(KOK, "node_modules", ad, "LICENSE").replace(/\s+/g, " ").trim();
+    assert.ok(sayfa.includes(metin), `${ad} lisansı lisanslar.html'de aynen yok`);
+  }
+  for (const parca of [
+    "Zemberek-NLP", "github.com/ahmetaa/zemberek-nlp", "Copyright 2018 Ahmet A. Akın, Mehmet D. Akın",
+    "Apache Cordova Copyright 2012 The Apache Software Foundation",
+    "Apache License Version 2.0, January 2004", "END OF TERMS AND CONDITIONS",
+  ]) assert.ok(sayfa.includes(parca), `lisanslar.html: "${parca}" yok`);
 });
 
 test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () => {
@@ -50,6 +86,7 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["analitik betiği yok", siteIndex.replace(/<script type="module">[\s\S]*?<\/script>/, "")],
     ["reklam alanı sayısı değişti", siteIndex.replace('id="adBottom"', 'id="adBottom" data-x="1"></div><div class="ad-container"')],
     ["app.js betiği yok", siteIndex.replace('<script src="app.js"></script>', "")],
+    ["gizlilik bağlantısı yok", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', "")],
   ];
   for (const [ad, html] of bozuk) {
     assert.notEqual(html, siteIndex, `${ad}: deneme girdisi siteden farklı olmalı`);

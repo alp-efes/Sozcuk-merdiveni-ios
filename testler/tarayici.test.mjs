@@ -139,8 +139,18 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.equal(await sayfa.evaluate(() => getComputedStyle(document.body).backgroundColor !== "rgba(0, 0, 0, 0)"), true,
                "gizlilik sayfasına stil uygulanmadı");
   await goruntu("5-gizlilik.png");
+
+  // Lisanslar gizlilik sayfasından açılır, telefon genişliğinde taşmaz
+  await sayfa.locator('main a[href="lisanslar.html"]').tap();
+  await sayfa.waitForURL(ADRES + "lisanslar.html");
+  const lisans = await sayfa.textContent("main");
+  assert.match(lisans, /Zemberek-NLP/);
+  assert.match(lisans, /MIT License/);
+  assert.ok(await sayfa.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "lisanslar yatay taşıyor");
+  await goruntu("6-lisanslar.png");
   await sayfa.locator("a.back").tap();
   await sayfa.waitForFunction(() => window.oyun?.startWord);
+  assert.equal(await sayfa.locator('.site-footer a[href="lisanslar.html"]').count(), 1, "oyunda lisanslar bağlantısı yok");
 
   assert.deepEqual(kayit.disIstekler, [], "dış ağ isteği yapıldı");
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");

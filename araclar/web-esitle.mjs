@@ -38,8 +38,10 @@ export const CSP = [
 
 // Siteden değiştirilmeden kopyalananlar
 export const AYNEN = ["app.js", "style.css", "words.json"];
+// Uygulamanın kendi dosyaları (web/ içinde)
+export const KENDI = ["yerel.js", "gizlilik.html", "lisanslar.html"];
 // www/ içinde bulunması gereken her şey (testler bu listeyi denetler)
-export const WWW_DOSYALARI = ["index.html", "gizlilik.html", "yerel.js", ...AYNEN];
+export const WWW_DOSYALARI = ["index.html", ...KENDI, ...AYNEN];
 
 /** index.html'i uygulama sürümüne çevirir. Beklenen yapı yoksa hata fırlatır. */
 export function donustur(html) {
@@ -77,6 +79,9 @@ export function donustur(html) {
   degistir(/<meta charset="UTF-8">/g,
            `<meta charset="UTF-8">\n  <meta http-equiv="Content-Security-Policy" content="${CSP}">`,
            "charset", 1);
+  // Açık kaynak lisansları (Capacitor, Zemberek-NLP) uygulamadan erişilebilir olmalı
+  degistir(/<a href="gizlilik\.html">Gizlilik Politikası<\/a>/g,
+           '$&\n  <a href="lisanslar.html">Lisanslar</a>', "gizlilik bağlantısı", 1);
   degistir(/<script src="app\.js"><\/script>/g,
            '<script src="app.js"></script>\n  <script src="yerel.js"></script>', "app.js betiği", 1);
 
@@ -93,9 +98,9 @@ export function esitle(site = SITE) {
   mkdirSync(www);
   writeFileSync(join(www, "index.html"), donustur(readFileSync(join(site, "index.html"), "utf8")));
   for (const ad of AYNEN) copyFileSync(join(site, ad), join(www, ad));
-  // Uygulamanın kendi dosyaları. gizlilik.html sitenin reklam/çerez metninin
-  // yerine geçer: uygulama veri toplamadığı için metin de farklıdır.
-  for (const ad of ["yerel.js", "gizlilik.html"]) copyFileSync(join(KOK, "web", ad), join(www, ad));
+  // gizlilik.html sitenin reklam/çerez metninin yerine geçer: uygulama veri
+  // toplamadığı için metin de farklıdır.
+  for (const ad of KENDI) copyFileSync(join(KOK, "web", ad), join(www, ad));
   return www;
 }
 

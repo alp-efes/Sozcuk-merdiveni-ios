@@ -55,6 +55,7 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 | `araclar/ExportOptions.plist` | TestFlight yüklemesinin dışa aktarma ayarı |
 | `web/yerel.js` | Titreşim ve paylaşımı `app.js`'e bağlar |
 | `web/gizlilik.html` | Uygulamanın kendi gizlilik metni (sitedekinin yerine paketlenir) |
+| `web/lisanslar.html` | Açık kaynak lisansları; oyunun alt bilgisinden ve gizlilik sayfasından açılır |
 | `ios/` | `npx cap add ios` çıktısı + elle yapılan ayarlar (aşağıda) |
 | `testler/` | `paket.test.mjs` (dosya denetimleri), `tarayici.test.mjs` (oyunu oynar) |
 | `.github/workflows/` | `test.yml` (her PR), `testflight.yml` (yalnızca elle) |

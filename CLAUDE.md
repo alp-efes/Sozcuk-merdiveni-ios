@@ -84,6 +84,13 @@ yalnızca `public/`, `capacitor.config.json` ve `CapApp-SPM/Package.swift`'i yaz
 **`project.pbxproj` elle düzenlenirken** her nesne kimliği (24 onaltılık hane)
 benzersiz olmalı; bozuk dosyayı ancak Xcode fark eder.
 
+**Lisanslar elle güncellenir.** `web/lisanslar.html` şunları kelimesi
+kelimesine içerir: pakete giren bağımlılıkların `node_modules/<paket>/LICENSE`
+dosyaları (MIT), Zemberek-NLP'nin `LICENSE` dosyası, Apache Cordova'nın
+`NOTICE` dosyası (`@capacitor/ios` Cordova kodu içerir) ve apache.org'daki
+Apache 2.0 metni. Bağımlılık güncellenip lisansı değişirse test kırılır;
+metni `node_modules`'ten aynen kopyalayın.
+
 **Tarayıcı testi sahte köprü kullanır.** Titreşimin ve paylaşım sayfasının
 gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 
