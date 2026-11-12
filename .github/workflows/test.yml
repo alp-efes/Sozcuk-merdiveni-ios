@@ -1,0 +1,52 @@
+# Her PR'da: eşitleme ve dönüşüm denetimleri, Xcode ayarları, npm audit ve
+# paketlenen oyunun telefon boyutunda oynanması. Linux'ta çalışır; Xcode
+# derlemesi burada YAPILMAZ (bkz. testflight.yml).
+name: Testler
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_DEPOSU: ${{ github.workspace }}/site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Site deposu (oyunun kaynağı; herkese açık)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: alp-efes/sozcuk-merdiveni
+          ref: main
+          path: site
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Güvenlik açığı taraması
+        run: npm audit
+
+      - name: Tarayıcı
+        run: npx playwright install --with-deps chromium
+
+      - name: Testler
+        run: npm test
+
+      - name: Capacitor eşitlemesi
+        run: npx cap sync ios
