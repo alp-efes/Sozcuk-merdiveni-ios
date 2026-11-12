@@ -105,7 +105,10 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 
 İlk gerçek cihaz derlemesinde bakılacaklar (bulunca bu listeden silin):
 
-1. `testflight.yml` hiç çalıştırılmadı (koşucu adı, Xcode sürümü, imzalama bayrakları).
+1. `testflight.yml` hiç çalıştırılmadı (koşucu adı, Xcode sürümü, imzalama
+   bayrakları). Arşiv geliştirme imzasıyla alınır ve takımda kayıtlı bir cihaz
+   ister; API anahtarının App Manager rolüyle bulut imzalamaya yetip yetmediği
+   bilinmiyor (SAHIP-ADIMLARI 2 ve 4).
 2. WebKit'te CSP `'self'`in `capacitor://localhost` ile eşleşmesi (açıkça da
    yazıldı). Oyun boş açılırsa ilk bakılacak yer burası.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,
