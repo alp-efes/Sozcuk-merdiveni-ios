@@ -163,8 +163,11 @@ değişmiş olabilir):
   bağlı. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
   onaylamanız gerekir. **Gönderimden önce veri sorumlusunun adı** (sizin adınız
   ya da şirketiniz; #9) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
-  diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl") ve
-  yürürlük tarihi de sizin onayınızı bekliyor.
+  diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl"),
+  yürürlük tarihi, hukuki sebep (taslakta KVKK m.5/2-f, meşru menfaat) ve
+  alıcılar (Cloudflare yönlendirmesi ve e-posta hizmet sağlayıcınız; ikisi de
+  yurt dışında olabilir) da sizin onayınızı bekliyor. AB'de yayına karar
+  verirseniz (aşağıda DSA) metne GDPR m.13'ün istediği bilgiler de eklenmeli.
 - **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
   → "Data Not Collected". Reklam ya da analitik eklenirse bu beyan değişir.
 - **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
