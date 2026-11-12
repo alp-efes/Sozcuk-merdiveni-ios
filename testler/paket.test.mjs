@@ -45,7 +45,9 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
     if (!ad.endsWith(".html")) continue;
     // Bağlantı ve kaynaklar yalnızca paketin içine ya da e-postaya gider
     for (const [, deger] of metin.matchAll(/\s(?:href|src|srcset|action|poster|data)\s*=\s*["']?([^"'\s>]*)/gi)) {
-      assert.match(deger, /^(?:#[\w-]+|[\w-]+\.(?:html|css|js)|mailto:[\w.@-]+)$/, `${ad}: izinsiz bağlantı/kaynak ${deger}`);
+      // Yerel dosyada ve mailto'da sorgu dizgisi olabilir (ör. style.css?v=2, ?subject=…)
+      assert.match(deger, /^(?:#[\w-]+|(?:[\w-]+\.(?:html|css|js)|mailto:[\w.@-]+)(?:\?[\w.%=&;+-]*)?)$/,
+                   `${ad}: izinsiz bağlantı/kaynak ${deger}`);
     }
   }
   const index = oku(KOK, "www", "index.html");
@@ -188,7 +190,26 @@ test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca S
   assert.match(tf, /^on:\n  workflow_dispatch:/m, "TestFlight yalnızca elle çalışmalı");
   assert.doesNotMatch(tf, /^  (push|pull_request|schedule):/m);
   // Gizli bilgiler korumalı ortamda: dal kuralı olmadan başka dal anahtarı okuyabilir
-  const yukle = tf.slice(tf.indexOf("\n  yukle:\n"));
-  assert.match(yukle, /^\n  yukle:\n(?: {4}#.*\n)*    environment: testflight\n/, "yukle işi testflight ortamında çalışmalı");
-  assert.doesNotMatch(tf.slice(0, tf.indexOf("\n  yukle:\n")), /secrets\./, "gizli bilgi ortam dışında kullanılmamalı");
+  assert.equal(isler(tf).yukle?.ortam, "testflight", "yukle işi testflight ortamında çalışmalı");
+  // Hiçbir iş akışında ortamsız iş gizli bilgiye erişmemeli
+  for (const ad of readdirSync(join(KOK, ".github/workflows"))) {
+    const akis = oku(KOK, ".github/workflows", ad);
+    assert.doesNotMatch(akis.split(/^jobs:\n/m)[0], /secrets\./, `${ad}: gizli bilgi işlerin dışında kullanılıyor`);
+    for (const [is, { ortam, metin }] of Object.entries(isler(akis))) {
+      if (ortam !== "testflight") assert.doesNotMatch(metin, /secrets\./, `${ad}: ${is} işi ortamsız gizli bilgi kullanıyor`);
+    }
+  }
 });
+
+// Basit YAML ayrıştırma: jobs: altındaki her 2 boşluk girintili anahtar bir iştir.
+// shortcut: akış biçimli ({...}) ya da çapalı YAML'ı anlamaz; iş akışları blok biçiminde yazılır.
+function isler(akis) {
+  const sonuc = {};
+  const govde = akis.split(/^jobs:\n/m)[1] || "";
+  for (const blok of govde.split(/^(?=  [\w-]+:\s*$)/m)) {
+    const ad = blok.match(/^  ([\w-]+):/)?.[1];
+    if (!ad) continue;
+    sonuc[ad] = { ortam: blok.match(/^    environment:\s*(\S+)\s*$/m)?.[1], metin: blok };
+  }
+  return sonuc;
+}

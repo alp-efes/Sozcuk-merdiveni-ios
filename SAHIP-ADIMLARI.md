@@ -112,9 +112,12 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
 
 - Ortamı ve dal kuralını iş akışını **ilk kez çalıştırmadan önce** kurun.
   Ortam yoksa GitHub onu ilk çalıştırmada korumasız olarak kendisi oluşturur.
-- GitHub'ın belgelerine göre ortamlar ve dal kuralları herkese açık depolarda
-  her planda vardır; **özel depoda** ücretli plan (Pro/Team) ister — [ÜCRETLİ]
-  (doğrulanmadı).
+- **iOS deposu özel (private).** GitHub'ın belgelerine göre özel depoda
+  ortamların dal kuralı ücretli plan (Pro/Team) gerektirebilir — [ÜCRETLİ].
+  Ortamı ve `main` dal kuralını kuramıyorsanız **dört gizli bilgiyi depo
+  düzeyine KOYMAYIN**: o zaman depoya dal açabilen her iş akışı anahtarı
+  okuyabilir. İki seçenek var, karar sizin: planı yükseltmek ya da depoyu
+  herkese açık yapmak (depoda gizli bilgi yok; yalnızca kod herkese görünür).
 
 ## 6. İş akışını çalıştırın — [ÜCRETLİ OLABİLİR]
 
