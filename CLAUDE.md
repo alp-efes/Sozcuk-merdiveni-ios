@@ -23,6 +23,9 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   `…UsageDescription` eklenirse test kırılır.
 - **Yeni paket ya da eklenti yok.** Bağımlılık listesi testte sabittir; sürümler
   kesin (`^` yok), `package-lock.json` depoda, `npm audit` temiz.
+- **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
+  yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
+  testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` ya da `web/yerel.js`'tedir.
 

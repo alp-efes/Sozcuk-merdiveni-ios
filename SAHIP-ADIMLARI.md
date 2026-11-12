@@ -32,11 +32,32 @@ Değiştirecekseniz takım `npm run ios:ayarla` ile projeye yazar.
 4. Onay geldikten sonra <https://developer.apple.com/account> → *Membership
    details* sayfasındaki **Team ID**'yi (10 karakter) not edin.
 
-## 2. Paket kimliğini kaydedin
+## 2. Paket kimliğini ve iPhone'unuzu kaydedin
 
-<https://developer.apple.com/account/resources/identifiers/list> → **+** →
-*App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.app` (ya da
-seçtiğiniz). Ek yetenek (capability) işaretlemeyin: uygulama hiçbirini kullanmıyor.
+1. <https://developer.apple.com/account/resources/identifiers/list> → **+** →
+   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.app` (ya da
+   seçtiğiniz). Ek yetenek (capability) işaretlemeyin: uygulama hiçbirini kullanmıyor.
+2. **iPhone'unuzu kaydedin** (zorunlu): *Certificates, Identifiers & Profiles*
+   → *Devices* → **+** → platform iOS, bir ad ve iPhone'un **UDID**'si.
+   Derleme, arşivi önce geliştirme imzasıyla alır; geliştirme profili takımda
+   kayıtlı en az bir cihaz ister. Cihaz yoksa ilk derleme "no devices" benzeri
+   bir hatayla durur. Cihaz kaydı ücretsizdir.
+
+   UDID'yi Mac olmadan bulmak:
+   - **Windows:** iPhone'u kabloyla bağlayın, *Apple Devices* uygulamasını (ya
+     da eski iTunes'u) açın; cihaz özetinde **Seri Numarası**'na tıklayınca
+     UDID görünür, sağ tıkla kopyalanır. (iTunes'ta bilinen yöntemdir; *Apple
+     Devices* uygulamasında doğrulanmadı.)
+   - **Mac varsa:** Finder → kenar çubuğunda iPhone → adın altındaki bilgi
+     satırına tıklayın, UDID görünene kadar tekrar tıklayın.
+   - "UDID bulucu" sitelerine yapılandırma profili **yüklemeyin**: telefonunuzun
+     bilgisini üçüncü kişiye verir.
+
+   *Neden bu yol:* Arşivi doğrudan dağıtım imzasıyla almak elle imzalama
+   ister; bu da sertifika (.p12), parolası ve profil için üç gizli bilgi daha
+   ve her yıl yenileme demektir. İmzasız arşivleyip yalnızca dışa aktarmada
+   imzalamak ise bu belge yazılırken doğrulanamadı. Bir cihaz kaydı en az işi
+   ve en az gizli bilgiyi gerektirir.
 
 ## 3. App Store Connect'te uygulama kaydı
 
@@ -49,26 +70,51 @@ Apple reddeder; başka ad gerekir.
 
 1. App Store Connect → *Users and Access* → *Integrations* → *App Store
    Connect API* → *Team Keys* → **+**.
-2. Erişim rolü: **Admin**. (Otomatik imzalamanın dağıtım sertifikası
-   oluşturabilmesi için gerektiği biliniyor; daha dar bir rolün (*App
-   Manager*) yetip yetmediği doğrulanmadı.)
+2. Erişim rolü: önce en dar olan **App Manager**'ı deneyin.
+   Derleme sırasında Xcode bu anahtarla geliştirme sertifikası, profil ve
+   bulutta tutulan dağıtım sertifikası kullanır. Apple'ın belgelerine göre
+   bulut dağıtım sertifikası *Account Holder*/*Admin* rolünü ya da ayrıca
+   verilen bir erişimi ister; bunun API anahtarlarında App Manager ile yetip
+   yetmediği **doğrulanmadı**. İlk derleme imzalamada yetki/izin hatası
+   verirse anahtarı iptal edip **Admin** rolüyle yeniden oluşturun ve 5.
+   adımdaki değerleri güncelleyin.
 3. `.p8` dosyasını indirin (**yalnızca bir kez indirilebilir**), **Key ID** ve
    sayfanın üstündeki **Issuer ID**'yi not edin.
 
 Bu anahtar hesabınız adına işlem yapabilir. Kimseyle paylaşmayın, sohbete ya
 da depoya yapıştırmayın; yalnızca 5. adımdaki yere girin.
 
-## 5. GitHub Secrets
+## 5. GitHub: korumalı ortam ve gizli bilgiler
 
-iOS deposunda *Settings* → *Secrets and variables* → *Actions* → *New
-repository secret*:
+Gizli bilgiler depoya değil, yalnızca `main` dalından çalışabilen bir
+**ortama** konur. Depo düzeyindeki bir gizli bilgiyi, depoya dal açabilen
+herkesin iş akışı okuyabilir (başka bir dala konan tek satırlık bir iş akışı
+yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
 
-| Ad | Değer |
-|---|---|
-| `ASC_KEY_ID` | Anahtarın Key ID'si |
-| `ASC_ISSUER_ID` | Issuer ID |
-| `ASC_KEY_P8` | `.p8` dosyasının **tüm içeriği** (`-----BEGIN PRIVATE KEY-----` satırları dahil) |
-| `APPLE_TEAM_ID` | 1. adımdaki Team ID |
+1. iOS deposunda *Settings* → *Environments* → *New environment* → ad:
+   `testflight` (tam olarak bu).
+2. **Deployment branches and tags** → *Selected branches and tags* → yalnızca
+   `main` ekleyin. **Zorunlu**: bu olmadan ortam koruma sağlamaz.
+3. Aynı sayfada *Environment secrets* → *Add secret* ile dördünü ekleyin:
+
+   | Ad | Değer |
+   |---|---|
+   | `ASC_KEY_ID` | Anahtarın Key ID'si |
+   | `ASC_ISSUER_ID` | Issuer ID |
+   | `ASC_KEY_P8` | `.p8` dosyasının **tüm içeriği** (`-----BEGIN PRIVATE KEY-----` satırları dahil) |
+   | `APPLE_TEAM_ID` | 1. adımdaki Team ID |
+
+4. *Settings* → *Secrets and variables* → *Actions* altında **depo düzeyinde**
+   aynı adlarla gizli bilgi varsa silin.
+5. İsteğe bağlı: **Required reviewers** → kendinizi ekleyin. Artısı: her
+   derleme sizin onayınızı bekler, gözden kaçan bir değişiklik anahtarı
+   kullanamaz. Eksisi: her derlemede GitHub'a girip onaylamanız gerekir.
+
+- Ortamı ve dal kuralını iş akışını **ilk kez çalıştırmadan önce** kurun.
+  Ortam yoksa GitHub onu ilk çalıştırmada korumasız olarak kendisi oluşturur.
+- GitHub'ın belgelerine göre ortamlar ve dal kuralları herkese açık depolarda
+  her planda vardır; **özel depoda** ücretli plan (Pro/Team) ister — [ÜCRETLİ]
+  (doğrulanmadı).
 
 ## 6. İş akışını çalıştırın — [ÜCRETLİ OLABİLİR]
 

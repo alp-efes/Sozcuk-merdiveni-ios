@@ -146,4 +146,8 @@ test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca S
   const tf = oku(KOK, ".github/workflows/testflight.yml");
   assert.match(tf, /^on:\n  workflow_dispatch:/m, "TestFlight yalnızca elle çalışmalı");
   assert.doesNotMatch(tf, /^  (push|pull_request|schedule):/m);
+  // Gizli bilgiler korumalı ortamda: dal kuralı olmadan başka dal anahtarı okuyabilir
+  const yukle = tf.slice(tf.indexOf("\n  yukle:\n"));
+  assert.match(yukle, /^\n  yukle:\n(?: {4}#.*\n)*    environment: testflight\n/, "yukle işi testflight ortamında çalışmalı");
+  assert.doesNotMatch(tf.slice(0, tf.indexOf("\n  yukle:\n")), /secrets\./, "gizli bilgi ortam dışında kullanılmamalı");
 });

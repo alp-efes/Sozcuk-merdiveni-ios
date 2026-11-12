@@ -21,6 +21,10 @@ concurrency: testflight
 
 jobs:
   yukle:
+    # Gizli bilgiler depoda değil bu ortamda durur; ortam yalnızca main'den
+    # çalışmaya izin verir (SAHIP-ADIMLARI 5). Böylece başka bir dala konan iş
+    # akışı anahtarı okuyamaz.
+    environment: testflight
     runs-on: macos-26
     timeout-minutes: 45
     env:
@@ -75,6 +79,9 @@ jobs:
                   -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 
           xcodebuild -version
+          # Arşiv geliştirme kimliğiyle otomatik imzalanır; bunun için takımda kayıtlı
+          # en az bir cihaz gerekir (SAHIP-ADIMLARI 2). Dağıtım imzası aşağıdaki
+          # dışa aktarmada yapılır.
           # Derleme numarası her çalıştırmada artmalı: iş akışının çalıştırma sayısı
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
