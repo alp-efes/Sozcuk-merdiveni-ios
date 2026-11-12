@@ -1,0 +1,99 @@
+# TestFlight derlemesi. Yalnızca elle çalışır (Actions → TestFlight → Run workflow).
+# Gereken gizli bilgiler ve kurulum: SAHIP-ADIMLARI.md
+#
+# DOĞRULANMADI: bu iş akışı yazıldığı ortamda (Linux, Apple hesabı yok) hiç
+# çalıştırılamadı. İlk çalıştırmada koşucu adı, Xcode sürümü ve xcodebuild
+# imzalama bayrakları düzeltme isteyebilir.
+name: TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_surumu:
+        description: "Paketlenecek site sürümü (dal, etiket ya da commit)"
+        default: main
+        required: true
+
+permissions:
+  contents: read
+
+concurrency: testflight
+
+jobs:
+  yukle:
+    # Gizli bilgiler depoda değil bu ortamda durur; ortam yalnızca main'den
+    # çalışmaya izin verir (SAHIP-ADIMLARI 5). Böylece başka bir dala konan iş
+    # akışı anahtarı okuyamaz.
+    environment: testflight
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      SITE_DEPOSU: ${{ github.workspace }}/site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Site deposu (oyunun kaynağı; herkese açık)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: alp-efes/sozcuk-merdiveni
+          ref: ${{ inputs.site_surumu }}
+          path: site
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Eşitleme ve paket denetimleri
+        run: |
+          npm run esitle
+          node --test testler/paket.test.mjs
+          echo "Paketlenen site sürümü: $(git -C "$SITE_DEPOSU" rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Capacitor eşitlemesi
+        run: npx cap sync ios
+
+      - name: Arşivle, imzala, TestFlight'a yükle
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for ad in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do
+            [ -n "${!ad}" ] || { echo "::error::Eksik gizli bilgi: $ad (SAHIP-ADIMLARI.md)"; exit 1; }
+          done
+          ANAHTAR="$RUNNER_TEMP/AuthKey.p8"
+          trap 'rm -f "$ANAHTAR"' EXIT
+          (umask 077; printf '%s\n' "$ASC_KEY_P8" > "$ANAHTAR")
+          KIMLIK=(-allowProvisioningUpdates
+                  -authenticationKeyPath "$ANAHTAR"
+                  -authenticationKeyID "$ASC_KEY_ID"
+                  -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+
+          xcodebuild -version
+          # Arşiv geliştirme kimliğiyle otomatik imzalanır; bunun için takımda kayıtlı
+          # en az bir cihaz gerekir (SAHIP-ADIMLARI 2). Dağıtım imzası aşağıdaki
+          # dışa aktarmada yapılır.
+          # Derleme numarası her çalıştırmada artmalı: iş akışının çalıştırma sayısı
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            "${KIMLIK[@]}" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+
+          # ExportOptions: destination=upload → dışa aktarırken App Store Connect'e yükler
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist araclar/ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/cikti" \
+            "${KIMLIK[@]}"
