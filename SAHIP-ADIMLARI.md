@@ -154,7 +154,10 @@ Gönderimi yalnızca siz yaparsınız. Hazırlanması gerekenler:
 - **Gizlilik politikası adresi** (zorunlu, herkese açık web sayfası). Sitedeki
   `gizlilik.html` reklam ve çerezleri anlatır; uygulama için ayrı bir bölüm ya
   da sayfa gerekir. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
-  onaylamanız gerekir.
+  onaylamanız gerekir. **Gönderimden önce veri sorumlusunun adı** (sizin adınız
+  ya da şirketiniz) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
+  diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl") ve
+  yürürlük tarihi de sizin onayınızı bekliyor.
 - **Gizlilik etiketi:** uygulama bugünkü haliyle veri toplamıyor ("Data Not
   Collected"). Reklam ya da analitik eklenirse bu beyan değişir.
 - Yaş sınıflandırması anketi, ekran görüntüleri, açıklama, destek adresi.
