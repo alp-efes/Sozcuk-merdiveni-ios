@@ -7,8 +7,7 @@
 # Otomatik oynama betiği (araclar/otomatik-oyna.js) YALNIZCA burada, derlemeden
 # hemen önce ios/App/App/public içine eklenir. www/, npm run ios:sync ve TestFlight
 # paketi onu içermez (testler/paket.test.mjs).
-set -euo pipefail
-shopt -s inherit_errexit   # $(...) içindeki hata da betiği durdursun
+set -euo pipefail   # macOS bash 3.2: $(...) içinde set -e geçmez, hatalar açıkça döndürülür
 
 CIKTI=${1:?"kullanım: bash araclar/simulator.sh <çıktı klasörü>"}
 KOK=$(cd "$(dirname "$0")/.." && pwd)
