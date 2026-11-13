@@ -170,6 +170,9 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/^  win\(\) \{/m, "win(): klavye kapanır"],
     [/^  showOffer\(open\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
     [/^  beginRetry\(\) \{/m, "beginRetry(): tekrar başlayınca klavye açılır"],
+    [/^  showPes\(open\) \{/m, "showPes(): sonucu göster onayı açıkken klavye kapanır"],
+    [/^  showResult\(\) \{/m, "showResult(): yol gösterilince klavye kapanır"],
+    [/^  showModal\(\{ oncedenCozuldu = false \} = \{\}\) \{/m, "showModal(): gecikmeli çözüm penceresi yalnızca aynı oyunda açılır"],
     [/^  saveState\(\) \{/m, "saveState(): her modun kaydı"],
     [/^  restoreState\(\) \{/m, "restoreState(): modun kaydından sürdürme"],
     [/^  newGame\(mode = this\.mode\) \{/m, "newGame(mod)"],
@@ -199,7 +202,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   ]) assert.match(siteApp, desen, ad);
   // Sarılan her metot uygulama.js'te gerçekten sarılıyor
   const uygulama = oku(KOK, "web", "uygulama.js");
-  for (const ad of ["init", "renderInput", "win", "showOffer", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
+  for (const ad of ["init", "renderInput", "win", "showModal", "showOffer", "showPes", "showResult", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
     assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
   }
   // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar)

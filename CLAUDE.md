@@ -77,7 +77,7 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
 dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
-`win`, `showOffer`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+`win`, `showModal`, `showOffer`, `showPes`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).

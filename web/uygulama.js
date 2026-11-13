@@ -21,7 +21,7 @@
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer")];
+  const pencereler = [al("modal"), al("offer"), al("pes")];
   // Açılış ekranı uygulama açılırken en az bu kadar görünür (sayfa açılışından). Gizlilik ya da
   // lisans sayfasından dönüşte (referrer dolu) bekletilmez.
   const ACILIS_MS = document.referrer ? 0 : 800;
@@ -53,11 +53,40 @@
   };
 
   // Çözülünce klavye kapanır: merdivenin tamamı ve sonuç penceresi görünür
+  // Çözüm penceresi win()'den 650 ms sonra açılır; o arada oyuncu ana ekrana dönüp
+  // başka bir bulmacaya (ör. bugün zaten çözülmüş Günün Bulmacası) geçmiş olabilir.
+  // Pencere yalnızca hâlâ aynı biten oyundaysa açılır.
+  let kazanilan = null;
   const asilWin = P.win;
   P.win = function (...arg) {
     giris.disabled = true;
     giris.blur();
+    kazanilan = { mod: this.mode, bas: this.startWord, hedef: this.targetWord, uzunluk: this.chain.length };
     return asilWin.apply(this, arg);
+  };
+  const asilShowModal = P.showModal;
+  P.showModal = function (secenek, ...arg) {
+    if (!secenek?.oncedenCozuldu) {          // gecikmeli çözüm penceresi (win)
+      const k = kazanilan;
+      kazanilan = null;
+      if (!k || k.mod !== this.mode || k.bas !== this.startWord || k.hedef !== this.targetWord || k.uzunluk !== this.chain.length) return;
+    }
+    return asilShowModal.call(this, secenek, ...arg);
+  };
+
+  // Sonucu göster: onay penceresi açıkken klavye kapanır (teklifteki gibi); yol
+  // gösterilince oyun biter, klavye kapanır
+  const asilShowPes = P.showPes;
+  P.showPes = function (ac, ...arg) {
+    const s = asilShowPes.call(this, ac, ...arg);
+    if (ac) giris.blur(); else odakla();
+    return s;
+  };
+  const asilShowResult = P.showResult;
+  P.showResult = function (...arg) {
+    const s = asilShowResult.apply(this, arg);
+    if (this.over) giris.blur();
+    return s;
   };
 
   // İpucu teklifi açıkken yazılan harf arkadaki tahtaya gitmesin; kapanınca klavye geri gelir

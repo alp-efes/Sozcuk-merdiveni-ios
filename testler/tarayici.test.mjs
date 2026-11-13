@@ -1028,3 +1028,78 @@ test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf
   assert.equal(await sayfa.evaluate(() => document.getElementById("offer").classList.contains("hidden")), true);
   await baglam.close();
 });
+
+/* ---------- Geri al ve Sonucu göster (site PR'ı: geri-al-sonuc) ---------- */
+
+// Başlangıç ile bir komşusu arasında gidip gelerek (geçerli hamleler) adım sayısını istenene çıkarır
+async function gezin(sayfa, adimSayisi) {
+  const [bas, hedef, komsu] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord,
+    [...oyun.dict].find((w) => w !== oyun.targetWord && [...w].filter((c, i) => c !== oyun.startWord[i]).length === 1)]);
+  while ((await sayfa.evaluate(() => oyun.chain.length - 1)) < adimSayisi) {
+    await yaz(sayfa, (await sayfa.evaluate(() => oyun.currentWord)) === bas ? komsu : bas);
+  }
+  return hedef;
+}
+
+test("uygulama arayüzü: Geri al ve Sonucu göster klavye açıkken görünür; onay açıkken klavye kapanır", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa, "daily");
+  await klavye(sayfa, true);
+  const [bas, hedef, en] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord, oyun.optimal]);
+  assert.ok(await gorunur(sayfa, "#btnUndo"), "Geri al düğmesi uygulamada görünmüyor");
+  assert.equal(await sayfa.evaluate(() => document.getElementById("btnUndo").disabled), true, "başlangıçta Geri al devre dışı olmalı");
+  assert.equal(await gorunur(sayfa, "#btnShowResult"), false, "eşik aşılmadan Sonucu göster görünmemeli");
+  await yaz(sayfa, enKisaYol(bas, hedef)[0]);
+  await sayfa.tap("#btnUndo");
+  const d = await durum(sayfa);
+  assert.deepEqual([d.zincir.length, d.odak], [1, "giris"], "Geri al zinciri kısaltmalı, klavye açık kalmalı");
+  // Eşik aşılınca Sonucu göster görünür, klavye açıkken görünen alanın içindedir
+  await gezin(sayfa, en + 1);
+  assert.ok(await gorunur(sayfa, "#btnShowResult"), "Sonucu göster görünmüyor");
+  const k = await kutu(sayfa, "#btnShowResult");
+  assert.ok(k.alt <= 844 - KLAVYE && k.en >= 44, `Sonucu göster klavye açıkken görünür olmalı (${JSON.stringify(k)})`);
+  // Onay penceresi: klavye kapanır, yazılan harf tahtaya gitmez; vazgeçince klavye geri gelir
+  await sayfa.tap("#btnShowResult");
+  await sayfa.waitForSelector("#pes:not(.hidden)");
+  assert.notEqual((await durum(sayfa)).odak, "giris", "onay açıkken klavye kapanmalı");
+  await sayfa.keyboard.type("ab");
+  assert.equal((await durum(sayfa)).tampon, "");
+  await sayfa.tap("#btnPesVazgec");
+  assert.equal((await durum(sayfa)).odak, "giris", "vazgeçince klavye geri gelmeli");
+  // Evet: oyun biter, klavye kapanır
+  await sayfa.tap("#btnShowResult");
+  await sayfa.tap("#btnPesEvet");
+  const son = await sayfa.evaluate(() => ({ bitti: oyun.over, gosterildi: oyun.shown, odak: document.activeElement.id,
+    kayit: JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())) }));
+  assert.deepEqual([son.bitti, son.gosterildi, son.odak === "giris"], [true, true, false]);
+  assert.equal(son.kayit.steps, 0, "günlükte çözüm kaydı oluşmamalı");
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası");
+  await baglam.close();
+});
+
+test("uygulama arayüzü: gecikmeli çözüm penceresi, o arada geçilen başka bulmacanın üstünde açılmaz", async () => {
+  const { baglam, sayfa } = await arayuzSayfasi();
+  const modalAcik = () => sayfa.evaluate(() => !document.getElementById("modal").classList.contains("hidden"));
+  // Günün bulmacasını çöz (pencere açılır), kapat, ana ekrana dön
+  await oyunaGir(sayfa, "daily");
+  const [bas, hedef] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord]);
+  for (const k of enKisaYol(bas, hedef)) await yaz(sayfa, k);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  await sayfa.evaluate(() => document.getElementById("btnAna").click());
+  // Serbest bulmacayı çöz; pencere açılmadan (650 ms) ana ekrana, oradan çözülmüş günlüğe geç
+  await sayfa.tap("#btnSerbest");
+  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun" && document.activeElement.id === "giris");
+  const [sb, sh] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord]);
+  const yol = enKisaYol(sb, sh);
+  for (const k of yol.slice(0, -1)) await yaz(sayfa, k);
+  await sayfa.keyboard.type(yol[yol.length - 1].toLocaleLowerCase("tr-TR"));
+  await sayfa.keyboard.press("Enter");
+  await sayfa.evaluate(() => {
+    document.getElementById("btnAna").click();
+    document.getElementById("btnGunluk").click();
+  });
+  assert.equal(await sayfa.evaluate(() => [oyun.mode, oyun.over].join()), "daily,true", "günlük çözülmüş açılmalı");
+  await sayfa.waitForTimeout(1000);
+  assert.equal(await modalAcik(), false, "gecikmeli çözüm penceresi günlüğün üstünde açıldı");
+  await baglam.close();
+});
