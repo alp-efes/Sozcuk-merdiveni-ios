@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AYNEN, CSP, SITE, WWW_DOSYALARI, donustur } from "../araclar/web-esitle.mjs";
@@ -16,7 +16,9 @@ const siteIndex = oku(SITE, "index.html");
 const siteApp = oku(SITE, "app.js");
 
 test("www/ yalnızca beklenen dosyaları içerir", () => {
-  assert.deepEqual(readdirSync(join(KOK, "www")).sort(), [...WWW_DOSYALARI].sort());
+  const dosyalar = readdirSync(join(KOK, "www"), { recursive: true, withFileTypes: true })
+    .filter((g) => g.isFile()).map((g) => relative(join(KOK, "www"), join(g.parentPath, g.name)));
+  assert.deepEqual(dosyalar.sort(), [...WWW_DOSYALARI].sort());
 });
 
 test("site dosyaları değiştirilmeden kopyalanır", () => {
@@ -30,12 +32,14 @@ test("site dosyaları değiştirilmeden kopyalanır", () => {
 const METIN_ADRESLERI = new Set([
   "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
   "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
+  "https://github.com/undercasetype/Fraunces", "http://scripts.sil.org/OFL",
 ]);
-// Uygulamanın kendi sayfaları: yalnızca paketteki stil dosyası yüklenir
-const SAYFA_CSP = "default-src 'none'; style-src 'self' capacitor://localhost; base-uri 'none'; form-action 'none'";
+// Uygulamanın kendi sayfaları: yalnızca paketteki stil dosyası ve yazı tipleri yüklenir
+const SAYFA_CSP = "default-src 'none'; style-src 'self' capacitor://localhost; font-src 'self' capacitor://localhost; base-uri 'none'; form-action 'none'";
 
 test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () => {
   for (const ad of WWW_DOSYALARI) {
+    if (ad.endsWith(".woff2")) continue;    // ikili yazı tipi dosyası; siteyle aynı olduğu yukarıda denetlenir
     const metin = oku(KOK, "www", ad);
     for (const adres of metin.match(/https?:\/\/[^\s"'<>()]+/g) || []) {
       assert.ok(METIN_ADRESLERI.has(adres.replace(/[.,;]+$/, "")), `${ad}: izinsiz adres ${adres}`);
@@ -78,6 +82,10 @@ test("lisanslar sayfası pakete giren yazılımların lisanslarını aynen içer
     "Apache Cordova Copyright 2012 The Apache Software Foundation",
     "Apache License Version 2.0, January 2004", "END OF TERMS AND CONDITIONS",
   ]) assert.ok(sayfa.includes(parca), `lisanslar.html: "${parca}" yok`);
+  // Fraunces yazı tipi (SIL OFL 1.1): telif satırı ve lisans metni sitedeki dosyayla aynı
+  const ofl = oku(SITE, "fonts", "OFL.txt").replace(/\s+/g, " ").trim();
+  assert.ok(ofl.startsWith("Copyright 2020 The Fraunces Project Authors"), "OFL.txt beklenen telif satırıyla başlamıyor");
+  assert.ok(sayfa.includes(ofl), "Fraunces lisansı (fonts/OFL.txt) lisanslar.html'de aynen yok");
 });
 
 test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () => {

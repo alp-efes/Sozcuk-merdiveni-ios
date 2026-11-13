@@ -31,13 +31,15 @@ export const CSP = [
   `script-src ${KAYNAK}`,
   `style-src ${KAYNAK}`,
   `img-src ${KAYNAK}`,
+  `font-src ${KAYNAK}`,         // style.css paketteki Fraunces dosyalarını yükler
   `connect-src ${KAYNAK}`,      // words.json fetch ile okunur
   "base-uri 'none'",
   "form-action 'none'",
 ].join("; ");
 
 // Siteden değiştirilmeden kopyalananlar
-export const AYNEN = ["app.js", "style.css", "words.json"];
+export const AYNEN = ["app.js", "style.css", "words.json",
+  "fonts/fraunces-latin.woff2", "fonts/fraunces-latin-ext.woff2", "fonts/OFL.txt"];
 // Uygulamanın kendi dosyaları (web/ içinde)
 export const KENDI = ["yerel.js", "gizlilik.html", "lisanslar.html"];
 // www/ içinde bulunması gereken her şey (testler bu listeyi denetler)
@@ -86,7 +88,7 @@ export function donustur(html) {
   degistir(/<meta charset="UTF-8">/g,
            `<meta charset="UTF-8">\n  <meta http-equiv="Content-Security-Policy" content="${CSP}">`,
            "charset", 1);
-  // Açık kaynak lisansları (Capacitor, Zemberek-NLP) uygulamadan erişilebilir olmalı
+  // Açık kaynak lisansları (Capacitor, Zemberek-NLP, Fraunces) uygulamadan erişilebilir olmalı
   degistir(/<a href="gizlilik\.html">Gizlilik Politikası<\/a>/g,
            '$&\n  <a href="lisanslar.html">Lisanslar</a>', "gizlilik bağlantısı", 1);
   degistir(/<script src="app\.js"><\/script>/g,
@@ -102,7 +104,7 @@ export function donustur(html) {
 export function esitle(site = SITE) {
   const www = join(KOK, "www");
   rmSync(www, { recursive: true, force: true });
-  mkdirSync(www);
+  mkdirSync(join(www, "fonts"), { recursive: true });
   writeFileSync(join(www, "index.html"), donustur(readFileSync(join(site, "index.html"), "utf8")));
   for (const ad of AYNEN) copyFileSync(join(site, ad), join(www, ad));
   // gizlilik.html sitenin reklam/çerez metninin yerine geçer: uygulama veri

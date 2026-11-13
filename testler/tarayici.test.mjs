@@ -12,7 +12,7 @@ import { chromium } from "playwright";
 
 const WWW = resolve(dirname(fileURLToPath(import.meta.url)), "..", "www");
 const OTOMATIK = resolve(dirname(fileURLToPath(import.meta.url)), "..", "araclar", "otomatik-oyna.js");
-const TUR = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json" };
+const TUR = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".woff2": "font/woff2" };
 const SITE_ADRESI = "https://xn--szckyolu-n4a6d.com/";
 const TELEFON = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
 
@@ -63,10 +63,11 @@ function enKisaYol(bas, hedef) {
   return yol;
 }
 
+// Dokunmatikte cihaz klavyesi yok; oyuncu ekran klavyesine dokunur
+const tus = (sayfa, ad) => sayfa.tap(`#keyboard .key[data-key="${ad}"]`);
 async function yaz(sayfa, kelime) {
-  await sayfa.tap("#game");                 // cihaz klavyesini açar
-  await sayfa.keyboard.type(kelime);
-  await sayfa.keyboard.press("Enter");
+  for (const harf of kelime) await tus(sayfa, harf);
+  await tus(sayfa, "ENTER");
 }
 
 test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılmaz", async () => {
@@ -94,10 +95,15 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
     ekranKlavyesi: getComputedStyle(document.getElementById("keyboard")).display,
   }));
   assert.equal(d.mod, "daily");
+  // Paketteki Fraunces yüklenmeli (CSP font-src)
+  assert.ok(await sayfa.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts].some((f) => f.family.includes("Fraunces") && f.status === "loaded");
+  }), "Fraunces yazı tipi yüklenmedi");
   assert.equal(d.reklam, 0, "reklam alanı kalmış");
   assert.equal(d.izleme, "undefined", "analitik köprüsü tanımlı");
   assert.deepEqual(d.betikler, ["app.js", "yerel.js"]);
-  assert.equal(d.ekranKlavyesi, "none", "dokunmatikte cihaz klavyesi kullanılır");
+  assert.notEqual(d.ekranKlavyesi, "none", "dokunmatikte ekran klavyesi görünmeli");
   await goruntu("1-acilis.png");
 
   // Geçersiz hamle: kelimeyi değiştirmeden gönder → reddedilir + hata titreşimi
@@ -106,7 +112,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.ok(await sayfa.evaluate(() => document.getElementById("toast").classList.contains("show")));
   assert.deepEqual(await cagrilar("titresim"), [{ type: "ERROR" }]);
   await goruntu("2-gecersiz-hamle.png");
-  for (const _ of d.bas) await sayfa.keyboard.press("Backspace");   // reddedilen kelime satırda kalır
+  for (const _ of d.bas) await tus(sayfa, "BACK");   // reddedilen kelime satırda kalır
 
   // Çözüm
   const yol = enKisaYol(d.bas, d.hedef);
