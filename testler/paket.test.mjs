@@ -27,6 +27,12 @@ test("site dosyaları değiştirilmeden kopyalanır", () => {
   }
 });
 
+test("site CSS'inin yüklediği her dosya pakete kopyalanır", () => {
+  const adresler = [...oku(SITE, "style.css").matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((m) => m[1]);
+  assert.ok(adresler.length > 0, "style.css'te url() bulunamadı: desen bozulmuş olabilir");
+  for (const adres of adresler) assert.ok(AYNEN.includes(adres), `style.css "${adres}" yüklüyor ama web-esitle.mjs (AYNEN) kopyalamıyor`);
+});
+
 // Yalnızca metin olarak geçebilecek adresler; hiçbiri bağlantı ya da kaynak değildir.
 // Site adresi paylaşım metnine yazılır (yerel.js), diğerleri lisans metinlerindedir.
 const METIN_ADRESLERI = new Set([
@@ -177,6 +183,10 @@ test("Xcode ayarları", () => {
   assert.doesNotMatch(plist, /~ipad/);
   // İzin isteyen hiçbir şey yok: izin açıklaması ya da arka plan kipi eklenirse sahip onayı gerekir
   assert.doesNotMatch(plist, /UsageDescription|UIBackgroundModes|NSAppTransportSecurity/);
+  // Açılış ekranı (açık kâğıt zemin) için koyu durum çubuğu yazısı. Açıldıktan sonra
+  // SystemBars yönetir; bunun için görünüm denetleyicisi tabanlı görünüm açık kalmalı.
+  assert.equal(deger("UIStatusBarStyle"), "<string>UIStatusBarStyleDarkContent</string>");
+  assert.equal(deger("UIViewControllerBasedStatusBarAppearance"), "<true/>");
 
   const gizlilik = oku(KOK, "ios/App/App/PrivacyInfo.xcprivacy").replace(/\s+/g, "");
   assert.ok(gizlilik.includes("<key>NSPrivacyTracking</key><false/>"));
