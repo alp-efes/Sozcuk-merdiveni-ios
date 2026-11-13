@@ -106,6 +106,9 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
     /// { ulke: String | null }. App Store vitrininin ülke kodu (ISO 3166 alfa-3, örn. "GBR");
     /// Birleşik Krallık'ta reklam etiketi için kullanılır. Vitrin yoksa null.
     @objc func vitrin(_ call: CAPPluginCall) {
-        Task { call.resolve(["ulke": await Storefront.current?.countryCode as Any]) }
+        Task {
+            let ulke = await Storefront.current?.countryCode
+            call.resolve(["ulke": ulke ?? NSNull()])
+        }
     }
 }
