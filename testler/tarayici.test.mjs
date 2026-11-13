@@ -201,7 +201,6 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   // Sayfadan dönüş uygulama açılışı değildir: açılış ekranı bekletilmez (uygulama.js referrer'a bakar)
   assert.ok(await sayfa.evaluate(() => document.referrer.endsWith("lisanslar.html")), "dönüşte referrer boş: açılış ekranı yine bekletir");
   // Bloklar da yeniden düşmez: baştan yerinde
-  // Bloklar da yeniden düşmez: baştan yerinde
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")].map((g) => getComputedStyle(g).animationName)),
                    ["none", "none", "none"], "sayfa dönüşünde açılış animasyonu oynamamalı");
   await anaEkran(sayfa);
@@ -761,13 +760,15 @@ test("uygulama arayüzü: açılışta bloklar alttan üste birer birer düşer;
   assert.ok(gecikme[0] < gecikme[1] && gecikme[1] < gecikme[2], `bloklar birer birer düşmeli: ${b.map((x) => x.gecikme)}`);
   // Sözlük hazırken bile ana ekran son blok oturmadan gelmez; toplam açılış 3 sn'nin altında
   await anaEkran(sayfa);
-  const { ana, bitis } = await sayfa.evaluate(() => ({ ana: window.__anaMs,
+  const { ana, bitis, sure } = await sayfa.evaluate(() => {
     // Yalnızca blok animasyonları: ana ekran açılınca .acilis'in solma geçişi de listeye girer
-    bitis: Math.max(...document.getElementById("acilis").getAnimations({ subtree: true })
-      .filter((a) => ["acilisDus", "acilisOtur"].includes(a.animationName))
-      .map((a) => a.startTime + a.effect.getComputedTiming().endTime)) }));
+    const a = document.getElementById("acilis").getAnimations({ subtree: true })
+      .filter((x) => ["acilisDus", "acilisOtur"].includes(x.animationName));
+    const son = (x) => x.effect.getComputedTiming().endTime;   // gecikme + süre; ilk çizimden bağımsız
+    return { ana: window.__anaMs, bitis: Math.max(...a.map((x) => x.startTime + son(x))), sure: Math.max(...a.map(son)) };
+  });
   // Sahip geri bildirimi (#14): sekmeli oturuş, üç çarpma arka arkaya; toplam ~1,6 sn'yi geçmez
-  assert.ok(bitis >= 1450 && bitis <= 1650, `animasyon ~1,5–1,6 sn sürmeli (${Math.round(bitis)} ms)`);
+  assert.ok(sure >= 1450 && sure <= 1650, `animasyon ~1,5–1,6 sn sürmeli (${Math.round(sure)} ms)`);
   // Ritim: her blok öncekinin sekmesi bittikten hemen sonra çarpar; basamak o anda iner
   const ritim = await sayfa.evaluate(() => {
     const son = (a) => a.startTime + a.effect.getComputedTiming().endTime;
