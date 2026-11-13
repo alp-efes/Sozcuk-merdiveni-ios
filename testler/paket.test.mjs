@@ -191,7 +191,7 @@ test("simge ve açılış görseli doğru boyutta, alfasız ve kaynağıyla ayn�
 });
 
 test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca Secrets'tan", () => {
-  for (const ad of ["test.yml", "testflight.yml"]) {
+  for (const ad of ["test.yml", "testflight.yml", "simulator.yml"]) {
     const akis = oku(KOK, ".github/workflows", ad);
     const eylemler = akis.match(/uses:.*/g) || [];
     assert.ok(eylemler.length > 0, `${ad}: eylem yok`);
@@ -216,6 +216,31 @@ test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca S
       if (ortam !== "testflight") assert.doesNotMatch(metin, /secrets\./, `${ad}: ${is} işi ortamsız gizli bilgi kullanıyor`);
     }
   }
+});
+
+test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere girmez", () => {
+  // www/ (dolayısıyla npm run ios:sync ve TestFlight) betiği içermez
+  assert.ok(!existsSync(join(KOK, "www", "otomatik-oyna.js")));
+  assert.doesNotMatch(oku(KOK, "www", "index.html"), /otomatik-oyna/);
+  for (const yol of ["package.json", "capacitor.config.json", "araclar/web-esitle.mjs",
+                     ".github/workflows/test.yml", ".github/workflows/testflight.yml"]) {
+    assert.doesNotMatch(oku(KOK, yol), /otomatik-oyna|simulator\.sh/, `${yol} simülatör betiğine dokunmamalı`);
+  }
+  // Betiği yalnızca simulator.sh ekler; o da derlemeden hemen önce, imzasız simülatör paketine
+  const sh = oku(KOK, "araclar/simulator.sh");
+  assert.ok(sh.includes('cp "$KOK/araclar/otomatik-oyna.js" "$PUBLIC/"'));
+  assert.match(sh, /-sdk iphonesimulator .*\n.* CODE_SIGNING_ALLOWED=NO$/m, "yalnızca imzasız simülatör derlemesi");
+  assert.doesNotMatch(sh, /archive|exportArchive|iphoneos\b|DEVELOPMENT_TEAM|ASC_/, "simulator.sh dağıtım derlemesi yapmamalı");
+
+  // Simülatör iş akışı gizli bilgi ve testflight ortamı kullanmaz; yazma yetkisi
+  // yalnızca main'de çalışan yayinla işinde, derleme işinde değil
+  const sim = oku(KOK, ".github/workflows/simulator.yml");
+  assert.doesNotMatch(sim, /environment:|secrets\./);
+  assert.match(sim, /^  push:\n    branches: \[main\]$/m);
+  const is = isler(sim);
+  assert.deepEqual(Object.keys(is).filter((ad) => /contents: write/.test(is[ad].metin)), ["yayinla"]);
+  assert.match(is.yayinla.metin, /^    if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m);
+  assert.doesNotMatch(is.ekran.metin, /permissions:|github\.token|GH_TOKEN/);
 });
 
 // Basit YAML ayrıştırma: jobs: altındaki her 2 boşluk girintili anahtar bir iştir.
