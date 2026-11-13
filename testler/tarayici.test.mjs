@@ -123,6 +123,8 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.equal(d.mod, "daily");
   // Açılış ekranı ana ekrana geçer; oyun arkada gizlidir
   await anaEkran(sayfa);
+  // Açılışta üç blok basamağa oturdu: her birinde hafif dokunuş
+  assert.deepEqual(await cagrilar("dokunus"), Array(3).fill({ style: "LIGHT" }), "açılışta her blok oturunca hafif dokunuş");
   assert.equal(await sayfa.textContent("#gunlukBulmaca"), `${d.bas} → ${d.hedef}`);
   await goruntu("0-ana-ekran.png");
   // Paketteki Fraunces yüklenmeli (CSP font-src)
@@ -151,7 +153,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   const yol = enKisaYol(d.bas, d.hedef);
   await yaz(sayfa, yol[0]);
   assert.equal(await sayfa.evaluate(() => oyun.chain.length), 2, "geçerli hamle eklenmedi");
-  assert.deepEqual(await cagrilar("dokunus"), [{ style: "LIGHT" }], "kabul edilen kelimede hafif dokunuş");
+  assert.deepEqual(await cagrilar("dokunus"), Array(4).fill({ style: "LIGHT" }), "kabul edilen kelimede hafif dokunuş");
   await goruntu("3-ilk-hamle.png");
   for (const kelime of yol.slice(1)) await yaz(sayfa, kelime);
   assert.ok(await sayfa.evaluate(() => oyun.over), "hedefe ulaşıldı ama oyun bitmedi");
@@ -199,6 +201,9 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   await sayfa.waitForFunction(() => window.oyun?.startWord);
   // Sayfadan dönüş uygulama açılışı değildir: açılış ekranı bekletilmez (uygulama.js referrer'a bakar)
   assert.ok(await sayfa.evaluate(() => document.referrer.endsWith("lisanslar.html")), "dönüşte referrer boş: açılış ekranı yine bekletir");
+  // Bloklar da yeniden düşmez: baştan yerinde
+  assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")].map((g) => getComputedStyle(g).animationName)),
+                   ["none", "none", "none"], "sayfa dönüşünde açılış animasyonu oynamamalı");
   await anaEkran(sayfa);
   assert.equal(await sayfa.locator('.site-footer a[href="lisanslar.html"]').count(), 1, "oyunda lisanslar bağlantısı yok");
 
@@ -718,6 +723,97 @@ test("uygulama arayüzü: açılış ekranı sözlük yüklenene dek durur, ard�
   const d = await durum(sayfa);
   assert.deepEqual([d.tampon, d.zincir.length, d.ekran], ["", 1, "ana"]);
   assert.deepEqual(hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+});
+
+// Açılış animasyonu (sahip isteği, 13 Kasım 2026): bloklar alttan üste basamağa düşer.
+// Ana ekranın açıldığı an (performance.now) init betiğiyle kaydedilir. sozlukMs: words.json
+// sayfa açılışından bu kadar sonra verilir.
+async function acilisSayfasi({ sozlukMs = 0, secenek = {} } = {}) {
+  const baglam = await tarayici.newContext({ ...TELEFON, ...secenek });
+  await baglam.addInitScript(() => {
+    new MutationObserver(() => {
+      if (document.body?.dataset.ekran === "ana" && window.__anaMs === undefined) window.__anaMs = performance.now();
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-ekran"] });
+  });
+  const t0 = Date.now();
+  await baglam.route("**/words.json", async (r) => {
+    const kalan = sozlukMs - (Date.now() - t0);
+    if (kalan > 0) await new Promise((coz) => setTimeout(coz, kalan));
+    await r.continue();
+  });
+  const { sayfa, kayit } = await ac(baglam);
+  return { baglam, sayfa, kayit };
+}
+// Bloklar: hangi blok, ekrandaki yeri, animasyonu ve gecikmesi (i-dus-1 → 3 sırasıyla)
+const bloklar = (sayfa) => sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")]
+  .sort((a, b) => a.className.baseVal.localeCompare(b.className.baseVal))
+  .map((g) => ({ renk: g.querySelector("rect:last-child").getAttribute("class"),
+    ust: Math.round(g.querySelector("rect:last-child").getAttribute("y")),
+    animasyon: getComputedStyle(g).animationName, gecikme: getComputedStyle(g).animationDelay })));
+
+test("uygulama arayüzü: açılışta bloklar alttan üste birer birer düşer; ana ekran animasyon bitince gelir", async () => {
+  const { baglam, sayfa, kayit } = await acilisSayfasi();
+  const b = await bloklar(sayfa);
+  assert.deepEqual(b.map((x) => x.renk), ["i-hedef", "i-yesil", "i-blok"], "düşüş sırası: kiremit, yeşil, krem");
+  assert.ok(b[0].ust > b[1].ust && b[1].ust > b[2].ust, "sıra alttan üste olmalı");
+  for (const x of b) assert.equal(x.animasyon, "acilisDus, acilisOtur", `${x.renk} düşme animasyonuyla başlamalı`);
+  const gecikme = b.map((x) => parseFloat(x.gecikme));
+  assert.ok(gecikme[0] < gecikme[1] && gecikme[1] < gecikme[2], `bloklar birer birer düşmeli: ${b.map((x) => x.gecikme)}`);
+  // Sözlük hazırken bile ana ekran son blok oturmadan gelmez; toplam açılış 3 sn'nin altında
+  await anaEkran(sayfa);
+  const { ana, bitis, sure } = await sayfa.evaluate(() => {
+    // Yalnızca blok animasyonları: ana ekran açılınca .acilis'in solma geçişi de listeye girer
+    const a = document.getElementById("acilis").getAnimations({ subtree: true })
+      .filter((x) => ["acilisDus", "acilisOtur"].includes(x.animationName));
+    const son = (x) => x.effect.getComputedTiming().endTime;   // gecikme + süre; ilk çizimden bağımsız
+    return { ana: window.__anaMs, bitis: Math.max(...a.map((x) => x.startTime + son(x))), sure: Math.max(...a.map(son)) };
+  });
+  // Sahip geri bildirimi (#14): sekmeli oturuş, üç çarpma arka arkaya; toplam ~1,6 sn'yi geçmez
+  assert.ok(sure >= 1450 && sure <= 1650, `animasyon ~1,5–1,6 sn sürmeli (${Math.round(sure)} ms)`);
+  // Ritim: her blok öncekinin sekmesi bittikten hemen sonra çarpar; basamak o anda iner
+  const ritim = await sayfa.evaluate(() => {
+    const son = (a) => a.startTime + a.effect.getComputedTiming().endTime;
+    const anim = (g, ad) => g.getAnimations().find((a) => a.animationName === ad);
+    return [1, 2, 3].map((n) => {
+      const g = document.querySelector(`#acilis .i-dus-${n}`);
+      const bas = document.querySelector(`#acilis .i-basamak-${n}`).getAnimations()[0];
+      return { carpma: son(anim(g, "acilisDus")), otur: son(anim(g, "acilisOtur")), basamak: bas.startTime + bas.effect.getTiming().delay };
+    });
+  });
+  for (let n = 0; n < 3; n++) {
+    assert.ok(Math.abs(ritim[n].basamak - ritim[n].carpma) < 5, "basamak çarpma anında inmeli");
+    if (n) assert.ok(ritim[n].carpma >= ritim[n - 1].otur && ritim[n].carpma - ritim[n - 1].otur <= 120,
+      `blok ${n + 1} öncekinin oturmasından hemen sonra çarpmalı (${JSON.stringify(ritim)})`);
+  }
+  assert.ok(ana >= bitis, `ana ekran animasyon bitmeden açıldı (${Math.round(ana)} < ${Math.round(bitis)})`);
+  assert.ok(ana < 3000, `açılış 3 sn'den uzun sürdü (${Math.round(ana)} ms)`);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: sözlük geç gelirse açılış onu bekler, gelince hemen geçer", async () => {
+  const { baglam, sayfa, kayit } = await acilisSayfasi({ sozlukMs: 2500 });
+  await anaEkran(sayfa);
+  const ana = await sayfa.evaluate(() => window.__anaMs);
+  assert.ok(ana >= 2400, `sözlük gelmeden ana ekran açıldı (${Math.round(ana)} ms)`);
+  assert.ok(ana < 3500, `sözlük geldikten sonra açılış oyalandı (${Math.round(ana)} ms)`);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: hareketi azalt açıkken bloklar baştan yerinde, animasyon yok", async () => {
+  const { baglam, sayfa, kayit } = await acilisSayfasi({ secenek: { reducedMotion: "reduce" } });
+  const b = await bloklar(sayfa);
+  assert.deepEqual(b.map((x) => x.animasyon), ["none", "none", "none"]);
+  assert.equal(await sayfa.evaluate(() => document.getElementById("acilis").getAnimations({ subtree: true })
+    .filter((a) => a.animationName !== "acilisAd").length), 0, "hareketi azaltta blok ya da basamak animasyonu oynamamalı");
+  assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")]
+    .map((g) => [getComputedStyle(g).opacity, getComputedStyle(g).transform])), Array(3).fill(["1", "none"]), "bloklar yerinde olmalı");
+  await anaEkran(sayfa);
+  const ana = await sayfa.evaluate(() => window.__anaMs);
+  assert.ok(ana >= 800 && ana < 1500, `hareketsiz açılış en az 0,8 sn, fazlası değil (${Math.round(ana)} ms)`);
+  assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
 

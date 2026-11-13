@@ -38,6 +38,10 @@
   sar("win", "notification", { type: "SUCCESS" });     // bulmaca çözüldü
   // Kabul edilen kelime: hafif dokunuş (yazarken gözler klavyededir, onay parmakta hissedilir)
   sar("accept", "impact", { style: "LIGHT" });
+  // Açılış ekranında her blok basamağa oturunca hafif dokunuş (uygulama.css → acilisDus)
+  document.getElementById("acilis")?.addEventListener("animationend", (e) => {
+    if (e.animationName === "acilisDus") titret("impact", { style: "LIGHT" });
+  });
 
   // app.js share() dokunmatik cihazda navigator.share({ text }) çağırır.
   // WKWebView'de bu API her sürümde güvenilir olmadığından yerel paylaşım
