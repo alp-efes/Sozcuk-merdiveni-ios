@@ -11,7 +11,8 @@ class AnaGorunum: CAPBridgeViewController {
 }
 
 /// Tek ürünlük StoreKit 2 köprüsü: "Plus" (tüketilmeyen satın alma).
-/// Ürün kimliği JS tarafından gelir (gelir.json → yerel.js). JS: window.Capacitor.Plugins.SatinAlma
+/// Ürün kimliği burada sabittir, JS'ten kabul edilmez (web görünümü hangi ürünün sorgulanacağını
+/// belirleyemez). JS: window.Capacitor.Plugins.SatinAlma
 @objc(SatinAlmaPlugin)
 public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "SatinAlmaPlugin"
@@ -23,10 +24,12 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "geriYukle", returnType: CAPPluginReturnPromise),
     ]
 
+    /// App Store Connect'teki ürün kimliği (paket kimliği + ".plus"; testle denetlenir).
+    private let urun = "com.sozcukyolu.sozcukmerdiveni.plus"
     private var dinleyici: Task<Void, Never>?
 
     /// Ürün şu an geçerli mi: Apple imzası doğrulanmış ve iade/iptal edilmemiş işlem var.
-    private func sahip(_ urun: String) async -> Bool {
+    private func sahip() async -> Bool {
         if case .verified(let islem)? = await Transaction.currentEntitlement(for: urun) {
             return islem.revocationDate == nil
         }
@@ -34,29 +37,27 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Uygulama dışında tamamlanan işlemler (ebeveyn onayı, başka cihaz, iade) buradan gelir.
-    private func dinle(_ urun: String) {
+    private func dinle() {
         guard dinleyici == nil else { return }
         dinleyici = Task { [weak self] in
             for await sonuc in Transaction.updates {
-                guard case .verified(let islem) = sonuc, islem.productID == urun else { continue }
+                guard case .verified(let islem) = sonuc, islem.productID == self?.urun else { continue }
                 await islem.finish()
                 guard let self else { return }
-                self.notifyListeners("plus", data: ["plus": await self.sahip(urun)])
+                self.notifyListeners("plus", data: ["plus": await self.sahip()])
             }
         }
     }
 
-    /// { urun } → { plus: Bool }. Açılışta StoreKit'ten yeniden doğrulamak için.
+    /// { plus: Bool }. Açılışta StoreKit'ten yeniden doğrulamak için.
     @objc func durum(_ call: CAPPluginCall) {
-        guard let urun = call.getString("urun") else { return call.reject("urun gerekli") }
-        dinle(urun)
-        Task { [self] in call.resolve(["plus": await sahip(urun)]) }
+        dinle()
+        Task { [self] in call.resolve(["plus": await sahip()]) }
     }
 
-    /// { urun } → { fiyat: String }. Apple'ın yerelleştirilmiş fiyat metni (örn. "₺99,99"); elle yazılmaz.
+    /// { fiyat: String }. Apple'ın yerelleştirilmiş fiyat metni (örn. "₺99,99"); elle yazılmaz.
     @objc func fiyat(_ call: CAPPluginCall) {
-        guard let urun = call.getString("urun") else { return call.reject("urun gerekli") }
-        Task {
+        Task { [self] in
             do {
                 guard let bilgi = try await Product.products(for: [urun]).first else {
                     return call.reject("Ürün bulunamadı")
@@ -68,11 +69,10 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// { urun } → { sonuc: "tamam" | "bekliyor" | "iptal" | "dogrulanamadi" }
+    /// { sonuc: "tamam" | "bekliyor" | "iptal" | "dogrulanamadi" }
     @objc func satinAl(_ call: CAPPluginCall) {
-        guard let urun = call.getString("urun") else { return call.reject("urun gerekli") }
-        dinle(urun)
-        Task {
+        dinle()
+        Task { [self] in
             do {
                 guard let bilgi = try await Product.products(for: [urun]).first else {
                     return call.reject("Ürün bulunamadı")
@@ -93,13 +93,12 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// { urun } → { plus: Bool }. Apple kimliğiyle eşitler (giriş istenebilir), sonra durumu okur.
+    /// { plus: Bool }. Apple kimliğiyle eşitler (giriş istenebilir), sonra durumu okur.
     @objc func geriYukle(_ call: CAPPluginCall) {
-        guard let urun = call.getString("urun") else { return call.reject("urun gerekli") }
-        dinle(urun)
+        dinle()
         Task { [self] in
             do { try await AppStore.sync() } catch { return call.reject(error.localizedDescription) }
-            call.resolve(["plus": await sahip(urun)])
+            call.resolve(["plus": await sahip()])
         }
     }
 }

@@ -232,13 +232,14 @@ const SAHTE_KOPRU = (ayar) => {
   window.__magaza = { plus: !!ayar.magazaPlus, satin: "tamam", geri: false };
   if (ayar.onbellekPlus) localStorage.setItem("sm_plus", "1");
   if (ayar.simulator) window.SM_OTOMATIK = true;
+  window.__bilgiHata = ayar.bilgiHataSayisi || 0;          // ilk N requestConsentInfo çağrısı reddedilir (çevrimdışı açılış)
   const dinleyiciler = {};
   window.__yay = (ad, veri) => (dinleyiciler[ad] || []).slice().forEach((f) => f(veri));
   const cagri = (ad, don) => (arg) => { window.__cagri.push([ad, arg]); return don(arg); };
   const tamam = (v) => Promise.resolve(v);
   const bilgi = ayar.bilgi || { status: "NOT_REQUIRED", isConsentFormAvailable: false, canRequestAds: true, privacyOptionsRequirementStatus: "NOT_REQUIRED" };
   const yukle = (arg) => (ayar.yuklemeHata ? Promise.reject(new Error("no fill")) : tamam({ adUnitId: arg.adId }));
-  window.Capacitor = {
+  const kopru = window.Capacitor = {
     isNativePlatform: () => true,
     Plugins: {
       Haptics: { notification: cagri("titresim", () => tamam()) },
@@ -248,7 +249,7 @@ const SAHTE_KOPRU = (ayar) => {
           (dinleyiciler[ad] ??= []).push(f);
           return tamam({ remove: () => { dinleyiciler[ad] = dinleyiciler[ad].filter((x) => x !== f); } });
         },
-        requestConsentInfo: cagri("requestConsentInfo", () => tamam(bilgi)),
+        requestConsentInfo: cagri("requestConsentInfo", () => (window.__bilgiHata-- > 0 ? Promise.reject(new Error("çevrimdışı")) : tamam(bilgi))),
         showConsentForm: cagri("showConsentForm", () => (ayar.formHata ? Promise.reject(new Error("form")) : tamam(ayar.formSonrasi))),
         showPrivacyOptionsForm: cagri("showPrivacyOptionsForm", () => tamam()),
         trackingAuthorizationStatus: cagri("trackingAuthorizationStatus", () => tamam({ status: ayar.att || "notDetermined" })),
@@ -268,7 +269,7 @@ const SAHTE_KOPRU = (ayar) => {
       },
       SatinAlma: {
         addListener: (ad, f) => { (dinleyiciler[ad] ??= []).push(f); return tamam({ remove() {} }); },
-        durum: cagri("durum", () => tamam({ plus: window.__magaza.plus })),
+        durum: cagri("durum", () => (ayar.durumTakili ? new Promise(() => {}) : tamam({ plus: window.__magaza.plus }))),
         fiyat: cagri("fiyat", () => (ayar.fiyatYok ? Promise.reject(new Error("ürün yok")) : tamam({ fiyat: "₺99,99" }))),
         satinAl: cagri("satinAl", () => tamam({ sonuc: window.__magaza.satin })),
         geriYukle: cagri("geriYukle", () => (ayar.geriHata ? Promise.reject(new Error("giriş iptal")) : tamam({ plus: window.__magaza.geri }))),
@@ -277,9 +278,20 @@ const SAHTE_KOPRU = (ayar) => {
   };
 };
 
+// Gerçek çözüm akışı: yeni bulmaca çekilir, yol oyunun pressKey'iyle oynanır; win() geçiş
+// reklamı kancasını çağırır, çözüm penceresi 650 ms sonra açılır (elle #modal açılmaz).
+async function cozGercek(sayfa) {
+  const [bas, hedef] = await sayfa.evaluate(() => { oyun.hideModal(); oyun.newGame("free"); return [oyun.startWord, oyun.targetWord]; });
+  await sayfa.evaluate((yol) => { for (const k of yol) { for (const h of k) oyun.pressKey(h); oyun.pressKey("ENTER"); } }, enKisaYol(bas, hedef));
+  await sayfa.waitForFunction(() => oyun.over);
+}
+const pencereAcik = (sayfa) => sayfa.waitForSelector("#modal:not(.hidden)");
+const pencereKapat = (sayfa) => sayfa.tap("#btnCloseModal");
+
 async function gelirSayfasi(ayar = {}) {
   const baglam = await tarayici.newContext(TELEFON);
   await baglam.addInitScript(SAHTE_KOPRU, ayar);
+  if (ayar.eklentiYok) await baglam.addInitScript(() => { delete window.Capacitor.Plugins.SatinAlma; });
   const { sayfa, kayit } = await ac(baglam);
   const adlar = () => sayfa.evaluate(() => window.__cagri.map((c) => c[0]));
   const say = async (ad) => (await adlar()).filter((a) => a === ad).length;
@@ -325,6 +337,12 @@ test("gelir kancası: ödüllü reklam yalnızca ödül kazanılırsa true döne
   assert.equal(await dene("hata", "ipucu"), false, "gösterilemedi");
   assert.equal(await say("showRewardVideoAd"), 3);
   assert.ok(await say("prepareRewardVideoAd") >= 4, "her gösterimden sonra bir sonraki önyüklenmeli");
+  // Google reklamları ~1 saatte eskir: 55 dk sonra hazır sayılmaz, gösterimden önce yeniden yüklenir
+  await bekle(() => window.__cagri.filter((c) => c[0] === "prepareRewardVideoAd").length >= 4);
+  const once = await say("prepareRewardVideoAd");
+  await sayfa.evaluate(() => { window.__ofset += 56 * 60 * 1000; });
+  assert.equal(await dene("odul", "ipucu"), true);
+  assert.equal(await say("prepareRewardVideoAd"), once + 2, "eskiyen reklam yeniden yüklenmeli (+1 gösterimden önce, +1 sonraki için)");
   await baglam.close();
 });
 
@@ -334,34 +352,6 @@ test("gelir kancası: reklam yüklenemezse ödüllü false, geçiş reklamı gö
   assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   await sayfa.evaluate(async () => { await window.SozcukGelir.gecisReklami("cozum"); await window.SozcukGelir.gecisReklami("cozum"); });
   assert.equal(await say("showRewardVideoAd") + await say("showInterstitial"), 0);
-  await baglam.close();
-});
-
-test("gelir kancası: geçiş reklamı sıklık sınırı (ilk çözümde yok, 3 dk aralık, pencere kapanınca)", async () => {
-  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
-  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
-  const coz = () => sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
-  await coz();
-  assert.equal(await say("showInterstitial"), 0, "oturumun ilk çözümünde reklam yok");
-  // Çözüm penceresi açıkken reklam gelmez; kapanınca gelir
-  await sayfa.evaluate(() => document.getElementById("modal").classList.remove("hidden"));
-  const bekleyen = sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
-  await sayfa.waitForTimeout(1200);
-  assert.equal(await say("showInterstitial"), 0, "pencere açıkken reklam gösterildi");
-  await sayfa.evaluate(() => document.getElementById("modal").classList.add("hidden"));
-  await bekleyen;
-  assert.equal(await say("showInterstitial"), 1, "ikinci çözümde reklam");
-  await coz();
-  assert.equal(await say("showInterstitial"), 1, "3 dk dolmadan ikinci reklam yok");
-  await sayfa.evaluate(() => { window.__ofset += 2 * 60 * 1000; });
-  await coz();
-  assert.equal(await say("showInterstitial"), 1, "2 dk yetmez");
-  await sayfa.evaluate(() => { window.__ofset += 2 * 60 * 1000; });
-  await bekle(() => window.__cagri.filter((c) => c[0] === "prepareInterstitial").length >= 2);
-  await coz();
-  assert.equal(await say("showInterstitial"), 2, "3 dk sonra yeniden");
-  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("baska")), undefined);
-  assert.equal(await say("showInterstitial"), 2, "yalnızca 'cozum' anında");
   await baglam.close();
 });
 
@@ -427,7 +417,7 @@ test("gelir kancası: Plus satın alma ve geri yükleme", async () => {
   assert.equal(await plusMu(), true);
   assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_plus")), "1", "yerelde saklanır");
   const cagrilar = await sayfa.evaluate(() => window.__cagri.filter((c) => c[0] === "satinAl").map((c) => c[1]));
-  assert.ok(cagrilar.every((a) => a.urun === "com.sozcukyolu.sozcukmerdiveni.plus"));
+  assert.ok(cagrilar.length > 0 && cagrilar.every((a) => a === undefined), "JS ürün kimliği göndermemeli: yerel tarafta sabit");
   await baglam.close();
   // Geri yükleme: alım bulunur → Plus; giriş iptal edilirse (reddedilir) → false, oyun takılmaz
   const g = await gelirSayfasi();
@@ -446,27 +436,6 @@ test("gelir kancası: simülatör derlemesinde reklam, ATT ve satın alma yok; �
   assert.equal(await sayfa.evaluate(() => window.SozcukGelir.plusSatinAl()), false);
   await sayfa.waitForTimeout(800);
   assert.deepEqual((await adlar()).filter((a) => !["titresim", "paylas"].includes(a)), [], "hiçbir yerel reklam/satın alma çağrısı yapılmamalı");
-  await baglam.close();
-});
-
-test("gelir kancası: arka arkaya reklam yok (ödüllü reklam bekleyen geçiş reklamını düşürür)", async () => {
-  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
-  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial" ) && window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
-  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));              // 1. çözüm: reklam yok
-  // 2. çözüm: pencere açık, geçiş reklamı bekliyor; oyuncu "reklam izle, tekrar dene"ye basar
-  await sayfa.evaluate(() => document.getElementById("modal").classList.remove("hidden"));
-  const bekleyen = sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
-  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("tekrar")), true);
-  await sayfa.evaluate(() => document.getElementById("modal").classList.add("hidden"));   // tekrar başlarken pencere kapanır
-  await bekleyen;
-  assert.equal(await say("showRewardVideoAd"), 1);
-  assert.equal(await say("showInterstitial"), 0, "ödüllü reklamın hemen ardından geçiş reklamı gösterildi");
-  // Ödüllü reklamdan sonra 3 dk dolmadan da gelmez; dolunca gelir
-  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
-  assert.equal(await say("showInterstitial"), 0);
-  await sayfa.evaluate(() => { window.__ofset += 3 * 60 * 1000 + 1000; });
-  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
-  assert.equal(await say("showInterstitial"), 1);
   await baglam.close();
 });
 
@@ -489,4 +458,112 @@ test("gelir kancası: Plus değişince ve fiyat gelince sayfaya 'sozcukgelir' ol
   await g.sayfa.waitForTimeout(300);
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.plusFiyat()), null);
   await g.baglam.close();
+});
+
+test("gelir kancası: geçiş reklamı gerçek çözüm akışıyla: pencere kapanır kapanmaz, sıklık sınırı, yeni bulmacada yok", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  // 1. çözüm: oturumun ilk çözümünde reklam yok
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa);
+  assert.equal(await say("showInterstitial"), 0, "ilk çözümde reklam yok");
+  // 2. çözüm: win() reklamı hemen ister ama pencere (650 ms sonra) açıkken gösterilmez
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa);
+  await sayfa.waitForTimeout(500);
+  assert.equal(await say("showInterstitial"), 0, "çözüm penceresi açıkken reklam gösterildi (win() anında)");
+  await pencereKapat(sayfa);
+  await bekle(() => window.__cagri.some((c) => c[0] === "showInterstitial"));
+  assert.equal(await say("showInterstitial"), 1, "pencere kapanınca reklam");
+  // 3. çözüm hemen ardından: 3 dk dolmadı
+  await bekle(() => window.__cagri.filter((c) => c[0] === "prepareInterstitial").length >= 2);
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa); await pencereKapat(sayfa);
+  await sayfa.waitForTimeout(400);
+  assert.equal(await say("showInterstitial"), 1, "3 dk dolmadan ikinci reklam yok");
+  // 3 dk sonra: gösterilir
+  await sayfa.evaluate(() => { window.__ofset += 3 * 60 * 1000 + 1000; });
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa); await pencereKapat(sayfa);
+  await bekle(() => window.__cagri.filter((c) => c[0] === "showInterstitial").length === 2);
+  // Pencereyi "Yeni Oyun" ile kapatmak yeni bulmaca çeker: o çözümde reklam yok (oyuncu yazmaya başlayabilir)
+  await bekle(() => window.__cagri.filter((c) => c[0] === "prepareInterstitial").length >= 3);
+  await sayfa.evaluate(() => { window.__ofset += 3 * 60 * 1000 + 1000; });
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa);
+  await sayfa.tap("#btnNewGame");
+  await sayfa.waitForTimeout(600);
+  assert.equal(await say("showInterstitial"), 2, "yeni bulmaca çekilince reklam gösterilmez");
+  await baglam.close();
+});
+
+test("gelir kancası: ödüllü reklam, bekleyen geçiş reklamını ve hemen ardından gelecek reklamı düşürür", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial") && window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  await cozGercek(sayfa);                                                // 1. çözüm
+  await cozGercek(sayfa);                                                // 2. çözüm: reklam pencere kapanınca gelecekti
+  await pencereAcik(sayfa);
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("tekrar")), true);
+  await sayfa.evaluate(() => oyun.beginRetry());                         // "reklam izle, tekrar dene": pencere kapanır, tekrar başlar
+  await sayfa.waitForTimeout(600);
+  assert.equal(await say("showRewardVideoAd"), 1);
+  assert.equal(await say("showInterstitial"), 0, "ödüllü reklamın hemen ardından geçiş reklamı gösterildi");
+  // Ödüllü reklamdan sonra pencereyi kapatmak da reklam getirmez (sonGecis yenilendi)
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa); await pencereKapat(sayfa);
+  await sayfa.waitForTimeout(400);
+  assert.equal(await say("showInterstitial"), 0, "ödüllü reklamdan sonra 3 dk dolmadan geçiş reklamı yok");
+  await baglam.close();
+});
+
+test("gelir kancası: çözüm sayısı ve son reklam zamanı sayfa yenilenince kaybolmaz (sessionStorage)", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  await cozGercek(sayfa);
+  assert.equal(await sayfa.evaluate(() => sessionStorage.getItem("sm_cozum")), "1");
+  await sayfa.reload();
+  await sayfa.waitForFunction(() => window.oyun?.startWord);
+  await sayfa.waitForFunction(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  await cozGercek(sayfa);                                                // yenileme sonrası ikinci çözüm: reklam hakkı doğar
+  await pencereAcik(sayfa); await pencereKapat(sayfa);
+  await bekle(() => window.__cagri.some((c) => c[0] === "showInterstitial"));
+  assert.ok(Number(await sayfa.evaluate(() => sessionStorage.getItem("sm_gecis"))) > 0);
+  await sayfa.reload();
+  await sayfa.waitForFunction(() => window.oyun?.startWord);
+  await sayfa.waitForFunction(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  await cozGercek(sayfa);
+  await pencereAcik(sayfa); await pencereKapat(sayfa);
+  await sayfa.waitForTimeout(500);
+  assert.equal(await say("showInterstitial"), 0, "yenilemeden sonra da 3 dk aralığı sürmeli");
+  await baglam.close();
+});
+
+test("gelir kancası: izin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener; gerçek 'onay yok' saklanır", async () => {
+  let g = await gelirSayfasi({ bilgiHataSayisi: 1 });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "requestConsentInfo"));
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true, "ikinci denemede başarılı");
+  assert.equal(await g.say("requestConsentInfo"), 2);
+  assert.equal(await g.say("initialize"), 1);
+  await g.baglam.close();
+  const hayir = { status: "REQUIRED", isConsentFormAvailable: true, canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" };
+  g = await gelirSayfasi({ bilgi: hayir, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
+  assert.equal(await g.say("requestConsentInfo"), 1, "gerçek 'onay yok' oturum boyunca saklanır (tekrar sorulmaz)");
+  await g.baglam.close();
+});
+
+test("gelir kancası: Plus eklentisi yoksa önbellekteki sm_plus'a güvenilmez", async () => {
+  const { baglam, sayfa } = await gelirSayfasi({ onbellekPlus: true, eklentiYok: true });
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.plusMu()), false);
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_plus")), null);
+  await baglam.close();
+});
+
+test("gelir kancası: StoreKit doğrulaması takılırsa 5 sn sonra reklam akışı başlar", async () => {
+  const { baglam, sayfa } = await gelirSayfasi({ durumTakili: true });
+  await sayfa.waitForTimeout(1500);
+  assert.equal(await sayfa.evaluate(() => window.__cagri.filter((c) => c[0] === "initialize").length), 0, "5 sn dolmadan başlamamalı");
+  await sayfa.waitForFunction(() => window.__cagri.some((c) => c[0] === "initialize"), null, { timeout: 8000 });
+  await baglam.close();
 });

@@ -3,13 +3,14 @@
  * `npm test` önce eşitlemeyi çalıştırır; www/ buraya hazır gelir. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AYNEN, CSP, SITE, WWW_DOSYALARI, donustur } from "../araclar/web-esitle.mjs";
 import { GORSELLER, gorselDenetle } from "../araclar/gorsel.mjs";
-import { TEST_YAYINCI, kimlikHatalari } from "../araclar/yayin-denetle.mjs";
+import { TEST_YAYINCI, kimlikHatalari, paketHatalari } from "../araclar/yayin-denetle.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const oku = (...yol) => readFileSync(join(...yol), "utf8");
@@ -195,7 +196,7 @@ test("Xcode ayarları", () => {
   // açıklaması, arka plan kipi ya da ATS istisnası eklenirse sahip onayı gerekir.
   assert.deepEqual(plist.match(/<key>\w*UsageDescription<\/key>/g), ["<key>NSUserTrackingUsageDescription</key>"]);
   assert.doesNotMatch(plist, /UIBackgroundModes|NSAppTransportSecurity/);
-  assert.match(deger("NSUserTrackingUsageDescription"), /^<string>[^<]*reklam[^<]*<\/string>$/, "ATT metni Türkçe ve reklamı anlatmalı");
+  assert.match(deger("NSUserTrackingUsageDescription"), /^<string>[^<]*reklam[^<]*diğer uygulama ve sitelerdeki[^<]*<\/string>$/, "ATT metni Türkçe olmalı, reklamı ve diğer uygulama/sitelerdeki kullanımı anlatmalı");
   // AdMob: uygulama kimliği yoksa Google SDK başlarken uygulamayı çökertir; gelir.json ile aynı olmalı
   assert.equal(deger("GADApplicationIdentifier"), `<string>${gelir.admobAppId}</string>`);
   // SKAdNetwork: Google'ın istediği liste (50 kimlik, benzersiz, Google'ın kendi kimliği dahil)
@@ -209,13 +210,13 @@ test("Xcode ayarları", () => {
   assert.equal(deger("UIStatusBarStyle"), "<string>UIStatusBarStyleDarkContent</string>");
   assert.equal(deger("UIViewControllerBasedStatusBarAppearance"), "<true/>");
 
-  // Gizlilik bildirimi (Google'ın 13.11.0 SDK bildirimiyle doğrulandı): SDK'nın kendi bildirimi toplanan
-  // veri türlerini ve gerekçeli API'leri taşır ama NSPrivacyTracking içermez; izleme beyanı uygulamanındır.
-  // Toplanan veri türleri SDK'dakilerle aynen yinelenir (App Store gizlilik etiketiyle tutarlı).
-  // İzleme alan adı LİSTELENMEZ: Google kendi bildiriminde de listelemiyor ve iOS, izin verilmediğinde
-  // listedeki adlara bağlantıyı keser; kişiselleştirilmemiş reklamlar da yüklenemezdi.
+  // Gizlilik bildirimi (Google'ın 13.11.0 SDK bildirimiyle doğrulandı): uygulamanın KENDİ kodu izleme
+  // yapmaz, bu yüzden NSPrivacyTracking false; reklam SDK'sı kendi bildirimini taşır. (App Store
+  // Connect gizlilik etiketinde yine "Tracking = Yes" denir: SAHIP-ADIMLARI 9.6.) Toplanan veri türleri
+  // SDK'dakilerle aynen yinelenir. İzleme alan adı LİSTELENMEZ: iOS, izin verilmediğinde listedeki
+  // adlara bağlantıyı keser; kişiselleştirilmemiş reklamlar da yüklenemezdi.
   const gizlilik = oku(KOK, "ios/App/App/PrivacyInfo.xcprivacy").replace(/\s+/g, "");
-  assert.ok(gizlilik.includes("<key>NSPrivacyTracking</key><true/>"));
+  assert.ok(gizlilik.includes("<key>NSPrivacyTracking</key><false/>"));
   for (const dizi of ["NSPrivacyTrackingDomains", "NSPrivacyAccessedAPITypes"]) {
     assert.ok(gizlilik.includes(`<key>${dizi}</key><array/>`), `${dizi} boş olmalı`);
   }
@@ -309,7 +310,13 @@ test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere g
 
 test("gelir.json: kimlikler biçimli; TestFlight denetimi test kimliğini yakalar", () => {
   assert.deepEqual(kimlikHatalari(gelir), [], "gelir.json biçimi");
-  assert.equal(gelir.plusUrunId, "com.sozcukyolu.sozcukmerdiveni.plus");
+  assert.equal(gelir.plusUrunId, undefined, "Plus ürün kimliği gelir.json'da değil, yerelde (SatinAlma.swift) sabit");
+  // Ürün kimliği yalnızca yerel tarafta: Swift sabiti = paket kimliği + ".plus"; JS göndermez, StoreKit dosyası aynı
+  const urunKimligi = `${JSON.parse(oku(KOK, "capacitor.config.json")).appId}.plus`;
+  assert.ok(oku(KOK, "ios/App/App/SatinAlma.swift").includes(`private let urun = "${urunKimligi}"`));
+  assert.doesNotMatch(oku(KOK, "ios/App/App/SatinAlma.swift"), /call\.getString\("urun"\)/, "ürün kimliği JS'ten kabul edilmemeli");
+  assert.doesNotMatch(oku(KOK, "web/yerel.js"), /plusUrunId|urun:/, "yerel.js ürün kimliği göndermemeli");
+  assert.equal(JSON.parse(oku(KOK, "ios/App/Plus.storekit")).products[0].productID, urunKimligi);
   // Geliştirmede test kimliği serbest, yayın denetiminde hata
   const testMi = JSON.stringify(gelir).includes(TEST_YAYINCI);
   assert.equal(kimlikHatalari(gelir, { yayin: true }).length > 0, testMi);
@@ -328,14 +335,24 @@ test("gelir.json: kimlikler biçimli; TestFlight denetimi test kimliğini yakala
   }
 });
 
-test("TestFlight iş akışı, arşivden önce yayın denetimini çalıştırır", () => {
+test("TestFlight iş akışı, arşivden önce yayın denetimini atlanamaz biçimde çalıştırır", () => {
   const tf = oku(KOK, ".github/workflows/testflight.yml");
-  const denetim = tf.indexOf("run: node araclar/yayin-denetle.mjs");
-  assert.ok(denetim > 0, "yayın denetimi adımı yok");
-  assert.ok(tf.lastIndexOf("npx cap sync ios", denetim) > 0, "denetim cap sync'ten sonra olmalı (paketlenen dosyalara bakar)");
-  assert.ok(denetim < tf.indexOf("xcodebuild archive"), "denetim arşivden önce olmalı");
-  // Denetim bir koşula bağlanıp atlanamaz
-  assert.doesNotMatch(tf.slice(tf.lastIndexOf("- name:", denetim), denetim), /^\s+if:/m);
+  const is = isler(tf).yukle.metin;
+  // Adımın tam bloğu: "- name:" satırından sonraki "- name:" satırına kadar
+  const adimlar = is.split(/^(?=      - (?:name|uses):)/m);
+  const blok = adimlar.find((a) => a.includes("yayin-denetle"));
+  assert.ok(blok, "yayın denetimi adımı yok");
+  const satirlar = blok.split("\n").filter((l) => l.trim() && !l.trim().startsWith("#"));
+  assert.equal(satirlar.length, 2, `adım yalnızca "name" ve "run" içermeli:\n${blok}`);
+  assert.match(satirlar[0], /^      - name: /);
+  assert.equal(satirlar[1], "        run: node araclar/yayin-denetle.mjs", "run tam bu olmalı (|| true, shell: vb. yok)");
+  // Koşul ya da hata yutma hiçbir yerde: ne adımda ne iş düzeyinde ne iş akışı düzeyinde
+  assert.doesNotMatch(tf, /^\s*if:/m, "iş akışında hiçbir if: olmamalı");
+  assert.doesNotMatch(tf, /continue-on-error/, "continue-on-error olmamalı");
+  // Sıra: cap sync'ten sonra (paketlenen dosyalara bakar), arşivden önce; aynı işte
+  const denetim = is.indexOf("yayin-denetle");
+  assert.ok(is.lastIndexOf("npx cap sync ios", denetim) > 0, "denetim cap sync'ten sonra olmalı");
+  assert.ok(denetim < is.indexOf("xcodebuild archive"), "denetim arşivden önce olmalı");
 });
 
 test("www/yerel.js: gelir ayarı gelir.json'dan gelir, yer tutucu kalmaz", () => {
@@ -369,6 +386,87 @@ test("site, yalnızca yerel.js'in tanımladığı gelir kancalarını çağırı
   const cagrilan = [...siteApp.matchAll(/SozcukGelir\??\.(\w+)/g)].map((m) => m[1])
     .concat([...siteApp.matchAll(/kancaya\("(\w+)"/g)].map((m) => m[1]));
   for (const ad of cagrilan) assert.ok(tanimli.includes(ad), `app.js tanımsız kancayı çağırıyor: ${ad}`);
+});
+
+test("Swift paketleri Package.resolved ile revision'a kilitli", () => {
+  const dosya = JSON.parse(oku(KOK, "ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"));
+  const pin = Object.fromEntries(dosya.pins.map((p) => [p.identity, p.state]));
+  assert.deepEqual(Object.keys(pin).sort(), ["capacitor-swift-pm", "swift-package-manager-google-mobile-ads",
+                                              "swift-package-manager-google-user-messaging-platform"]);
+  // Sürüm ve tam commit SHA'sı (git ls-remote ile doğrulandı); bir etiket kaydırılırsa derleme durur
+  assert.deepEqual(pin["capacitor-swift-pm"], { revision: "b945758eaf3f034cea377e3138a60611cb40a88b", version: "8.6.2" });
+  assert.deepEqual(pin["swift-package-manager-google-mobile-ads"], { revision: "d1fa1f5c1dfe3b43d56c73f4de388ad3316618bc", version: "13.11.0" });
+  assert.deepEqual(pin["swift-package-manager-google-user-messaging-platform"], { revision: "13b248eaa73b7826f0efb1bcf455e251d65ecb1b", version: "3.1.0" });
+  // Derleme yalnızca bu dosyadaki sürümleri kullanır
+  for (const yol of [".github/workflows/testflight.yml", "araclar/simulator.sh"]) {
+    const metin = oku(KOK, yol);
+    for (const komut of metin.match(/xcodebuild (?:archive|build|-resolvePackageDependencies)(?:[^\n]*\\\n)*[^\n]*/g) || []) {
+      assert.match(komut, /-onlyUsePackageVersionsFromResolvedFile/, `${yol}: ${komut.split("\n")[0]}`);
+    }
+  }
+  assert.match(oku(KOK, "araclar/simulator.sh"), /-resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile/);
+});
+
+test("package-lock.json yalnızca izinli paketleri içerir", () => {
+  const adlar = Object.keys(JSON.parse(oku(KOK, "package-lock.json")).packages).filter(Boolean)
+    .map((k) => k.replace("node_modules/", "")).sort();
+  // Yeni (geçişli dahil) paket eklemek bu listeyi bilerek güncellemeyi gerektirir
+  const IZINLI = [
+  "@capacitor-community/admob", "@capacitor/cli", "@capacitor/core", "@capacitor/haptics",
+  "@capacitor/ios", "@capacitor/share", "@ionic/cli-framework-output", "@ionic/utils-array",
+  "@ionic/utils-fs", "@ionic/utils-fs/node_modules/fs-extra", "@ionic/utils-object", "@ionic/utils-process",
+  "@ionic/utils-stream", "@ionic/utils-subprocess", "@ionic/utils-terminal", "@isaacs/fs-minipass",
+  "@isaacs/nonrecursive-glob-match", "@rdlabo/capacitor-docgen", "@types/fs-extra", "@types/node",
+  "@types/slice-ansi", "@xmldom/xmldom", "ansi-regex", "ansi-styles",
+  "astral-regex", "at-least-node", "balanced-match", "base64-js",
+  "big-integer", "bplist-creator", "bplist-parser", "brace-expansion",
+  "buffer-crc32", "chownr", "color-convert", "color-name",
+  "colorette", "commander", "cross-spawn", "debug",
+  "define-lazy-prop", "elementtree", "emoji-regex", "env-paths",
+  "fd-slicer", "fs-extra", "github-slugger", "glob",
+  "graceful-fs", "inherits", "ini", "is-docker",
+  "is-fullwidth-code-point", "is-wsl", "isexe", "jsonfile",
+  "kleur", "lru-cache", "minimatch", "minimist",
+  "minipass", "minizlib", "ms", "native-run",
+  "open", "package-json-from-dist", "path-key", "path-scurry",
+  "pend", "playwright", "playwright-core", "plist",
+  "prompts", "prompts/node_modules/kleur", "readable-stream", "rimraf",
+  "safe-buffer", "sax", "semver", "shebang-command",
+  "shebang-regex", "signal-exit", "simple-plist", "simple-plist/node_modules/bplist-parser",
+  "sisteransi", "slice-ansi", "split2", "stream-buffers",
+  "string-width", "string_decoder", "strip-ansi", "tar",
+  "through2", "tree-kill", "tslib", "typescript",
+  "undici-types", "universalify", "untildify", "util-deprecate",
+  "which", "wrap-ansi", "xcode", "xml2js",
+  "xml2js/node_modules/xmlbuilder", "xmlbuilder", "yallist", "yauzl"
+  ];
+  assert.deepEqual(adlar, IZINLI);
+});
+
+test("yayın denetimi: pakette simülatör betiği ve test reklam seçenekleri yakalanır", () => {
+  const dizin = mkdtempSync(join(tmpdir(), "paket-"));
+  try {
+    writeFileSync(join(dizin, "yerel.js"), "const x = 1;");
+    writeFileSync(join(dizin, "index.html"), "<script src=\"yerel.js\"></script>");
+    assert.deepEqual(paketHatalari(dizin), [], "temiz paket");
+    const dene = (ad, dosya, icerik, desen) => {
+      writeFileSync(join(dizin, dosya), icerik);
+      assert.match(paketHatalari(dizin).join("\n"), desen, ad);
+      rmSync(join(dizin, dosya)); writeFileSync(join(dizin, "yerel.js"), "const x = 1;");
+    };
+    dene("simülatör betiği", "otomatik-oyna.js", "x", /otomatik-oyna\.js/);
+    dene("bayrak", "baska.js", "window.SM_OTOMATIK = true;", /SM_OTOMATIK/);
+    dene("index'te betik", "index.html", "<script src=\"otomatik-oyna.js\"></script>", /otomatik-oyna betiğini/);
+    for (const yasak of ["isTesting", "initializeForTesting", "debugGeography"]) {
+      dene(yasak, "yerel.js", `AdMob.initialize({ ${yasak}: true })`, new RegExp(yasak));
+    }
+    // yerel.js'in kendi bayrak OKUMASI ("=== true") hata sayılmaz
+    writeFileSync(join(dizin, "yerel.js"), "const k = window.SM_OTOMATIK === true;");
+    assert.deepEqual(paketHatalari(dizin), []);
+  } finally { rmSync(dizin, { recursive: true, force: true }); }
+  // Gerçek senkronize paket de temiz olmalı (yalnızca cap sync sonrası vardır)
+  const gercek = join(KOK, "ios/App/App/public");
+  if (existsSync(join(gercek, "yerel.js")) && !existsSync(join(gercek, "otomatik-oyna.js"))) assert.deepEqual(paketHatalari(gercek), []);
 });
 
 // Basit YAML ayrıştırma: jobs: altındaki her 2 boşluk girintili anahtar bir iştir.

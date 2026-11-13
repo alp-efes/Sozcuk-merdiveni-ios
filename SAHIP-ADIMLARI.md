@@ -171,8 +171,8 @@ değişmiş olabilir):
   gözden geçirilmeli.
 - **App Privacy (gizlilik etiketi):** artık "Data Not Collected" **değil**. Reklam (Google AdMob)
   veri topluyor; doldurulacak cevaplar aşağıda **9.6**'da.
-- **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
-  iletişim adresi sayfanın altında).
+- **Support URL** ve **Marketing URL:** ikisi de siteye: `https://xn--szckyolu-n4a6d.com/`
+  (ana sayfa; iletişim adresi sayfanın altında). AdMob'un `app-ads.txt` denetimi bu alan adına bakar (9.7).
 - **Copyright:** hakların sahibi ve yılı, ör. `2026 Ad Soyad` ya da şirket adı.
 - **Content Rights:** "uygulama üçüncü taraf içerik içeriyor mu?" sorusuna
   **Evet**: sözlük Zemberek-NLP'den (Apache 2.0) üretildi. Lisans bunu
@@ -209,12 +209,12 @@ değişmiş olabilir):
   çevrimdışı çalışır ve yerel titreşim/paylaşım kullanır; bu riski azaltır ama
   kaldırmaz. Reddedilirse seçenekler takımla konuşulur (ör. widget, bildirim —
   bunlar izin ve onay ister).
-- **Cayma hakkı (Türkiye, mesafeli satış): sahibin/avukatın kararı.** Plus uygulama içinde
-  satılır; anında teslim edilen dijital içerikte cayma hakkı tanınmayabilir. Satın alma
-  kutusuna "Plus anında teslim edilen dijital içeriktir; cayma hakkı yoktur. Satın alma Apple
-  üzerinden yapılır" gibi bir satır gerekip gerekmediğini ve metnini avukata sorun. Satıcı
-  olarak Apple mı siz mi göründüğünüz (Apple'ın komisyoncu rolü) bu cevabı etkiler. Metin
-  netleşince site ekibine verilir (satın alma kutusu sitedeki oyun kodundadır).
+- **Cayma hakkı (Türkiye, mesafeli satış): avukat sorusu AÇIK.** Plus uygulama içinde satılır;
+  anında teslim edilen dijital içerikte cayma hakkının nasıl ele alınacağı ve satıcının kim
+  göründüğü (Apple mı siz mi; Apple'ın komisyoncu rolü) avukata sorulacak. Site, satın alma
+  kutusunda şimdilik tarafsız bir cümle kullanır: "Satın alma Apple üzerinden yapılır; iade ve
+  cayma koşulları App Store kurallarına tabidir." Avukat başka bir metin isterse site ekibine verilir
+  (satın alma kutusu sitedeki oyun kodundadır).
 - **Şifreleme beyanı:** `ITSAppUsesNonExemptEncryption = NO` ayarlı; uygulama
   şifreleme kullanmıyor, ek soru çıkmamalı.
 
@@ -232,6 +232,8 @@ gerçek para için aşağıdakiler gerekir. **Engeller** her adımın yanında y
 | 9.4 | Paid Applications Agreement (banka + vergi) | Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
 | 9.5 | App Store Connect'te Plus ürünü | Plus'ı denemeyi ve mağaza gönderimini |
 | 9.6 | App Privacy etiketi | App Store gönderimini (iç TestFlight'ı değil) |
+| 9.7 | `app-ads.txt` (siteye) | AdMob'un reklam doluluğunu ve gelirini (yayından sonra, haftalar içinde) |
+| 9.8 | iPhone'unuzu AdMob test cihazı yapın | Canlı reklam birimlerinde geçersiz trafik (hesap cezası) riskini; **TestFlight denemesinden önce** |
 
 ### 9.1 AdMob hesabı ve birimler — [ÜCRETSİZ]
 
@@ -255,10 +257,12 @@ gerçek para için aşağıdakiler gerekir. **Engeller** her adımın yanında y
 {
   "admobAppId": "ca-app-pub-…~…",
   "oduluId": "ca-app-pub-…/…",
-  "gecisId": "ca-app-pub-…/…",
-  "plusUrunId": "com.sozcukyolu.sozcukmerdiveni.plus"
+  "gecisId": "ca-app-pub-…/…"
 }
 ```
+
+Plus ürün kimliği (`com.sozcukyolu.sozcukmerdiveni.plus`) bu dosyada değil, yerel kodda
+(`SatinAlma.swift`) sabittir; web görünümü hangi ürünün sorgulanacağını belirleyemez.
 
 Sonra `npm run ios:ayarla` (App ID'yi `Info.plist`'e yazar) ve `npm test`. Bunlar gizli
 bilgi değildir; depoda durur. **Güvence:** TestFlight iş akışı arşivden önce
@@ -330,3 +334,27 @@ farklıysa eşdeğer olanı seçin.
   **toplanmıyor**.
 - Google bu listeyi SDK sürümüne göre günceller; SDK güncellenirken (`@capacitor-community/admob`)
   etiket yeniden karşılaştırılır.
+
+### 9.7 `app-ads.txt` — [ÜCRETSİZ]
+
+AdMob gerçek yayıncı kimliğinizi (`pub-XXXXXXXXXXXXXXXX`, App ID'deki 16 hane) verince sitenin
+**kök dizinine** `app-ads.txt` eklenmeli (site deposu; site ekibi kimlik gelince ekler):
+
+```
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+```
+
+Dosya `https://xn--szckyolu-n4a6d.com/app-ads.txt` adresinde açılmalı ve App Store'daki
+Marketing/Support URL'si aynı alan adında olmalı (yukarıda). AdMob hesabında *Apps* → uygulama →
+*app-ads.txt* durumu "doğrulandı" olana dek (günler sürebilir) doluluk düşük kalabilir.
+
+### 9.8 AdMob test cihazı — [ÜCRETSİZ, TestFlight'tan ÖNCE]
+
+Gerçek reklam birimlerine kendi cihazınızdan tıklamak ya da çok izlemek **geçersiz trafik**
+sayılır ve hesabı kapatabilir. TestFlight'ta denemeden önce iPhone'unuzu test cihazı yapın:
+AdMob → *Settings* → *Test devices* → *Add test device* → cihazın reklam kimliği (IDFA) ya da
+ilk reklam isteğinin Xcode/konsol günlüğündeki test cihazı kimliği. TestFlight kurulumunda
+konsol günlüğü olmadığından en kolayı: iPhone'da *Ayarlar → Gizlilik ve Güvenlik → İzleme* açıkken
+bir IDFA gösteren uygulamayla kimliği öğrenip eklemek (**doğrulanmadı**; yöntem Google'ın
+"Enable test devices" sayfasında anlatılır). Kendi reklamlarınıza hiçbir koşulda tıklamayın;
+tıklama teşviki kodda ve metinlerde yoktur.

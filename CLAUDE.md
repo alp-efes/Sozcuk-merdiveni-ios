@@ -25,11 +25,16 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   `NSUserTrackingUsageDescription` dışında `…UsageDescription` olmaz; test kırılır.
 - **Eklentiler adlıdır:** `@capacitor-community/admob` (kesin **8.2.1**; 8.3.0 yeni ve
   kullanmadığımız bir bağımlılık getiriyor) ve uygulamanın içindeki `SatinAlma.swift`
-  (StoreKit 2, npm paketi yok). Başkası sahip onayı ister; sürümler kesin (`^` yok),
-  `package-lock.json` depoda, `npm audit` temiz.
+  (StoreKit 2, npm paketi yok; **ürün kimliği Swift sabiti**, JS'ten kabul edilmez). Başkası
+  sahip onayı ister; sürümler kesin (`^` yok), `package-lock.json` depoda ve testteki açık
+  izin listesiyle (geçişli paketler dahil) birebir, `npm audit` temiz. Swift paketleri
+  `Package.resolved` ile revision'a kilitlidir ve derlemeler `-onlyUsePackageVersionsFromResolvedFile`
+  kullanır; paket sürümü değişirse dosya macOS'ta yeniden üretilip testteki SHA'lar bilerek güncellenir.
 - **Google test reklam kimlikleri yayına girmez.** Kimlikler tek yerde, `gelir.json`'da.
   TestFlight iş akışı arşivden önce `araclar/yayin-denetle.mjs` çalıştırır; test kimliği
-  varsa derleme durur. Bu adımı kaldırmayın ya da koşula bağlamayın (testle korunur).
+  varsa derleme durur; simülatör betiği (`otomatik-oyna.js`, `SM_OTOMATIK`) ve `isTesting`,
+  `initializeForTesting`, `debugGeography` pakette de reddedilir. Bu adımı kaldırmayın, koşula
+  bağlamayın, `continue-on-error` vermeyin (testle korunur).
 - **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
@@ -72,11 +77,21 @@ ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz
 Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
 → ATT (yalnızca karar verilmemişse) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
 Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
-kişiselleştirilmeden sürer. Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
-çözüm penceresi kapanınca, hazır değilse atlanır. Kimlikler `gelir.json` → `web-esitle.mjs`
+kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
+hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
+onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun"/"Tekrar dene" ile
+kapanıp yeni bulmaca çekildiyse ya da oyuncu yazmaya başladıysa o çözümde reklam yoktur. Son reklam
+zamanı ve çözüm sayısı `sessionStorage` (`sm_gecis`, `sm_cozum`) tutulur. Reklamlar 55 dk sonra eskir ve
+yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener. Kimlikler `gelir.json` → `web-esitle.mjs`
 `yerel.js`'e yazar; `admobAppId` → `ios-ayarla.mjs` → `Info.plist`. Plus önbelleği
 `localStorage.sm_plus`, her açılışta StoreKit düzeltir. Simülatör derlemesi
 (`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
+
+**`PrivacyInfo.xcprivacy`: `NSPrivacyTracking` bilerek `false`.** Uygulamanın kendi kodu izleme yapmaz;
+Google SDK'sı kendi bildirimini taşır (13.11.0'da `NSPrivacyTracking` ve alan adı yok). Toplanan
+veri türleri SDK'dakilerle aynen yinelenir. App Store Connect gizlilik etiketinde yine
+"Tracking = Yes" denir (SAHIP-ADIMLARI 9.6); ikisi farklı şeylerdir. İzleme alan adı listelenmez:
+iOS, ATT yokken listedeki adlara bağlantıyı keser, kişiselleştirilmemiş reklam da yüklenemezdi.
 
 **Plus köprüsü uygulamanın içindedir:** `ios/App/App/SatinAlma.swift` hem
 `AnaGorunum`'u (`SceneDelegate` kök görünüm olarak kurar, storyboard değil; köprüye eklentiyi kaydeder) hem de

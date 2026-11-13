@@ -33,7 +33,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Sana daha uygun reklamlar gösterebilmek için cihazının reklam kimliği kullanılır. İzin vermezsen de reklamlar görünür; yalnızca sana göre kişiselleştirilmez.</string>
+	<string>Sana daha uygun reklamlar gösterebilmek için cihazının reklam kimliği ve diğer uygulama ve sitelerdeki kullanımına ilişkin bilgiler kullanılır. İzin vermezsen de reklamlar görünür; ancak bu bilgilerle kişiselleştirilmez.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

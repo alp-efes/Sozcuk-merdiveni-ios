@@ -30,10 +30,12 @@ echo "::endgroup::"
 echo "::group::Derleme (Debug, iOS Simülatörü, imzasız)"
 xcodebuild -version
 # Capacitor 8 Swift Package Manager kullanır; paketler derlemeden önce çözülür
-xcodebuild -resolvePackageDependencies -project "$KOK/ios/App/App.xcodeproj" -scheme App -derivedDataPath "$DD"
+# Sürümler Package.resolved'dan (revision ile kilitli); dışına çıkılamaz (-onlyUsePackageVersionsFromResolvedFile)
+xcodebuild -resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile \
+  -project "$KOK/ios/App/App.xcodeproj" -scheme App -derivedDataPath "$DD"
 # Debug: ios/debug.xcconfig CAPACITOR_DEBUG=true verir, böylece Capacitor
 # JavaScript konsolunu uygulamanın çıktısına aktarır (aşama işaretleri oradan okunur)
-xcodebuild build -quiet -project "$KOK/ios/App/App.xcodeproj" -scheme App -configuration Debug \
+xcodebuild build -quiet -onlyUsePackageVersionsFromResolvedFile -project "$KOK/ios/App/App.xcodeproj" -scheme App -configuration Debug \
   -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
   -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO
 [ -d "$APP" ] || { echo "::error::$APP yok"; exit 1; }
