@@ -21,7 +21,8 @@ mkdir -p "$CIKTI"
 echo "::group::Otomatik oynama betiği ekleniyor"
 [ -f "$PUBLIC/index.html" ] || { echo "::error::$PUBLIC/index.html yok: önce npm run ios:sync"; exit 1; }
 cp "$KOK/araclar/otomatik-oyna.js" "$PUBLIC/"
-perl -0pi -e 's|<script src="yerel\.js"></script>|$&\n  <script src="otomatik-oyna.js"></script>|' "$PUBLIC/index.html"
+# yerel.js'ten ÖNCE: betik reklam/ATT/satın almayı kapatan bayrağı yerel.js okumadan koyar
+perl -0pi -e 's|<script src="yerel\.js"></script>|<script src="otomatik-oyna.js"></script>\n  $&|' "$PUBLIC/index.html"
 grep -q '<script src="otomatik-oyna.js"></script>' "$PUBLIC/index.html" ||
   { echo "::error::otomatik-oyna.js index.html'e eklenemedi"; exit 1; }
 echo "::endgroup::"
@@ -29,10 +30,12 @@ echo "::endgroup::"
 echo "::group::Derleme (Debug, iOS Simülatörü, imzasız)"
 xcodebuild -version
 # Capacitor 8 Swift Package Manager kullanır; paketler derlemeden önce çözülür
-xcodebuild -resolvePackageDependencies -project "$KOK/ios/App/App.xcodeproj" -scheme App -derivedDataPath "$DD"
+# Sürümler Package.resolved'dan (revision ile kilitli); dışına çıkılamaz (-onlyUsePackageVersionsFromResolvedFile)
+xcodebuild -resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile \
+  -project "$KOK/ios/App/App.xcodeproj" -scheme App -derivedDataPath "$DD"
 # Debug: ios/debug.xcconfig CAPACITOR_DEBUG=true verir, böylece Capacitor
 # JavaScript konsolunu uygulamanın çıktısına aktarır (aşama işaretleri oradan okunur)
-xcodebuild build -quiet -project "$KOK/ios/App/App.xcodeproj" -scheme App -configuration Debug \
+xcodebuild build -quiet -onlyUsePackageVersionsFromResolvedFile -project "$KOK/ios/App/App.xcodeproj" -scheme App -configuration Debug \
   -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
   -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO
 [ -d "$APP" ] || { echo "::error::$APP yok"; exit 1; }

@@ -59,6 +59,11 @@ jobs:
       - name: Capacitor eşitlemesi
         run: npx cap sync ios
 
+      # TestFlight'a giden derleme App Store'a gönderilen derlemedir: Google'ın test
+      # reklam kimlikleri varsa burada durur (gelir.json; SAHIP-ADIMLARI 9)
+      - name: Yayın denetimi (gerçek reklam kimlikleri)
+        run: node araclar/yayin-denetle.mjs
+
       - name: Arşivle, imzala, TestFlight'a yükle
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -92,7 +97,9 @@ jobs:
           # en az bir cihaz gerekir (SAHIP-ADIMLARI 2). Dağıtım imzası aşağıdaki
           # dışa aktarmada yapılır.
           # Derleme numarası her çalıştırmada artmalı: iş akışının çalıştırma sayısı
+          # -onlyUsePackageVersionsFromResolvedFile: Swift paketleri Package.resolved'daki revision'lardan
           xcodebuild archive \
+            -onlyUsePackageVersionsFromResolvedFile \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \

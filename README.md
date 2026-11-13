@@ -5,8 +5,11 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
 [Capacitor 8](https://capacitorjs.com) ile bir iOS uygulamasına paketler.
 
 - Oyun dosyaları **uygulamanın içine paketlenir**; uzak adres yüklenmez, çevrimdışı çalışır.
-- Uygulama **hiçbir ağ isteği yapmaz**: sitedeki reklam ve analitik paketlenirken çıkarılır.
-- Yerel özellikler: titreşim (geçersiz hamle, çözüm) ve iOS paylaşım sayfası. İzin isteyen hiçbir şey yok.
+- Web görünümü ağ isteği yapmaz: sitedeki reklam ve analitik paketlenirken çıkarılır, CSP sıkıdır.
+  Ağa yalnızca yerel Google AdMob SDK'sı (reklam) ve Apple StoreKit (Plus) çıkar.
+- Gelir: ödüllü reklam (ipucu/tekrar), çözüm sonrası geçiş reklamı ve tek seferlik **Plus**
+  satın alması (reklamsız, sınırsız ipucu/tekrar). Tek izin istemi App Tracking Transparency.
+- Yerel özellikler: titreşim (geçersiz hamle, çözüm), iOS paylaşım sayfası, reklam, Plus.
 - Yalnızca iPhone, yalnızca dikey, iOS 15+, Türkçe.
 
 ## Nasıl çalışır
@@ -47,6 +50,7 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 
 | Yol | Görev |
 |---|---|
+| `gelir.json` | Reklam (AdMob) ve Plus kimlikleri: **tek yer**. Gerçek AdMob kimlikleri (13 Kasım 2026); kurulum `SAHIP-ADIMLARI.md` 9 |
 | `capacitor.config.json` | Paket kimliği (`appId`), görünen ad, durum çubuğu ve zemin rengi |
 | `package.json` | Sürüm (`version` → Xcode `MARKETING_VERSION`), bağımlılıklar |
 | `araclar/web-esitle.mjs` | Siteyi `www/` içine kopyalar; reklam/analitik/SEO'yu çıkarır, CSP ekler |
@@ -55,7 +59,10 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 | `araclar/ExportOptions.plist` | TestFlight yüklemesinin dışa aktarma ayarı |
 | `araclar/simulator.sh` | Simülatör derlemesi, otomatik oynatma ve ekran görüntüleri (yalnızca macOS, `simulator.yml`) |
 | `araclar/otomatik-oyna.js` | Günün bulmacasını kendi kendine oynar; yalnızca simülatör derlemesine eklenir |
-| `web/yerel.js` | Titreşim ve paylaşımı `app.js`'e bağlar |
+| `web/yerel.js` | Titreşim, paylaşım ve gelir kancasını (`window.SozcukGelir`: reklam, izin, Plus) `app.js`'e bağlar |
+| `araclar/yayin-denetle.mjs` | TestFlight derlemesine Google test reklam kimliği girmesini engeller |
+| `ios/App/App/SatinAlma.swift` | Uygulama içi StoreKit 2 köprüsü (Plus) + köprüye kaydeden ana görünüm |
+| `ios/App/Plus.storekit` | Xcode simülatöründe Plus'ı denemek için (pakete girmez) |
 | `web/gizlilik.html` | Uygulamanın kendi gizlilik metni (sitedekinin yerine paketlenir) |
 | `web/lisanslar.html` | Açık kaynak lisansları; oyunun alt bilgisinden ve gizlilik sayfasından açılır |
 | `ios/` | `npx cap add ios` çıktısı + elle yapılan ayarlar (aşağıda) |
@@ -70,7 +77,11 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
   dikey, `ITSAppUsesNonExemptEncryption = NO`, iPad yönleri silindi.
 - `project.pbxproj`: yalnızca iPhone (`TARGETED_DEVICE_FAMILY = 1`), geliştirme
   bölgesi `tr`, `PrivacyInfo.xcprivacy` kaynaklara eklendi, sürüm `1.0.0`.
-- `PrivacyInfo.xcprivacy`: izleme yok, toplanan veri yok, gerekçe isteyen API yok.
+- `Info.plist`: `GADApplicationIdentifier` (gelir.json'dan), `NSUserTrackingUsageDescription`,
+  Google'ın 50 `SKAdNetworkItems` kimliği. `SceneDelegate`: kök görünüm `AnaGorunum` (Plus eklentisini köprüye kaydeder).
+- `PrivacyInfo.xcprivacy`: izleme var (`NSPrivacyTracking`), alan adı listesi bilerek boş
+  (iOS, izin yokken listedeki adlara bağlantıyı keser; kişiselleştirilmemiş reklam da yüklenemezdi).
+  Toplanan veri türlerini ve API gerekçelerini Google SDK'sı kendi bildiriminde taşır.
 - `Assets.xcassets`: simge ve açılış görseli (`npm run gorsel`).
 
 Durum çubuğu Capacitor 8'in çekirdeğindeki SystemBars ile ayarlanır

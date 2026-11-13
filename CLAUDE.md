@@ -16,13 +16,25 @@ Kod yorumları, belgeler, commit mesajları ve kullanıcıya görünen her metin
 
 Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek günceller:
 
-- **Uzak içerik yok, ağ isteği yok.** Uygulama yalnızca paketindeki dosyaları
-  yükler. Reklam, analitik, uzaktan `words.json` eklemek gizlilik etiketini
-  ("Veri Toplanmıyor"), `PrivacyInfo.xcprivacy`'yi ve `web/gizlilik.html`'i değiştirir.
-- **İzin isteyen özellik yok** (bildirim, takip, konum, kamera…). `Info.plist`'e
-  `…UsageDescription` eklenirse test kırılır.
-- **Yeni paket ya da eklenti yok.** Bağımlılık listesi testte sabittir; sürümler
-  kesin (`^` yok), `package-lock.json` depoda, `npm audit` temiz.
+- **Web görünümü yalnızca paketten yükler; ağ yalnızca yerel reklam ve satın alma SDK'larının.**
+  Reklam (Google) ve StoreKit (Apple) trafiği yerel taraftadır; CSP `default-src 'none'`
+  kalır. Uzak `words.json`, uzak içerik, Google/Apple dışı hizmet ve analitik yok. Bunlardan
+  biri gizlilik etiketini, `PrivacyInfo.xcprivacy`'yi ve `web/gizlilik.html`'i değiştirir
+  (sahip kararı, 13 Kasım 2026: reklam, Plus, ücretli ipucu/tekrar).
+- **Tek izin istemi: App Tracking Transparency.** `Info.plist`'te
+  `NSUserTrackingUsageDescription` dışında `…UsageDescription` olmaz; test kırılır.
+- **Eklentiler adlıdır:** `@capacitor-community/admob` (kesin **8.2.1**; 8.3.0 yeni ve
+  kullanmadığımız bir bağımlılık getiriyor) ve uygulamanın içindeki `SatinAlma.swift`
+  (StoreKit 2, npm paketi yok; **ürün kimliği Swift sabiti**, JS'ten kabul edilmez). Başkası
+  sahip onayı ister; sürümler kesin (`^` yok), `package-lock.json` depoda ve testteki açık
+  izin listesiyle (geçişli paketler dahil) birebir, `npm audit` temiz. Swift paketleri
+  `Package.resolved` ile revision'a kilitlidir ve derlemeler `-onlyUsePackageVersionsFromResolvedFile`
+  kullanır; paket sürümü değişirse dosya macOS'ta yeniden üretilip testteki SHA'lar bilerek güncellenir.
+- **Google test reklam kimlikleri yayına girmez.** Kimlikler tek yerde, `gelir.json`'da.
+  TestFlight iş akışı arşivden önce `araclar/yayin-denetle.mjs` çalıştırır; test kimliği
+  varsa derleme durur; simülatör betiği (`otomatik-oyna.js`, `SM_OTOMATIK`) ve `isTesting`,
+  `initializeForTesting`, `debugGeography` pakette de reddedilir. Bu adımı kaldırmayın, koşula
+  bağlamayın, `continue-on-error` vermeyin (testle korunur).
 - **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
@@ -58,6 +70,33 @@ bilerek güncelleyin. Denetimi gevşetmeyin.
 `navigator.share`'i yerel paylaşım sayfasına yönlendirir. Derleyici olmadığı
 için eklentilere `window.Capacitor.Plugins.<Ad>` ile erişilir (köprü bunu yerel
 tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
+
+**Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
+ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
+`odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
+Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
+→ ATT (yalnızca karar verilmemişse) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
+Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
+kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
+hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
+onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun"/"Tekrar dene" ile
+kapanıp yeni bulmaca çekildiyse ya da oyuncu yazmaya başladıysa o çözümde reklam yoktur. Son reklam
+zamanı ve çözüm sayısı `sessionStorage` (`sm_gecis`, `sm_cozum`) tutulur. Reklamlar 55 dk sonra eskir ve
+yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener. Kimlikler `gelir.json` → `web-esitle.mjs`
+`yerel.js`'e yazar; `admobAppId` → `ios-ayarla.mjs` → `Info.plist`. Plus önbelleği
+`localStorage.sm_plus`, her açılışta StoreKit düzeltir. Simülatör derlemesi
+(`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
+
+**`PrivacyInfo.xcprivacy`: `NSPrivacyTracking` bilerek `false`.** Uygulamanın kendi kodu izleme yapmaz;
+Google SDK'sı kendi bildirimini taşır (13.11.0'da `NSPrivacyTracking` ve alan adı yok). Toplanan
+veri türleri SDK'dakilerle aynen yinelenir. App Store Connect gizlilik etiketinde yine
+"Tracking = Yes" denir (SAHIP-ADIMLARI 9.6); ikisi farklı şeylerdir. İzleme alan adı listelenmez:
+iOS, ATT yokken listedeki adlara bağlantıyı keser, kişiselleştirilmemiş reklam da yüklenemezdi.
+
+**Plus köprüsü uygulamanın içindedir:** `ios/App/App/SatinAlma.swift` hem
+`AnaGorunum`'u (`SceneDelegate` kök görünüm olarak kurar, storyboard değil; köprüye eklentiyi kaydeder) hem de
+`SatinAlmaPlugin`'i içerir. `ios/App/Plus.storekit` yalnızca Xcode simülatör testi içindir
+(Scheme → Run → Options → StoreKit Configuration); pakete girmez.
 
 **Paket kimliği tek yerde:** `capacitor.config.json` → `appId`. Değiştirince
 `npm run ios:ayarla`. Sürüm `package.json` → `version`. Derleme numarası
@@ -102,8 +141,9 @@ yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da `app.js`'te `pressKey`,
 `hideModal`, `#nasil-oynanir` değişirse bu iş akışı kırılır, tarayıcı testi de.
 
-**Tarayıcı testi sahte köprü kullanır.** Titreşimin ve paylaşım sayfasının
-gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
+**Tarayıcı testi sahte köprü kullanır.** Titreşimin, paylaşım sayfasının, gerçek
+reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı ancak cihazda
+(TestFlight, Sandbox hesabı) görülür.
 
 **Paylaşım metnindeki adres** uygulamada `capacitor://localhost` olurdu;
 `yerel.js` onu site adresiyle (punycode) değiştirir.
@@ -116,10 +156,18 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 
 İlk gerçek cihaz derlemesinde bakılacaklar (bulunca bu listeden silin):
 
-1. `testflight.yml` hiç çalıştırılmadı (koşucu adı, Xcode sürümü, imzalama
-   bayrakları). Arşiv geliştirme imzasıyla alınır ve takımda kayıtlı bir cihaz
-   ister; API anahtarının App Manager rolüyle bulut imzalamaya yetip yetmediği
-   bilinmiyor (SAHIP-ADIMLARI 2 ve 4).
+0. Gelir: hiçbiri cihazda denenmedi. `SatinAlma.swift` Linux'ta derlenemedi (simülatör işi
+   derler); `capacitorDidLoad` ile kayıtlı yerel eklentinin `Capacitor.Plugins.SatinAlma`
+   olarak görünmesi simülatör işinde `otomatik-oyna.js` ile denetlenir. Gerçek reklam,
+   ATT/UMP pencereleri, ödüllü reklamın kapanış olayları, satın alma ve geri yükleme
+   TestFlight'ta ve Sandbox hesabıyla bakılacak. Çevrimdışı açılışta StoreKit'in
+   `currentEntitlement`'ı boş dönüp Plus'ı silmesi olasılığı bilinmiyor (yerel önbellek
+   yalnızca açık "yok" cevabıyla silinir; ama boş cevabın ne zaman geldiği doğrulanmadı).
+
+1. `testflight.yml` çalıştı: #3 (13 Kasım 2026) başarılı, derleme 3 yüklendi (Xcode 26.6,
+   `macos-26`). API anahtarı **Admin** olmalı: App Manager geliştirme imzasına yetti, bulutta
+   dağıtım imzasına yetmedi (SAHIP-ADIMLARI 4). Gerçek AdMob kimlikleri girdikten sonra
+   yayın denetimi adımının ilk gerçek çalışması izlenecek.
 2. WebKit'te CSP `'self'`in `capacitor://localhost` ile eşleşmesi (açıkça da
    yazıldı). Oyun boş açılırsa ilk bakılacak yer burası.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,

@@ -7,8 +7,9 @@
  *
  * Site deposu varsayılan olarak yandaki klasördür: ../sozcuk-merdiveni
  *
- * Uygulama sürümü hiçbir dış ağ isteği yapmaz: reklam, analitik (geri gelirse derleme durur), SEO
- * etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP) eklenir.
+ * Web görünümü hiçbir dış ağ isteği yapmaz: sitedeki reklam, analitik (geri gelirse
+ * derleme durur), SEO etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP)
+ * eklenir. Reklamlar ve satın alma yerel (native) taraftadır, web görünümünde değil.
  * Site dosyaları elle düzenlenmez; bütün fark buradadır.
  *
  * Bilerek katı: sitenin yapısı beklenenden farklıysa (aranan parça yok,
@@ -44,6 +45,8 @@ export const AYNEN = ["app.js", "style.css", "words.json",
 export const KENDI = ["yerel.js", "gizlilik.html", "lisanslar.html"];
 // www/ içinde bulunması gereken her şey (testler bu listeyi denetler)
 export const WWW_DOSYALARI = ["index.html", ...KENDI, ...AYNEN];
+// web/yerel.js içinde bu yer tutucu bulunur; gelir.json (reklam/Plus kimlikleri, tek yer) buraya yazılır
+export const GELIR_YER_TUTUCU = "/*GELIR_AYAR*/ null";
 
 /** index.html'i uygulama sürümüne çevirir. Beklenen yapı yoksa hata fırlatır. */
 export function donustur(html) {
@@ -107,9 +110,13 @@ export function esitle(site = SITE) {
   mkdirSync(join(www, "fonts"), { recursive: true });
   writeFileSync(join(www, "index.html"), donustur(readFileSync(join(site, "index.html"), "utf8")));
   for (const ad of AYNEN) copyFileSync(join(site, ad), join(www, ad));
-  // gizlilik.html sitenin reklam/çerez metninin yerine geçer: uygulama veri
-  // toplamadığı için metin de farklıdır.
+  // gizlilik.html sitenin metninin yerine geçer: uygulamanın reklamı (AdMob), ATT/UMP'si
+  // ve Plus'ı sitedekinden farklıdır.
   for (const ad of KENDI) copyFileSync(join(KOK, "web", ad), join(www, ad));
+  const yerel = readFileSync(join(www, "yerel.js"), "utf8");
+  if (yerel.split(GELIR_YER_TUTUCU).length !== 2) throw new Error("web/yerel.js: gelir ayarı yer tutucusu tam bir kez olmalı");
+  const gelir = JSON.parse(readFileSync(join(KOK, "gelir.json"), "utf8"));
+  writeFileSync(join(www, "yerel.js"), yerel.replace(GELIR_YER_TUTUCU, () => JSON.stringify(gelir)));
   return www;
 }
 
