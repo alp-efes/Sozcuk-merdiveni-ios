@@ -72,7 +72,8 @@ export function donustur(html) {
   degistir(/[ \t]*<script type="module">[\s\S]*?<\/script>\n?/g, "", "analitik betiği", 1);
   // Analitik izin bildirimi ve alt bilgideki "Çerez Tercihleri" bağlantısı: uygulama
   // hiçbir şey toplamadığı için bildirim de, onu açan bağlantı da olmaz.
-  degistir(/[ \t]*<div class="izin" id="izin"[\s\S]*?<\/div>\n[ \t]*<\/div>\n?/g, "", "analitik izin bildirimi", 1);
+  // Bildirim id="izin" ile başlar ve Kabul düğmesinden sonra kapanır; sayarak aranır
+  degistir(/[ \t]*<div class="izin" id="izin"[^>]*>[\s\S]*?id="izinEvet"[^>]*>[^<]*<\/button>\s*<\/div>\s*<\/div>\n?/g, "", "analitik izin bildirimi", 1);
   degistir(/[ \t]*<a href="#cerez-tercihi">[^<]*<\/a>\n?/g, "", "çerez tercihleri bağlantısı", 1);
 
   // Kalan her dış adres, satır içi betik/stil bilinmeyen bir site değişikliğidir;

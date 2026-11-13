@@ -12,7 +12,7 @@ sorunu bulmayı çok kolaylaştırır.
 
 | Karar | Şu anki değer | Nerede |
 |---|---|---|
-| Paket kimliği (bundle ID) | `com.sozcukyolu.app` | `capacitor.config.json` → `appId` |
+| Paket kimliği (bundle ID) | `com.sozcukyolu.wordladder` | `capacitor.config.json` → `appId` |
 | Ana ekrandaki ad | `Sözcük Merdiveni` | `capacitor.config.json` → `appName` |
 
 - **Paket kimliği** App Store Connect'e kaydedildikten sonra değiştirilemez.
@@ -35,7 +35,7 @@ Değiştirecekseniz takım `npm run ios:ayarla` ile projeye yazar.
 ## 2. Paket kimliğini ve iPhone'unuzu kaydedin
 
 1. <https://developer.apple.com/account/resources/identifiers/list> → **+** →
-   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.app` (ya da
+   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.wordladder` (ya da
    seçtiğiniz). Ek yetenek (capability) işaretlemeyin: uygulama hiçbirini kullanmıyor.
 2. **iPhone'unuzu kaydedin** (zorunlu): *Certificates, Identifiers & Profiles*
    → *Devices* → **+** → platform iOS, bir ad ve iPhone'un **UDID**'si.
@@ -112,21 +112,16 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
 
 - Ortamı ve dal kuralını iş akışını **ilk kez çalıştırmadan önce** kurun.
   Ortam yoksa GitHub onu ilk çalıştırmada korumasız olarak kendisi oluşturur.
-- **iOS deposu özel (private).** GitHub'ın belgelerine göre özel depoda
-  ortamların dal kuralı ücretli plan (Pro/Team) gerektirebilir — [ÜCRETLİ].
-  Ortamı ve `main` dal kuralını kuramıyorsanız **dört gizli bilgiyi depo
-  düzeyine KOYMAYIN**: o zaman depoya dal açabilen her iş akışı anahtarı
-  okuyabilir. İki seçenek var, karar sizin: planı yükseltmek ya da depoyu
-  herkese açık yapmak (depoda gizli bilgi yok; yalnızca kod herkese görünür).
+- **iOS deposu herkese açık (public).** Ortamın dal kuralı herkese açık depoda
+  ücretsizdir. Bu yüzden gizli bilgiyi **hiçbir dosyaya ve depo düzeyindeki
+  gizli bilgiye yazmayın**; yalnızca `testflight` ortamına koyun.
 
-## 6. İş akışını çalıştırın — [ÜCRETLİ OLABİLİR]
+## 6. İş akışını çalıştırın
 
 *Actions* → **TestFlight** → *Run workflow*.
 
-- GitHub'ın macOS makineleri herkese açık depolarda ücretsizdir. **Özel
-  depoda** dakikalar ücretsiz kotadan katlanarak düşer ve kota aşılırsa
-  ücretlendirilir (güncel oranı GitHub'ın faturalandırma sayfasında görün;
-  doğrulanmadı). Bir derleme yaklaşık 10–20 dakika sürer (tahmin).
+- GitHub'ın macOS makineleri herkese açık depolarda ücretsizdir. Bir derleme
+  yaklaşık 10–20 dakika sürer (tahmin).
 - **Bu iş akışı daha önce hiç çalıştırılmadı.** İlk denemede hata verirse
   çıktıyı takıma iletin (gizli bilgiler GitHub tarafından gizlenir); büyük
   olasılıkla koşucu adı, Xcode sürümü ya da imzalama bayrağı düzeltilecektir.
@@ -193,7 +188,7 @@ değişmiş olabilir):
   gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
   beyanı uygun olmayabilir (hukuki değerlendirme).
 - **Reklam:** 1.0 reklamsız çıkar. AdMob ileride, AdMob hesabınızı
-  açtıktan sonraki bir sürümde gelecek; o zaman AEA için Google onaylı bir CMP
+  açtıktan sonraki bir sürümde gelecek; o zaman AEA, Birleşik Krallık ve İsviçre için Google onaylı bir CMP
   gerekir, gizlilik etiketi ve sayfası güncellenir.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın

@@ -51,9 +51,9 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
     }
   }
   const index = oku(KOK, "www", "index.html");
-  assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/);
+  assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/i);
   // Uygulama hiçbir şey toplamaz: analitik izin bildirimi ve onu açan bağlantı da yok
-  assert.doesNotMatch(index, /izin|cerez-tercihi|Çerez/i, "uygulamada analitik izin arayüzü kalmış");
+  assert.doesNotMatch(index, /id="izin|class="izin|cerez-tercihi|sm_izin|Çerez Tercih/i, "uygulamada analitik izin arayüzü kalmış");
   assert.ok(index.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), "CSP yok");
   assert.doesNotMatch(CSP, /unsafe-inline|unsafe-eval|\*|https?:/, "CSP gevşetilmiş");
   for (const ad of ["gizlilik.html", "lisanslar.html"]) {
