@@ -10,6 +10,9 @@
  * Web görünümü hiçbir dış ağ isteği yapmaz: sitedeki reklam, analitik (geri gelirse
  * derleme durur), SEO etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP)
  * eklenir. Reklamlar ve satın alma yerel (native) taraftadır, web görünümünde değil.
+ * Uygulamanın kendi arayüzü (açılış ve ana ekran, telefonun klavyesi için metin alanı,
+ * Türkçe harf şeridi) de burada eklenir: parçalar araclar/arayuz.mjs, davranış
+ * web/uygulama.js, görünüm web/uygulama.css. Site aynı kalır.
  * Site dosyaları elle düzenlenmez; bütün fark buradadır.
  *
  * Bilerek katı: sitenin yapısı beklenenden farklıysa (aranan parça yok,
@@ -19,6 +22,7 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ANA_EKRAN, BASLIK, GIRIS, HARFLER, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Site deposu: SITE_DEPOSU ortam değişkeni, yoksa yandaki klasör
@@ -42,7 +46,7 @@ export const CSP = [
 export const AYNEN = ["app.js", "style.css", "words.json",
   "fonts/fraunces-latin.woff2", "fonts/fraunces-latin-ext.woff2", "fonts/OFL.txt"];
 // Uygulamanın kendi dosyaları (web/ içinde)
-export const KENDI = ["yerel.js", "gizlilik.html", "lisanslar.html"];
+export const KENDI = ["yerel.js", "uygulama.js", "uygulama.css", "gizlilik.html", "lisanslar.html"];
 // www/ içinde bulunması gereken her şey (testler bu listeyi denetler)
 export const WWW_DOSYALARI = ["index.html", ...KENDI, ...AYNEN];
 // web/yerel.js içinde bu yer tutucu bulunur; gelir.json (reklam/Plus kimlikleri, tek yer) buraya yazılır
@@ -94,11 +98,27 @@ export function donustur(html) {
   // Açık kaynak lisansları (Capacitor, Zemberek-NLP, Fraunces) uygulamadan erişilebilir olmalı
   degistir(/<a href="gizlilik\.html">Gizlilik Politikası<\/a>/g,
            '$&\n  <a href="lisanslar.html">Lisanslar</a>', "gizlilik bağlantısı", 1);
+  // uygulama.js app.js'ten sonra (WordLadder'a bağlanır), yerel.js'ten önce yüklenir
   degistir(/<script src="app\.js"><\/script>/g,
-           '<script src="app.js"></script>\n  <script src="yerel.js"></script>', "app.js betiği", 1);
+           '<script src="app.js"></script>\n  <script src="uygulama.js"></script>\n  <script src="yerel.js"></script>', "app.js betiği", 1);
+
+  // Uygulama arayüzü (araclar/arayuz.mjs): açılış + ana ekran, telefonun klavyesi, Türkçe harf
+  // şeridi, yardım penceresi. Her ekleme noktası tam bir kez bulunmalı; site yapısı değişirse durur.
+  const ekle = (desen, parca, ad) => degistir(desen, (bulunan) => bulunan + parca, ad, 1);
+  ekle(/<link rel="stylesheet" href="style\.css">/g, '\n  <link rel="stylesheet" href="uygulama.css">', "style.css bağlantısı");
+  ekle(/<body>\n/g, `\n  ${ANA_EKRAN}\n`, "body");
+  ekle(/<div class="app" id="oyun">\n/g, `  ${GIRIS}\n`, "oyun kabuğu");
+  ekle(/<header class="header">\n/g, `    ${BASLIK}\n`, "başlık");
+  ekle(/<footer class="keyboard" id="keyboard"[^>]*><\/footer>\n/g, `  ${HARFLER}\n`, "ekran klavyesi");
+  ekle(/<section class="info page" id="nasil-oynanir">\n/g, `  ${YARDIM_KAPAT}\n`, "nasıl oynanır bölümü");
+  ekle(/<p class="legend">.*<\/p>\n/g, `  ${YARDIM_KLAVYE}\n`, "örnek açıklaması");
+  // uygulama.js'in bağlandığı site ögeleri: biri kalkar ya da çoğalırsa uygulama sessizce bozulmasın
+  for (const parca of SITE_OGELERI) {
+    if (html.split(parca).length !== 2) throw new Error(`index.html beklenen yapıda değil: "${parca}" tam bir kez olmalı`);
+  }
 
   const betikler = html.match(/<script\b[^>]*>/g) || [];
-  if (betikler.join() !== '<script src="app.js">,<script src="yerel.js">') {
+  if (betikler.join() !== '<script src="app.js">,<script src="uygulama.js">,<script src="yerel.js">') {
     throw new Error("index.html'de beklenmeyen betik: " + betikler.join(" "));
   }
   return html;

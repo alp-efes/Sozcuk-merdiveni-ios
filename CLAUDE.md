@@ -39,7 +39,8 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
-  issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` ya da `web/yerel.js`'tedir.
+  issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
+  `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
 
 ## Komutlar
 
@@ -70,6 +71,34 @@ bilerek güncelleyin. Denetimi gevşetmeyin.
 `navigator.share`'i yerel paylaşım sayfasına yönlendirir. Derleyici olmadığı
 için eklentilere `window.Capacitor.Plugins.<Ad>` ile erişilir (köprü bunu yerel
 tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
+Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
+
+**Uygulama arayüzü siteden farklıdır (sahip kararı, 13 Kasım 2026); site aynı kalır.**
+`araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
+sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
+dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
+`win`, `showOffer`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
+
+- **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
+  Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
+  sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
+  Serbest Oyun (zorluk/uzunluk burada seçilir). Oyun başlığında geri düğmesi ve mod adı;
+  sitenin sekmeleri, ayar satırı, durum satırındaki geri sayım ve ses düğmesi oyun ekranında
+  yoktur (ses düğmesi ana ekrana taşınır, tercih `sm_ses`'te hatırlanır).
+- **Telefonun klavyesi.** Sitenin ekran klavyesi gizlidir. Görünmez `#giris` metin alanı
+  odaklanınca klavye açılır; alan `app.js`'teki `buffer`'ın aynısını tutar. Harfler
+  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I) ve `TR_LETTER` ile süzülür. Alan
+  ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
+  Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için).
+- **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
+  `visualViewport.height`'tir (`--vvh`, `--vv-top`). iOS boyut olayını klavye animasyonu
+  bitince gönderdiği için son klavyeli/klavyesiz boy hatırlanır ve odak değişir değişmez
+  uygulanır; 1 sn sonra gerçek ölçüyle eşitlenir. `@capacitor/keyboard` eklentisi YOK.
+- **Her modun oyunu ayrı saklanır:** `sm_mod_daily`, `sm_mod_free` (`sm_state`'in kopyaları);
+  ana ekrandan öteki moda geçmek kalınan yeri silmez. Yeni `sm_*` adı `web/gizlilik.html`'e
+  yazılır (test kırılır).
+- **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
 ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
@@ -137,9 +166,11 @@ değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adre
 `araclar/otomatik-oyna.js` yalnızca `araclar/simulator.sh` içinde
 `ios/App/App/public`'e eklenir; her `cap sync` o klasörü yeniden yazıp siler
 (TestFlight arşivden önce eşitler). Yerelde `simulator.sh`'tan sonra `cap sync`
-yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Site `index.html`'de
-`<script src="yerel.js"></script>` satırı ya da `app.js`'te `pressKey`,
-`hideModal`, `#nasil-oynanir` değişirse bu iş akışı kırılır, tarayıcı testi de.
+yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Betik oyuncunun yolundan gider
+(ana ekranda "Oyna", `#giris` alanına yazma, `#btnHelp`); site `index.html`'de
+`<script src="yerel.js"></script>` satırı ya da bu ögeler değişirse iş akışı kırılır,
+tarayıcı testi de. Klavye açıldıysa görünen alanı ölçer (`SM-OTOMATIK: bilgi …`, iş
+günlüğünde görünür) ve giriş satırı ile harf şeridinin klavyenin üstünde kaldığını denetler.
 
 **Tarayıcı testi sahte köprü kullanır.** Titreşimin, paylaşım sayfasının, gerçek
 reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı ancak cihazda
@@ -175,11 +206,20 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
    "always"` içeriği durum çubuğu ile ana ekran çubuğunun arasında tutar, aradaki
    şerit `backgroundColor` (#f3eada, sitenin `--bg` kâğıt rengi) olur.
    Simülatörde doğrulandı (PR #5, iPhone SE ve Pro Max): `.app { height: 100dvh }`
-   kenar boşlukları düşülmüş yüksekliği veriyor, her zaman görünen ekran
-   klavyesinin alt sırası (GİR, sil) tam görünüyor. Gerçek cihazda bir kez bakın.
-   Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine dokunmayın.
+   kenar boşlukları düşülmüş yüksekliği veriyor. Gerçek cihazda bir kez bakın.
+   Sorun çıkarsa çözüm `web/uygulama.css`'tedir, site CSS'ine dokunmayın.
 4. `mailto:` bağlantısının Mail'i açması; `gizlilik.html` ↔ oyun geçişi.
 5. Ana ekranda "Sözcük Merdiveni" adının kısalması.
 6. `simulator.yml`'deki ön sürüm adımı (`gh release`) yalnızca `main`'de çalışır;
    PR'da denenemedi. İlk birleştirmeden sonra
    `releases/download/simulator/kucuk-1-gunun-bulmacasi.png` açılıyor mu bakın.
+7. Telefonun klavyesi (13 Kasım 2026): yalnızca tarayıcıda, görünüm kısaltılarak denendi.
+   Cihazda bakılacaklar: (a) klavye açılırken ekranın sıçramaması ve sayfanın kaymaması
+   (kayarsa `--vv-top` izler; kalıcı çözüm `capacitor.config.json` → `ios.scrollEnabled:
+   false`, ama gizlilik/lisans sayfaları belge kaydırır, önce onlar iç kaydırmaya alınmalı);
+   (b) WKWebView'in klavyenin üstünde gösterdiği "Bitti" çubuğu (form yardımcı çubuğu)
+   eklentisiz gizlenemez: yer kaplıyor ya da rahatsız ediyorsa seçenek `@capacitor/keyboard`
+   (sahip onayı) ya da `AnaGorunum`'da küçük bir Swift eklemesi; (c) gönder tuşunun
+   (`enterkeyhint="send"`) kelimeyi göndermesi; (d) İngilizce klavyede `i` → `İ`, şeritteki
+   `I`; (e) dikte ve öneri çubuğu; (f) ödüllü reklamdan dönünce klavyenin geri gelmesi
+   (gelmezse tahtaya dokunmak açar).

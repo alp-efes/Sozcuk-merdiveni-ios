@@ -22,18 +22,20 @@
   const SITE = "https://xn--szckyolu-n4a6d.com/";
 
   // Titreşim başarısız olursa (eski cihaz, eklenti yok) oyun etkilenmesin
-  const titret = (type) => {
-    try { eklenti.Haptics?.notification({ type }).catch(() => {}); } catch (_) { /* yok say */ }
+  const titret = (yontem, secenek) => {
+    try { eklenti.Haptics?.[yontem](secenek).catch(() => {}); } catch (_) { /* yok say */ }
   };
 
   // app.js metodunu, önüne titreşim ekleyerek sarar
-  const sar = (ad, type) => {
+  const sar = (ad, yontem, secenek) => {
     const asil = WordLadder.prototype[ad];
     if (typeof asil !== "function") return;
-    WordLadder.prototype[ad] = function (...arg) { titret(type); return asil.apply(this, arg); };
+    WordLadder.prototype[ad] = function (...arg) { titret(yontem, secenek); return asil.apply(this, arg); };
   };
-  sar("reject", "ERROR");    // geçersiz hamle
-  sar("win", "SUCCESS");     // bulmaca çözüldü
+  sar("reject", "notification", { type: "ERROR" });    // geçersiz hamle
+  sar("win", "notification", { type: "SUCCESS" });     // bulmaca çözüldü
+  // Kabul edilen kelime: hafif dokunuş (yazarken gözler klavyededir, onay parmakta hissedilir)
+  sar("accept", "impact", { style: "LIGHT" });
 
   // app.js share() dokunmatik cihazda navigator.share({ text }) çağırır.
   // WKWebView'de bu API her sürümde güvenilir olmadığından yerel paylaşım

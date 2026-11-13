@@ -94,7 +94,7 @@ calistir() {
   # (kapatmasa da otomatik-oyna.js her aşamada onay bekler, yalnızca yavaşlar)
   SIMCTL_CHILD_NSUnbufferedIO=YES xcrun simctl launch \
     --stdout="$gunluk" --stderr="$CIKTI/$on.err.log" "$udid" "$KIMLIK"
-  for adim in 1-gunun-bulmacasi:acilis 2-hamleler:hamle 3-cozum:cozum 4-nasil-oynanir:nasil; do
+  for adim in 0-ana-ekran:ana 1-gunun-bulmacasi:oyun 2-hamleler:hamle 3-cozum:cozum 4-nasil-oynanir:nasil; do
     if ! bekle "$gunluk" "${adim#*:}"; then
       xcrun simctl io "$udid" screenshot "$CIKTI/$on-hata.png" || true
       grep -v "(yineleme)" "$gunluk"; exit 1
@@ -108,6 +108,8 @@ calistir() {
     fi
     onceki="$CIKTI/$on-${adim%%:*}.png"
   done
+  # Klavye açıkken ölçülen görünen alan (otomatik-oyna.js yazar): iş günlüğünde görünsün
+  grep -o "SM-OTOMATIK: bilgi.*" "$gunluk" || echo "::warning::$on: klavye ölçüsü günlükte yok"
   sleep 2
   # Çökme denetimi: uygulama hamlelerden sonra hâlâ çalışıyor olmalı (PID'li launchd işi)
   if ! xcrun simctl spawn "$udid" launchctl list |
@@ -121,6 +123,10 @@ calistir() {
   xcrun simctl shutdown "$udid"
   echo "::endgroup::"
 }
+
+# Ekran klavyesi açılsın: Simulator "bağlı klavye" varsayarsa telefonun klavyesi görünmez ve
+# oyun ekranının klavyeli hali (uygulamanın asıl kullanımı) ekran görüntüsüne girmez
+defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 
 calistir kucuk '^iPhone SE'
 calistir buyuk '^iPhone [0-9]+ Pro Max$'
