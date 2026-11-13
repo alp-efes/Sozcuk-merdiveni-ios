@@ -328,6 +328,8 @@ const SAHTE_KOPRU = (ayar) => {
 // Gerçek çözüm akışı: yeni bulmaca çekilir, yol oyunun pressKey'iyle oynanır; win() geçiş
 // reklamı kancasını çağırır, çözüm penceresi 650 ms sonra açılır (elle #modal açılmaz).
 async function cozGercek(sayfa) {
+  // Çözüm penceresi yalnızca oyun ekranında açılır (ana ekranın üstünde açılmaz)
+  if (await sayfa.evaluate(() => document.body.dataset.ekran) !== "oyun") await oyunaGir(sayfa, "free");
   const [bas, hedef] = await sayfa.evaluate(() => { oyun.hideModal(); oyun.newGame("free"); return [oyun.startWord, oyun.targetWord]; });
   await sayfa.evaluate((yol) => { for (const k of yol) { for (const h of k) oyun.pressKey(h); oyun.pressKey("ENTER"); } }, enKisaYol(bas, hedef));
   await sayfa.waitForFunction(() => oyun.over);
@@ -943,7 +945,7 @@ test("uygulama arayüzü: çözülen bulmacada klavye kapanır; ana ekran sonucu
   await sayfa.tap("#btnGunluk");
   d = await durum(sayfa);
   assert.deepEqual([d.ekran, d.bitti, d.zincir.length, d.odak === "giris"], ["oyun", true, yol.length + 1, false]);
-  // Pencereden "Serbest Oyun"a geçince klavye açılır
+  // Ana ekrandan serbest oyuna geçince klavye açılır
   await sayfa.tap("#btnAna");
   await sayfa.tap("#btnSerbest");
   d = await durum(sayfa);
@@ -1048,5 +1050,233 @@ test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf
   await sayfa.waitForSelector("#offer:not(.hidden)");
   await sayfa.evaluate(() => document.getElementById("btnAna").click());
   assert.equal(await sayfa.evaluate(() => document.getElementById("offer").classList.contains("hidden")), true);
+  await baglam.close();
+});
+
+/* ---------- Denetim bulguları (PR #9): mod kayıtlarını ezen yollar, bekleyen çözüm penceresi, Plus ---------- */
+
+// Günlüğü en kısa yoldan `fazla` adım uzun çözer (bir ileri bir geri): "Tekrar dene" hakkı doğar
+async function gunluguCoz(sayfa, { fazla = 0 } = {}) {
+  const { zincir: [bas] } = await durum(sayfa);
+  const yol = enKisaYol(bas, await sayfa.evaluate(() => oyun.targetWord));
+  for (let i = 0; i < fazla / 2; i++) { await yaz(sayfa, yol[0]); await yaz(sayfa, bas); }
+  for (const kelime of yol) await yaz(sayfa, kelime);
+  return yol;
+}
+
+test("uygulama arayüzü: çözüm penceresindeki \"Serbest Oyun\" ve bitmiş tahtada Enter, serbestte kalınan yeri ezmez", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_zorluk: "zor" } });
+  // Serbest oyunda bir hamle yapılıp bırakılır
+  await oyunaGir(sayfa, "free");
+  let d = await durum(sayfa);
+  await yaz(sayfa, enKisaYol(d.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
+  const serbest = (await durum(sayfa)).zincir;
+  assert.equal(serbest.length, 2);
+  const kayitliSerbest = () => sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_mod_free")).chain);
+  assert.deepEqual(await kayitliSerbest(), serbest);
+
+  // Günlük çözülür; penceredeki "Serbest Oyun" kalınan serbest oyuna döner (app.js yeni bulmaca çekerdi)
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnGunluk");
+  await gunluguCoz(sayfa);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  assert.equal(await sayfa.textContent("#btnNewGame"), "Serbest Oyun");
+  await sayfa.tap("#btnNewGame");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.zincir, d.ekran, d.odak], ["free", serbest, "oyun", "giris"], "penceredeki Serbest Oyun kalınan yeri ezdi");
+  assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")));
+  assert.deepEqual(await kayitliSerbest(), serbest);
+
+  // Bitmiş günlük tahtasında Enter (bağlı klavye): app.js aynı düğmeye basar; yine kalınan yere döner
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnGunluk");
+  assert.equal((await durum(sayfa)).bitti, true);
+  await sayfa.keyboard.press("Enter");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.zincir], ["free", serbest], "bitmiş tahtada Enter kalınan yeri ezdi");
+  assert.deepEqual(await kayitliSerbest(), serbest);
+
+  // Serbest oyun bitince aynı düğme ("Yeni Oyun") yeni bulmaca çeker: davranış sitedeki gibi
+  const yol = enKisaYol(serbest[1], await sayfa.evaluate(() => oyun.targetWord));
+  for (const kelime of yol) await yaz(sayfa, kelime);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  assert.equal(await sayfa.textContent("#btnNewGame"), "Yeni Oyun");
+  await sayfa.tap("#btnNewGame");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.zincir.length, d.odak], ["free", false, 1, "giris"]);
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+});
+
+test("uygulama arayüzü: çözümden hemen sonra başka ekrana geçilirse çözüm penceresi onun üstünde açılmaz", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  const { zincir: [bas] } = await durum(sayfa);
+  const yol = enKisaYol(bas, await sayfa.evaluate(() => oyun.targetWord));
+  for (const kelime of yol.slice(0, -1)) await yaz(sayfa, kelime);
+  // Son kelime ve hemen ardından (app.js'in 650 ms'lik pencere gecikmesi dolmadan) ana ekran → serbest oyun
+  await sayfa.evaluate((son) => {
+    for (const h of son) oyun.pressKey(h);
+    oyun.pressKey("ENTER");
+    document.getElementById("btnAna").click();
+    document.getElementById("btnSerbest").click();
+  }, yol.at(-1));
+  let d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.ekran], ["free", false, "oyun"]);
+  await sayfa.waitForTimeout(900);
+  assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")), "günlüğün çözüm penceresi serbest oyunun üstünde açıldı");
+  assert.equal((await durum(sayfa)).odak, "giris");
+  // Günlük yine çözülmüş sayılır; sonuç ana ekranda ve tahtada durur
+  await sayfa.tap("#btnAna");
+  assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
+  await sayfa.tap("#btnGunluk");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.zincir.length], ["daily", true, yol.length + 1]);
+  // Tahtadaki oyun bittiyse pencere açılabilir (çözüldü satırındaki yol: aynı metot)
+  await sayfa.evaluate(() => oyun.showModal({ oncedenCozuldu: true }));
+  assert.equal(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")), false);
+  // Ana ekranda beklerken de açılmaz
+  await sayfa.tap("#btnCloseModal");
+  await sayfa.tap("#btnAna");
+  await sayfa.evaluate(() => oyun.showModal());
+  assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")), "ana ekranın üstünde çözüm penceresi açıldı");
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+});
+
+test("uygulama arayüzü: şapkalı harf şapkasız yazılır; bileşim (IME) bitince tahtaya geçer", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_uzunluk: "5" } });
+  await oyunaGir(sayfa, "free");
+  // Sözlük şapkasızdır (kâse → KASE): â → A, î → İ, û → U; sessizce düşmez
+  await sayfa.keyboard.insertText("kâîûÂ");
+  let d = await durum(sayfa);
+  assert.deepEqual([d.tampon, d.alan], ["KAİUA", "KAİUA"]);
+  await sil(sayfa);
+  // Bileşim sürerken alan yarım metin tutar; tahta bileşim bitince güncellenir
+  await sayfa.evaluate(() => {
+    const g = document.getElementById("giris");
+    g.value = "çay";
+    g.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true, inputType: "insertCompositionText" }));
+  });
+  assert.equal((await durum(sayfa)).tampon, "", "bileşim sürerken tahtaya yazılmamalı");
+  await sayfa.evaluate(() => document.getElementById("giris").dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "çay" })));
+  d = await durum(sayfa);
+  assert.deepEqual([d.tampon, d.alan], ["ÇAY", "ÇAY"], "bileşim bitince tahta eşitlenmeli");
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+});
+
+test("uygulama arayüzü: seçilen zorlukta bulmaca yoksa app.js'in verdiği bulmaca da sürdürülür", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await anaEkran(sayfa);
+  // 3 harfte hiç "zor" bulmaca kalmasın: app.js o uzunluğun tümünden seçer
+  await sayfa.evaluate(() => { oyun.db["3"].puzzles = oyun.db["3"].puzzles.filter((b) => b[3] !== "zor" && b[2] > 1); });
+  await sayfa.tap('#anaAyar [data-len="3"]');
+  await sayfa.tap('#anaAyar [data-diff="zor"]');
+  await sayfa.tap("#btnSerbest");
+  let d = await durum(sayfa);
+  assert.notEqual(await sayfa.evaluate(() => oyun.puzzleDiff), "zor");
+  await yaz(sayfa, enKisaYol(d.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
+  const serbest = (await durum(sayfa)).zincir;
+  assert.equal(serbest.length, 2);
+  await sayfa.tap("#btnAna");
+  assert.equal(await sayfa.textContent("#btnSerbest"), "Devam et", "başka zorluğa düşen bulmaca sürdürülemiyor");
+  await sayfa.tap("#btnGunluk");
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnSerbest");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.zincir], ["free", serbest]);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: günlük tekrar sürerken mod değiştirmek tekrarı ve ilk sonucu korur", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_zorluk: "zor" } });
+  await oyunaGir(sayfa);
+  const yol = await gunluguCoz(sayfa, { fazla: 2 });           // en azın 2 üstünde: tekrar hakkı var
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  await sayfa.tap("#btnRetry");                               // web'de (kanca yok) tekrar serbesttir
+  let d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.zincir.length, d.odak], ["daily", false, 1, "giris"], "tekrar başlayınca klavye açılmalı");
+  await yaz(sayfa, yol[0]);
+  const deneme = (await durum(sayfa)).zincir;
+  assert.equal(deneme.length, 2);
+  const ilkSonuc = () => sayfa.evaluate(() => { const k = oyun.dailyRecord(); return [k.steps, k.deneme]; });
+  assert.deepEqual(await ilkSonuc(), [yol.length + 2, deneme]);
+
+  await sayfa.tap("#btnAna");
+  assert.equal(await sayfa.textContent("#gunlukDurum"), `Tekrar deniyorsun · 1 adım · en az ${yol.length}`);
+  assert.equal(await sayfa.textContent("#btnGunluk"), "Devam et");
+  assert.equal(await gorunur(sayfa, "#gunlukSonraki"), false);
+  // Serbest oyunda hamle yapılır, günlüğe dönülür: tekrar kaldığı yerden sürer
+  await sayfa.tap("#btnSerbest");
+  d = await durum(sayfa);
+  assert.equal(d.mod, "free");
+  await yaz(sayfa, enKisaYol(d.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
+  const serbest = (await durum(sayfa)).zincir;
+  await sayfa.tap("#btnAna");
+  assert.equal(await sayfa.textContent("#btnGunluk"), "Devam et");
+  await sayfa.tap("#btnGunluk");
+  d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.zincir, d.odak], ["daily", false, deneme, "giris"], "süren tekrar mod değişiminde kayboldu");
+  assert.deepEqual(await ilkSonuc(), [yol.length + 2, deneme], "ilk sonuç ya da tekrar kaydı bozuldu");
+  // Yeniden açılışta da sürer; serbest oyun da yerinde
+  await sayfa.reload();
+  await sayfa.waitForFunction(() => window.oyun?.db && window.oyun.startWord);
+  await anaEkran(sayfa);
+  assert.equal(await sayfa.textContent("#gunlukDurum"), `Tekrar deniyorsun · 1 adım · en az ${yol.length}`);
+  await sayfa.tap("#btnGunluk");
+  assert.deepEqual((await durum(sayfa)).zincir, deneme);
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnSerbest");
+  assert.deepEqual((await durum(sayfa)).zincir, serbest);
+  // Tekrar en kısa yoldan biter: ilk sonuç kayıtta kalır, en iyi ana ekranda yazar
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnGunluk");
+  for (const kelime of yol.slice(1)) await yaz(sayfa, kelime);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  await sayfa.tap("#btnCloseModal");
+  await sayfa.tap("#btnAna");
+  assert.equal(await sayfa.textContent("#gunlukDurum"), `Çözüldü · ${yol.length + 2} adım · en iyi ${yol.length} · en az ${yol.length}`);
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+});
+
+test("uygulama arayüzü: Plus (satın al, geri yükle, cayma notu) ana ekrandan doğrudan ulaşılır; kanca yoksa görünmez", async () => {
+  // Kanca yok (tarayıcı): Plus kartı görünmez
+  const a = await arayuzSayfasi();
+  await anaEkran(a.sayfa);
+  assert.equal(await gorunur(a.sayfa, "#plusBox"), false, "kanca yokken Plus kartı görünmemeli");
+  await a.baglam.close();
+
+  const { baglam, sayfa, kayit, bekle, say } = await gelirSayfasi();
+  await anaEkran(sayfa);
+  await bekle(() => window.SozcukGelir.plusFiyat() === "₺99,99");
+  assert.ok(await sayfa.evaluate(() => document.getElementById("ana").contains(document.getElementById("plusBox"))), "Plus ana ekranda olmalı");
+  assert.equal(await sayfa.evaluate(() => document.getElementById("nasil-oynanir").contains(document.getElementById("plusBox"))), false);
+  for (const s of ["#plusBox", "#btnPlusBuy", "#btnPlusRestore", "#plusNot"]) assert.ok(await gorunur(sayfa, s), `${s} ana ekranda görünmeli`);
+  assert.equal(await sayfa.textContent("#btnPlusBuy"), "Plus'a geç (₺99,99)");
+  assert.equal(await sayfa.textContent("#btnPlusRestore"), "Satın alımı geri yükle");
+  assert.match(await sayfa.textContent("#plusNot"), /cayma hakkı yoktur/);
+  assert.deepEqual(await kucukHedefler(sayfa, "#plusBox button"), [], "Plus düğmeleri en az 44 px olmalı");
+  assert.ok(await tasmaYok(sayfa));
+  if (process.env.EKRAN_DIZINI) {
+    await sayfa.evaluate(() => document.getElementById("plusBox").scrollIntoView({ block: "center" }));
+    await sayfa.waitForTimeout(400);                    // açılış ekranının solması bitsin
+    await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "8-ana-ekran-plus.png") });
+    await sayfa.evaluate(() => { document.getElementById("ana").scrollTop = 0; });
+  }
+  // Geri yükleme ve satın alma ana ekrandan çalışır
+  await sayfa.tap("#btnPlusRestore");
+  await bekle(() => window.__cagri.some((c) => c[0] === "geriYukle"));
+  assert.equal(await sayfa.textContent("#toast"), "Geri yüklenecek satın alım bulunamadı.");
+  await sayfa.tap("#btnPlusBuy");
+  await bekle(() => window.SozcukGelir.plusMu() === true);
+  assert.equal(await say("satinAl"), 1);
+  await bekle(() => document.getElementById("plusText").textContent.startsWith("Plus etkin"));
+  for (const s of ["#btnPlusBuy", "#btnPlusRestore", "#plusNot"]) assert.equal(await gorunur(sayfa, s), false, `Plus etkinken ${s} görünmemeli`);
+  // Reklam tercihleri bağlantısının yeri gizlilik metnindeki tarifle aynı: ana ekranın altı
+  assert.ok(await sayfa.evaluate(() => document.getElementById("ana").contains(document.querySelector(".site-footer"))));
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });

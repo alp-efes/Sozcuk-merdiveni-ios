@@ -177,6 +177,13 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/^  tickCountdown\(\) \{/m, "tickCountdown(): ana ekran geri sayımı"],
     [/^  pressKey\(key\) \{/m, "pressKey(): yeni harf"],
     [/^  hideModal\(\) \{/m, "hideModal()"],
+    [/^  showModal\(\{ oncedenCozuldu = false \} = \{\}\) \{/m, "showModal(): başka ekrana geçildiyse açılmaz"],
+    [/setTimeout\(\(\) => this\.showModal\(\), 650\);/, "win(): pencere prototipteki showModal ile gecikmeli açılır"],
+    [/^  freePool\(\) \{/m, "freePool(): serbest bulmaca seçime uyuyor mu"],
+    [/^  renderPlus\(\) \{/m, "renderPlus(): ana ekrandaki Plus kartı"],
+    [/this\.el\.plusBox\.classList\.toggle\("hidden", !G\);/, "Plus kutusu yalnızca kanca varsa görünür"],
+    [/showInterstitialAd\(\(\) => this\.newGame\("free"\)\);/, "btnNewGame: uygulamada günlükten serbeste geçiş yönlendirilir"],
+    [/if \(this\.over\) \{ this\.el\.btnNewGame\.click\(\); return; \}/, "bitmiş oyunda Enter btnNewGame'e basar"],
     [/^  dailyPuzzle\(\) \{/m, "dailyPuzzle()"],
     [/^  dailyRecord\(\) \{/m, "dailyRecord()"],
     [/^  dayNumber\(\) \{/m, "dayNumber()"],
@@ -199,7 +206,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   ]) assert.match(siteApp, desen, ad);
   // Sarılan her metot uygulama.js'te gerçekten sarılıyor
   const uygulama = oku(KOK, "web", "uygulama.js");
-  for (const ad of ["init", "renderInput", "win", "showOffer", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
+  for (const ad of ["init", "renderInput", "win", "showOffer", "showModal", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
     assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
   }
   // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar)
@@ -452,11 +459,16 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
   const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
   for (const [, ad] of oku(KOK, "web", "uygulama.js").matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
-  for (const ad of ["sm_mod_", "sm_ses"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  // Kayıt adları uygulama.js'te birleştirilerek üretilmez: yukarıdaki tarama her adı tam görmeli
+  assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /["'`]sm_[a-z_]*["'`]\s*\+/, "sm_* adı birleştirilerek üretiliyor: gizlilik denetimi göremez");
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
   assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
   const gizlilik = oku(KOK, "web", "gizlilik.html");
   for (const ad of adlar) assert.ok(gizlilik.includes(ad), `gizlilik.html "${ad}" kaydını listelemiyor`);
+  // "Reklam Tercihleri" bağlantısı alt bilgiyle birlikte ana ekranın altındadır (uygulama.js taşır)
+  assert.match(gizlilik.replace(/\s+/g, " "), /ana ekranın altındaki "Reklam Tercihleri" bağlantısını/);
+  assert.doesNotMatch(gizlilik, /oyunun alt bilgisindeki/);
 });
 
 test("simülatör betiği yerel.js'ten önce yüklenir (reklam/ATT bayrağı)", () => {

@@ -25,7 +25,7 @@
   // Açılış ekranı uygulama açılırken en az bu kadar görünür (sayfa açılışından). Gizlilik ya da
   // lisans sayfasından dönüşte (referrer dolu) bekletilmez.
   const ACILIS_MS = document.referrer ? 0 : 800;
-  const KAYIT = (mod) => "sm_mod_" + mod;          // her modun canlı oyunu (sm_state'in kopyası)
+  const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
   let ekran = "acilis";
 
@@ -68,11 +68,14 @@
     return s;
   };
 
-  // Harfler Türkçe kuralla büyütülür (i → İ, ı → I); harf olmayan her şey süzülür
-  const harfler = (metin, boy) => [...metin.toLocaleUpperCase("tr-TR")]
+  // Harfler Türkçe kuralla büyütülür (i → İ, ı → I); şapkalı harf sözlükteki gibi şapkasız
+  // yazılır (â → A, î → İ, û → U); harf olmayan her şey süzülür
+  const SAPKA = { "Â": "A", "Î": "İ", "Û": "U" };
+  const harfler = (metin, boy) => [...metin.toLocaleUpperCase("tr-TR")].map((h) => SAPKA[h] || h)
     .filter((h) => WordLadder.TR_LETTER.test(h)).slice(0, boy).join("");
 
-  giris.addEventListener("input", (e) => {
+  // Bileşim (IME) sürerken alan yarım metin tutar: bitince (compositionend) eşitlenir
+  const girisEsitle = (e) => {
     if (!oyun || e.isComposing) return;
     const once = oyun.buffer.length;
     const yeni = oyun.over ? "" : harfler(giris.value, oyun.len);
@@ -80,7 +83,9 @@
     if (yeni.length === once + 1 && yeni.startsWith(oyun.buffer)) oyun.pressKey(yeni[once]);
     else { oyun.buffer = yeni; oyun.renderInput(); }
     if (giris.value !== oyun.buffer) giris.value = oyun.buffer;   // süzülen ya da sığmayan harf alanda kalmasın
-  });
+  };
+  giris.addEventListener("input", girisEsitle);
+  giris.addEventListener("compositionend", girisEsitle);
   // Odak metin alanındayken harf ve silme tuşlarını alan kendisi işler; app.js'in
   // belge düzeyindeki dinleyicisi aynı tuşu ikinci kez yazmasın. Enter ona ulaşır.
   giris.addEventListener("keydown", (e) => { if (e.key !== "Enter") e.stopPropagation(); });
@@ -154,24 +159,27 @@
   P.saveState = function (...arg) {
     const s = asilSaveState.apply(this, arg);
     const ham = oku("sm_state");
-    if (ham) yaz(KAYIT(this.mode), ham);
+    if (ham && KAYIT[this.mode]) yaz(KAYIT[this.mode], ham);
     return s;
   };
 
   // O modun sürdürülebilir kaydı ya da null
   const kayitli = (mod) => {
-    const ham = oku(KAYIT(mod));
+    const ham = oku(KAYIT[mod]);
     let s;
     try { s = JSON.parse(ham); } catch (_) { return null; }
     if (!s || s.over || !Array.isArray(s.chain) || typeof s.start !== "string" || typeof s.target !== "string") return null;
     if (mod === "daily" ? (s.mode !== "daily" || s.day !== oyun.dayNumber())
-      : (s.mode !== "free" || s.start.length !== oyun.lenPref || s.puzzleDiff !== oyun.diffPref)) return null;
+      : (s.mode !== "free" || !secimeUyar(s.start, s.target))) return null;
     return { ham, s };
   };
+  // Serbest bulmaca ana ekrandaki seçime (uzunluk + zorluk) uyuyor mu: app.js'in o seçim için
+  // çektiği havuzda mı diye bakılır (havuz boşsa app.js başka zorluğa düşer; o da uyar)
+  const secimeUyar = (bas, hedef) => oyun.freePool().some((b) => b[0] === bas && b[1] === hedef);
   // Ekrandaki oyun bu modun sürdürülebilir oyunu mu
   const suruyor = (mod) => oyun.mode === mod && (mod === "daily"
     ? oyun.gosterilenGun === oyun.dayNumber()
-    : !oyun.over && oyun.len === oyun.lenPref && oyun.puzzleDiff === oyun.diffPref);
+    : !oyun.over && secimeUyar(oyun.startWord, oyun.targetWord));
 
   /* ---------- Ekranlar: açılış → ana ekran ⇄ oyun ---------- */
 
@@ -237,6 +245,24 @@
     girisGoster();
   };
 
+  // Günlük çözüm penceresindeki "Serbest Oyun" (ve bitmiş günlükte Enter: app.js aynı düğmeye
+  // basar) app.js'te her zaman YENİ serbest bulmaca çeker ve serbestte kalınan yeri ezerdi.
+  // Uygulamada ana ekrandaki kartla aynı yoldan gider: kalınan serbest oyun sürer.
+  al("modal").addEventListener("click", (e) => {
+    if (!oyun || oyun.mode !== "daily" || !e.target.closest("#btnNewGame")) return;
+    e.stopPropagation();
+    oyun.hideModal();
+    oyna("free");
+  }, true);
+
+  // app.js çözüm penceresini çözümden 650 ms sonra açar. O arada ana ekrana ya da başka bir
+  // oyuna geçildiyse pencere açılmaz (bitmemiş oyunun ya da ana ekranın üstünde çözüm penceresi olmaz).
+  const asilShowModal = P.showModal;
+  P.showModal = function (...arg) {
+    if (ekran !== "oyun" || !this.over) return undefined;
+    return asilShowModal.apply(this, arg);
+  };
+
   // Mod adı başlıkta yazar (sekmelerin yerine); app.js her mod değişiminde updateTabs çağırır
   const asilUpdateTabs = P.updateTabs;
   P.updateTabs = function (...arg) {
@@ -281,6 +307,10 @@
     catch (_) { /* kayıt tutulamadı */ }
   }, 0));
   if (oku("sm_ses") === "0") muteGame(true);
+  // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
+  // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca gelir kancası varsa görünür).
+  al("plusBox").classList.add("kart");
+  al("ana").insertBefore(al("plusBox"), al("btnAnaYardim"));
   // Gizlilik ve lisans bağlantıları ana ekranın altında
   al("ana").append(document.querySelector(".site-footer"));
 

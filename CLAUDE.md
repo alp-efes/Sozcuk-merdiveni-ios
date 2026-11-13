@@ -77,7 +77,7 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
 dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
-`win`, `showOffer`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+`win`, `showOffer`, `showModal`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
@@ -88,7 +88,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   yoktur (ses düğmesi ana ekrana taşınır, tercih `sm_ses`'te hatırlanır).
 - **Telefonun klavyesi.** Sitenin ekran klavyesi gizlidir. Görünmez `#giris` metin alanı
   odaklanınca klavye açılır; alan `app.js`'teki `buffer`'ın aynısını tutar. Harfler
-  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I) ve `TR_LETTER` ile süzülür. Alan
+  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I), şapkalı harf şapkasız yazılır
+  (â → A, î → İ, û → U) ve `TR_LETTER` ile süzülür; bileşim (IME) bitince eşitlenir. Alan
   ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
   Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için).
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
@@ -96,8 +97,15 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   bitince gönderdiği için son klavyeli/klavyesiz boy hatırlanır ve odak değişir değişmez
   uygulanır; 1 sn sonra gerçek ölçüyle eşitlenir. `@capacitor/keyboard` eklentisi YOK.
 - **Her modun oyunu ayrı saklanır:** `sm_mod_daily`, `sm_mod_free` (`sm_state`'in kopyaları);
-  ana ekrandan öteki moda geçmek kalınan yeri silmez. Yeni `sm_*` adı `web/gizlilik.html`'e
-  yazılır (test kırılır).
+  ana ekrandan öteki moda geçmek kalınan yeri silmez. Günlük çözüm penceresindeki "Serbest
+  Oyun" ve bitmiş günlükte Enter de aynı yoldan gider (`#modal`'da yakalanır; `app.js` yeni
+  bulmaca çekip kaydı ezerdi). Serbest kayıt, bulmaca `freePool()`'da ise sürdürülür. Yeni
+  `sm_*` adı tam yazılır (birleştirilmez) ve `web/gizlilik.html`'e eklenir (test kırılır).
+- **Çözüm penceresi yalnızca oyun ekranında ve bitmiş oyunda açılır** (`showModal` sarılır):
+  `app.js` pencereyi çözümden 650 ms sonra açar; o arada başka ekrana geçildiyse açılmaz.
+- **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
+  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca varsa). Alt bilgi
+  (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
