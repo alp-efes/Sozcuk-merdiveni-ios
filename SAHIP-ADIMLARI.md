@@ -12,7 +12,7 @@ sorunu bulmayı çok kolaylaştırır.
 
 | Karar | Şu anki değer | Nerede |
 |---|---|---|
-| Paket kimliği (bundle ID) | `com.sozcukyolu.app` | `capacitor.config.json` → `appId` |
+| Paket kimliği (bundle ID) | `com.sozcukyolu.wordladder` | `capacitor.config.json` → `appId` |
 | Ana ekrandaki ad | `Sözcük Merdiveni` | `capacitor.config.json` → `appName` |
 
 - **Paket kimliği** App Store Connect'e kaydedildikten sonra değiştirilemez.
@@ -35,7 +35,7 @@ Değiştirecekseniz takım `npm run ios:ayarla` ile projeye yazar.
 ## 2. Paket kimliğini ve iPhone'unuzu kaydedin
 
 1. <https://developer.apple.com/account/resources/identifiers/list> → **+** →
-   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.app` (ya da
+   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.wordladder` (ya da
    seçtiğiniz). Ek yetenek (capability) işaretlemeyin: uygulama hiçbirini kullanmıyor.
 2. **iPhone'unuzu kaydedin** (zorunlu): *Certificates, Identifiers & Profiles*
    → *Devices* → **+** → platform iOS, bir ad ve iPhone'un **UDID**'si.
@@ -112,21 +112,16 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
 
 - Ortamı ve dal kuralını iş akışını **ilk kez çalıştırmadan önce** kurun.
   Ortam yoksa GitHub onu ilk çalıştırmada korumasız olarak kendisi oluşturur.
-- **iOS deposu özel (private).** GitHub'ın belgelerine göre özel depoda
-  ortamların dal kuralı ücretli plan (Pro/Team) gerektirebilir — [ÜCRETLİ].
-  Ortamı ve `main` dal kuralını kuramıyorsanız **dört gizli bilgiyi depo
-  düzeyine KOYMAYIN**: o zaman depoya dal açabilen her iş akışı anahtarı
-  okuyabilir. İki seçenek var, karar sizin: planı yükseltmek ya da depoyu
-  herkese açık yapmak (depoda gizli bilgi yok; yalnızca kod herkese görünür).
+- **iOS deposu herkese açık (public).** Ortamın dal kuralı herkese açık depoda
+  ücretsizdir. Bu yüzden gizli bilgiyi **hiçbir dosyaya ve depo düzeyindeki
+  gizli bilgiye yazmayın**; yalnızca `testflight` ortamına koyun.
 
-## 6. İş akışını çalıştırın — [ÜCRETLİ OLABİLİR]
+## 6. İş akışını çalıştırın
 
 *Actions* → **TestFlight** → *Run workflow*.
 
-- GitHub'ın macOS makineleri herkese açık depolarda ücretsizdir. **Özel
-  depoda** dakikalar ücretsiz kotadan katlanarak düşer ve kota aşılırsa
-  ücretlendirilir (güncel oranı GitHub'ın faturalandırma sayfasında görün;
-  doğrulanmadı). Bir derleme yaklaşık 10–20 dakika sürer (tahmin).
+- GitHub'ın macOS makineleri herkese açık depolarda ücretsizdir. Bir derleme
+  yaklaşık 10–20 dakika sürer (tahmin).
 - **Bu iş akışı daha önce hiç çalıştırılmadı.** İlk denemede hata verirse
   çıktıyı takıma iletin (gizli bilgiler GitHub tarafından gizlenir); büyük
   olasılıkla koşucu adı, Xcode sürümü ya da imzalama bayrağı düzeltilecektir.
@@ -157,17 +152,17 @@ Gönderimi yalnızca siz yaparsınız. App Store Connect'te doldurulacaklar ve
 kararlar (alan adları Apple'ın İngilizce arayüzündeki gibidir; yerleri
 değişmiş olabilir):
 
-- **Privacy Policy URL** (zorunlu, herkese açık web sayfası). Sitedeki
-  `gizlilik.html` reklam ve çerezleri anlatır; uygulama için ayrı bir bölüm ya
-  da sayfa gerekir. Bu adres site deposundaki alp-efes/sozcuk-merdiveni#9'a
-  bağlı. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
-  onaylamanız gerekir. **Gönderimden önce veri sorumlusunun adı** (sizin adınız
-  ya da şirketiniz; #9) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
-  diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl"),
-  yürürlük tarihi, hukuki sebep (taslakta KVKK m.5/2-f, meşru menfaat) ve
-  alıcılar (Cloudflare yönlendirmesi ve e-posta hizmet sağlayıcınız; ikisi de
-  yurt dışında olabilir) da sizin onayınızı bekliyor. AB'de yayına karar
-  verirseniz (aşağıda DSA) metne GDPR m.13'ün istediği bilgiler de eklenmeli.
+- **Privacy Policy URL** (zorunlu, herkese açık web sayfası):
+  `https://xn--szckyolu-n4a6d.com/gizlilik`. Sitedeki sayfa web analitiğini
+  (izinle) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
+  Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
+  yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
+  Uygulamanın içindeki metin `web/gizlilik.html`'dir. E-postaların saklama
+  süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
+  (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare yönlendirmesi ve
+  e-posta hizmet sağlayıcınız; ikisi de yurt dışında olabilir) sizin
+  onayınızı bekliyor. AB'de yayına karar verirseniz (aşağıdaki DSA) metin
+  gözden geçirilmeli.
 - **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
   → "Data Not Collected". Reklam ya da analitik eklenirse bu beyan değişir.
 - **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
@@ -184,15 +179,17 @@ değişmiş olabilir):
   okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
   uygulamada yok.
-- **AB Dijital Hizmetler Yasası (DSA) "trader" beyanı:** AB'deki App Store'da
-  yayın için hesap düzeyinde sorulur (App Store Connect → *Business*;
-  menü yeri doğrulanmadı). Karar sizin:
-  - *Trader* olduğunuzu beyan ederseniz adresiniz, telefonunuz ve e-postanız
-    Apple'ca doğrulanır ve AB'deki ürün sayfasında herkese görünür.
-  - Diğer yol: AB'de yayınlamamak. *Pricing and Availability* altında
-    yalnızca Türkiye'yi seçin.
-  - "Trader değilim" beyanı da vardır; ileride reklam gibi ticari bir amaç
-    varsa uygun olmayabilir. Bu hukuki bir değerlendirmedir.
+- **Kullanılabilirlik (Pricing and Availability):** ilk sürümde **AB ülkeleri
+  hariç bütün ülkeler** seçilir. Neden: AB'deki App Store'da yayın için hesap
+  düzeyinde **DSA "trader" beyanı** gerekir (App Store Connect → *Business*;
+  menü yeri doğrulanmadı); *trader* beyanında adres, telefon ve e-postanız
+  Apple'ca doğrulanır ve AB ürün sayfasında herkese görünür. AB, sonradan
+  açabileceğiniz bir kapıdır: açarken beyanı yapmanız ve gizlilik metnini
+  gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
+  beyanı uygun olmayabilir (hukuki değerlendirme).
+- **Reklam:** 1.0 reklamsız çıkar. AdMob ileride, AdMob hesabınızı
+  açtıktan sonraki bir sürümde gelecek; o zaman AEA, Birleşik Krallık ve İsviçre için Google onaylı bir CMP
+  gerekir, gizlilik etiketi ve sayfası güncellenir.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
   diye macOS'ta üretmek gerekiyor (`tools/magaza_gorsel.js`).

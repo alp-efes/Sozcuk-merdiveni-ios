@@ -7,7 +7,7 @@
  *
  * Site deposu varsayılan olarak yandaki klasördür: ../sozcuk-merdiveni
  *
- * Uygulama sürümü hiçbir dış ağ isteği yapmaz: reklam, analitik, SEO
+ * Uygulama sürümü hiçbir dış ağ isteği yapmaz: reklam, analitik (izin bildirimi dahil), SEO
  * etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP) eklenir.
  * Site dosyaları elle düzenlenmez; bütün fark buradadır.
  *
@@ -70,6 +70,11 @@ export function donustur(html) {
     throw new Error("index.html beklenen yapıda değil: tek bir Firebase modül betiği olmalı");
   }
   degistir(/[ \t]*<script type="module">[\s\S]*?<\/script>\n?/g, "", "analitik betiği", 1);
+  // Analitik izin bildirimi ve alt bilgideki "Çerez Tercihleri" bağlantısı: uygulama
+  // hiçbir şey toplamadığı için bildirim de, onu açan bağlantı da olmaz.
+  // Bildirim id="izin" ile başlar ve Kabul düğmesinden sonra kapanır; sayarak aranır
+  degistir(/[ \t]*<div class="izin" id="izin"[^>]*>[\s\S]*?id="izinEvet"[^>]*>[^<]*<\/button>\s*<\/div>\s*<\/div>\n?/g, "", "analitik izin bildirimi", 1);
+  degistir(/[ \t]*<a href="#cerez-tercihi">[^<]*<\/a>\n?/g, "", "çerez tercihleri bağlantısı", 1);
 
   // Kalan her dış adres, satır içi betik/stil bilinmeyen bir site değişikliğidir;
   // sessizce paketlemek yerine dur. (CSP eklenmeden önce bakılır: o da adres içerir.)
