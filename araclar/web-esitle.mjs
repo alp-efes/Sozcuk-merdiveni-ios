@@ -7,7 +7,7 @@
  *
  * Site deposu varsayılan olarak yandaki klasördür: ../sozcuk-merdiveni
  *
- * Uygulama sürümü hiçbir dış ağ isteği yapmaz: reklam, analitik (izin bildirimi dahil), SEO
+ * Uygulama sürümü hiçbir dış ağ isteği yapmaz: reklam, analitik (geri gelirse derleme durur), SEO
  * etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP) eklenir.
  * Site dosyaları elle düzenlenmez; bütün fark buradadır.
  *
@@ -64,17 +64,17 @@ export function donustur(html) {
   degistir(/[ \t]*<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/g, "", "yapılandırılmış veri", 1);
   // Reklam yer tutucuları
   degistir(/[ \t]*<div class="ad-container[^"]*"[^>]*><\/div>\n?/g, "", "reklam alanı", 2);
-  // Firebase Analytics modülü (window.trackEvent tanımsız kalır; app.js ?. ile çağırır)
-  const moduller = html.match(/<script type="module">[\s\S]*?<\/script>/g) || [];
-  if (moduller.length !== 1 || !moduller[0].includes("firebase")) {
-    throw new Error("index.html beklenen yapıda değil: tek bir Firebase modül betiği olmalı");
-  }
-  degistir(/[ \t]*<script type="module">[\s\S]*?<\/script>\n?/g, "", "analitik betiği", 1);
-  // Analitik izin bildirimi ve alt bilgideki "Çerez Tercihleri" bağlantısı: uygulama
-  // hiçbir şey toplamadığı için bildirim de, onu açan bağlantı da olmaz.
-  // Bildirim id="izin" ile başlar ve Kabul düğmesinden sonra kapanır; sayarak aranır
-  degistir(/[ \t]*<div class="izin" id="izin"[^>]*>[\s\S]*?id="izinEvet"[^>]*>[^<]*<\/button>\s*<\/div>\s*<\/div>\n?/g, "", "analitik izin bildirimi", 1);
-  degistir(/[ \t]*<a href="#cerez-tercihi">[^<]*<\/a>\n?/g, "", "çerez tercihleri bağlantısı", 1);
+  // Site artık analitik içermez (2026-11-13). Eski izleri silen tek satır içi
+  // temizlik betiği uygulamada gereksizdir (yeni kurulumda iz yok); siteden
+  // kaldırılırsa da sorun değil, bu yüzden 0 ya da 1 kez beklenir. Betik dışarıdan
+  // bir şey yüklemiyor olmalı, yoksa eşleşmez ve aşağıdaki denetimde durulur.
+  const temizlik = /[ \t]*<script>(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?_ga(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?deleteDatabase(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?<\/script>\n?/g;
+  if ((html.match(temizlik) || []).length > 1) throw new Error("index.html beklenen yapıda değil: birden çok temizlik betiği");
+  html = html.replace(temizlik, "");
+  // Analitik ve izin arayüzü geri gelirse (Firebase betiği, izin bildirimi, Çerez
+  // Tercihleri bağlantısı) sessizce paketlemek yerine dur: uygulama "veri toplanmıyor" der.
+  const analitik = html.match(/firebase|gstatic|trackEvent|type="module"|id="izin|class="izin|cerez-tercihi|sm_izin|Çerez Tercih/i);
+  if (analitik) throw new Error(`index.html beklenen yapıda değil: analitik/izin kalıntısı "${analitik[0]}"`);
 
   // Kalan her dış adres, satır içi betik/stil bilinmeyen bir site değişikliğidir;
   // sessizce paketlemek yerine dur. (CSP eklenmeden önce bakılır: o da adres içerir.)

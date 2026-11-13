@@ -12,7 +12,7 @@ sorunu bulmayı çok kolaylaştırır.
 
 | Karar | Şu anki değer | Nerede |
 |---|---|---|
-| Paket kimliği (bundle ID) | `com.sozcukyolu.wordladder` | `capacitor.config.json` → `appId` |
+| Paket kimliği (bundle ID) | `com.sozcukyolu.sozcukmerdiveni` | `capacitor.config.json` → `appId` |
 | Ana ekrandaki ad | `Sözcük Merdiveni` | `capacitor.config.json` → `appName` |
 
 - **Paket kimliği** App Store Connect'e kaydedildikten sonra değiştirilemez.
@@ -35,7 +35,7 @@ Değiştirecekseniz takım `npm run ios:ayarla` ile projeye yazar.
 ## 2. Paket kimliğini ve iPhone'unuzu kaydedin
 
 1. <https://developer.apple.com/account/resources/identifiers/list> → **+** →
-   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.wordladder` (ya da
+   *App IDs* → *App* → Bundle ID: *Explicit*, `com.sozcukyolu.sozcukmerdiveni` (ya da
    seçtiğiniz). Ek yetenek (capability) işaretlemeyin: uygulama hiçbirini kullanmıyor.
 2. **iPhone'unuzu kaydedin** (zorunlu): *Certificates, Identifiers & Profiles*
    → *Devices* → **+** → platform iOS, bir ad ve iPhone'un **UDID**'si.

@@ -52,7 +52,7 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
   }
   const index = oku(KOK, "www", "index.html");
   assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/i);
-  // Uygulama hiçbir şey toplamaz: analitik izin bildirimi ve onu açan bağlantı da yok
+  // Uygulama hiçbir şey toplamaz: analitik, izin bildirimi ve onu açan bağlantı da yok
   assert.doesNotMatch(index, /id="izin|class="izin|cerez-tercihi|sm_izin|Çerez Tercih/i, "uygulamada analitik izin arayüzü kalmış");
   assert.ok(index.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), "CSP yok");
   assert.doesNotMatch(CSP, /unsafe-inline|unsafe-eval|\*|https?:/, "CSP gevşetilmiş");
@@ -87,10 +87,13 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["satır içi olay", siteIndex.replace('id="btnShare"', 'id="btnShare" onclick="x()"')],
     ["yeni dış bağlantı", siteIndex.replace("</body>", '<a href="https://ornek.test/">x</a></body>')],
     ["iframe", siteIndex.replace("</body>", '<iframe src="x.html"></iframe></body>')],
-    ["analitik betiği yok", siteIndex.replace(/<script type="module">[\s\S]*?<\/script>/, "")],
+    ["Firebase modül betiği geri gelmiş", siteIndex.replace("</body>", '<script type="module">import("https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js")</script></body>')],
+    ["Firebase adı satır içinde geçiyor", siteIndex.replace("</body>", '<script>const firebaseConfig = {}</script></body>')],
+    ["temizlik betiği dışarıdan yüklüyor", siteIndex.replace("deleteDatabase", "deleteDatabase; import('x.js')")],
+    ["trackEvent geri gelmiş", siteIndex.replace("</body>", '<script>window.trackEvent = () => {}</script></body>')],
     ["reklam alanı sayısı değişti", siteIndex.replace('id="adBottom"', 'id="adBottom" data-x="1"></div><div class="ad-container"')],
-    ["analitik izin bildirimi yok", siteIndex.replace('<div class="izin" id="izin"', '<div class="x" id="izin"')],
-    ["çerez tercihleri bağlantısı yok", siteIndex.replace('<a href="#cerez-tercihi">Çerez Tercihleri</a>', "")],
+    ["analitik izin bildirimi geri gelmiş", siteIndex.replace('<div class="toast"', '<div class="izin" id="izin" hidden></div><div class="toast"')],
+    ["çerez tercihleri bağlantısı geri gelmiş", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', '<a href="gizlilik.html">Gizlilik Politikası</a><a href="#cerez-tercihi">Çerez Tercihleri</a>')],
     ["app.js betiği yok", siteIndex.replace('<script src="app.js"></script>', "")],
     ["gizlilik bağlantısı yok", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', "")],
   ];
@@ -100,6 +103,14 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
   }
 });
 
+test("site temizlik betiğini kaldırsa da dönüşüm çalışır, betik pakete girmez", () => {
+  const temizlikli = donustur(siteIndex);
+  assert.doesNotMatch(temizlikli, /_ga|deleteDatabase|firebase/i, "temizlik betiği pakete girmiş");
+  const betiksiz = siteIndex.replace(/<script>(?:(?!<\/script>)[\s\S])*?deleteDatabase[\s\S]*?<\/script>/, "");
+  assert.notEqual(betiksiz, siteIndex, "deneme girdisi siteden farklı olmalı");
+  assert.doesNotThrow(() => donustur(betiksiz));
+});
+
 test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   // yerel.js bunları sarar ya da varsayar; site değişirse burada fark edilir
   assert.match(siteApp, /^class WordLadder \{/m, "WordLadder sınıfı");
@@ -107,8 +118,8 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   assert.match(siteApp, /^  win\(\) \{/m, "win(): çözüm titreşimi");
   assert.ok(siteApp.includes("await navigator.share({ text: metin })"), "share(): navigator.share({ text })");
   assert.ok(siteApp.includes("location.href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
-  // Analitik betiği çıkarıldığı için trackEvent tanımsızdır; her çağrı ?. ile olmalı
-  assert.doesNotMatch(siteApp, /trackEvent\s*\(/, "trackEvent güvenli (?.) çağrılmıyor");
+  // Site analitiği kaldırıldı; app.js'te trackEvent çağrısı kalmamalı
+  assert.doesNotMatch(siteApp, /trackEvent/, "app.js'te trackEvent kalmış");
   assert.ok(siteApp.includes('fetch("words.json"'), "words.json göreli yoldan okunmalı");
   assert.ok(siteIndex.includes('href="gizlilik.html"'), "gizlilik bağlantısı (uygulamada kendi metnine gider)");
 });
