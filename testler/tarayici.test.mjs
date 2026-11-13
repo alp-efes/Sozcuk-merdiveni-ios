@@ -1563,3 +1563,26 @@ test("uygulama arayüzü: yenile düğmesi geri al'dan uzakta; ilerleme varken o
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
+
+test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden açılışta korunur; hak yeniden harcanmaz", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  await birAdim(sayfa);
+  await sayfa.tap("#btnHint");
+  const ipucu = await sayfa.evaluate(() => JSON.stringify(oyun.hint));
+  assert.notEqual(ipucu, "null");
+  const ac = () => sayfa.evaluate(() => ({ h: JSON.stringify(oyun.hint), cerceve: document.querySelectorAll(".tile.hint").length, hak: JSON.parse(localStorage.getItem("sm_haklar")).ipucu }));
+  // Ana ekran → serbest oyun → ana ekran → günlük: kayıttan geri yüklenir
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnSerbest");
+  await sayfa.waitForFunction(() => oyun.mode === "free");
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnGunluk");
+  await sayfa.waitForFunction(() => oyun.mode === "daily");
+  assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "gidiş-dönüşte ipucu kayboldu ya da hak değişti");
+  await sayfa.reload();
+  await oyunaGir(sayfa);
+  assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "yeniden açılışta ipucu kayboldu ya da hak değişti");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
