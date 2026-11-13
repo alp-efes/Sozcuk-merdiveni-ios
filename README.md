@@ -53,12 +53,14 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 | `araclar/ios-ayarla.mjs` | Kimlik, ad ve sürümü Xcode projesine yazar |
 | `araclar/gorsel.mjs` | Simge ve açılış görseli |
 | `araclar/ExportOptions.plist` | TestFlight yüklemesinin dışa aktarma ayarı |
+| `araclar/simulator.sh` | Simülatör derlemesi, otomatik oynatma ve ekran görüntüleri (yalnızca macOS, `simulator.yml`) |
+| `araclar/otomatik-oyna.js` | Günün bulmacasını kendi kendine oynar; yalnızca simülatör derlemesine eklenir |
 | `web/yerel.js` | Titreşim ve paylaşımı `app.js`'e bağlar |
 | `web/gizlilik.html` | Uygulamanın kendi gizlilik metni (sitedekinin yerine paketlenir) |
 | `web/lisanslar.html` | Açık kaynak lisansları; oyunun alt bilgisinden ve gizlilik sayfasından açılır |
 | `ios/` | `npx cap add ios` çıktısı + elle yapılan ayarlar (aşağıda) |
 | `testler/` | `paket.test.mjs` (dosya denetimleri), `tarayici.test.mjs` (oyunu oynar) |
-| `.github/workflows/` | `test.yml` (her PR), `testflight.yml` (yalnızca elle) |
+| `.github/workflows/` | `test.yml` (her PR), `simulator.yml` (her PR, main ve günlük), `testflight.yml` (yalnızca elle) |
 
 ### `ios/` içinde elle değiştirilenler
 
@@ -78,6 +80,30 @@ ve ana ekran çubuğunun altına girmez (ayrıntı: `CLAUDE.md`).
 Açılış ekranı Capacitor şablonunun `LaunchScreen.storyboard`'udur. Bu ikisi
 için ayrı eklenti (`@capacitor/status-bar`, `@capacitor/splash-screen`)
 kurulmadı: gerek yok.
+
+## Simülatör ekran görüntüleri
+
+**Simülatör** iş akışı (`simulator.yml`) her PR'da, `main`'e her push'ta, her
+gün ve elle çalışır. macOS'ta uygulamayı iOS Simülatörü için imzasız derler
+(Apple hesabı, gizli bilgi yok), küçük (iPhone SE) ve büyük (Pro Max) iPhone'da
+açar ve şu anlarda ekran görüntüsü alır: günün bulmacası, iki hamle sonrası,
+çözüm penceresi, "Nasıl Oynanır". Hamlelerden sonra uygulamanın hâlâ
+çalıştığına ve JavaScript hatası olmadığına bakar.
+
+Hamleleri `araclar/otomatik-oyna.js` oynar: `araclar/simulator.sh` onu derlemeden
+hemen önce `ios/App/App/public` içine ekler. `www/`, `npm run ios:sync` ve
+TestFlight paketi bu betiği içermez (`testler/paket.test.mjs`). Betik her aşamada
+konsola `SM-OTOMATIK: <aşama>` yazar; Debug derlemesinde Capacitor bunu
+uygulamanın çıktısına aktarır, betik o satırı görünce ekran görüntüsü alır.
+
+Görüntüler her çalıştırmada `simulator-ekran` iş akışı çıktısıdır. `main`'deki
+çalıştırmalar (PR'lar değil) onları **simulator** ön sürümüne de yükler; adresler
+sabittir, giriş istemez:
+
+```
+https://github.com/alp-efes/Sozcuk-merdiveni-ios/releases/download/simulator/kucuk-1-gunun-bulmacasi.png
+… kucuk-2-hamleler, kucuk-3-cozum, kucuk-4-nasil-oynanir; aynıları buyuk- önekiyle
+```
 
 ## Yayın
 

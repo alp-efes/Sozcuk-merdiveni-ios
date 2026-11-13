@@ -1,0 +1,111 @@
+# Simülatör ekran görüntüleri: uygulamayı iOS Simülatörü için imzasız derler,
+# küçük (iPhone SE) ve büyük (Pro Max) iPhone'da günün bulmacasını kendi kendine
+# oynatır ve ekran görüntüsü alır (araclar/simulator.sh). Gizli bilgi, Apple
+# hesabı ve testflight ortamı KULLANILMAZ.
+#
+# Görüntüler her çalıştırmada iş akışı çıktısıdır (simulator-ekran). main'de
+# (push, elle, günlük) ayrıca "simulator" ön sürümüne yüklenir; adresler sabittir:
+# https://github.com/alp-efes/Sozcuk-merdiveni-ios/releases/tag/simulator
+name: Simülatör
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Her gün TRT 06:17: günün bulmacası ve paketlenen site main'i değişmiş olabilir
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ekran:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      SITE_DEPOSU: ${{ github.workspace }}/site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Site deposu (oyunun kaynağı; herkese açık)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: alp-efes/sozcuk-merdiveni
+          ref: main
+          path: site
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci
+
+      - name: Paketle ve Capacitor eşitlemesi
+        run: |
+          npm run ios:sync
+          echo "Paketlenen site sürümü: $(git -C "$SITE_DEPOSU" rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Simülatörde derle, oyna, ekran görüntüsü al
+        run: bash araclar/simulator.sh "$RUNNER_TEMP/ekran"
+
+      - name: Ekran görüntülerini iş akışı çıktısı olarak yükle
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: simulator-ekran
+          path: ${{ runner.temp }}/ekran
+
+      - name: Özet
+        run: |
+          {
+            echo "### Ekran görüntüleri (iş akışı çıktısı: simulator-ekran)"
+            for f in "$RUNNER_TEMP"/ekran/*.png; do echo "- $(basename "$f")"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Yazma yetkisi yalnızca bu işte; derleme ve oynatma onu görmez. PR'da çalışmaz.
+  yayinla:
+    needs: ekran
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Ekran görüntülerini indir
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: simulator-ekran
+          path: ekran
+
+      - name: '"simulator" ön sürümünün görüntülerini değiştir'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ADRES: ${{ github.server_url }}/${{ github.repository }}/releases/download/simulator
+        run: |
+          set -euo pipefail
+          gh release view simulator > /dev/null 2>&1 ||
+            gh release create simulator --prerelease --target main \
+              --title "Simülatör ekran görüntüleri" \
+              --notes "Simülatör iş akışının (simulator.yml) son ekran görüntüleri. Her main değişikliğinde ve her gün yenilenir."
+          gh release upload simulator ekran/*.png --clobber
+          {
+            echo "### Ekran görüntüleri"
+            for f in ekran/*.png; do
+              ad=$(basename "$f")
+              echo "<a href=\"$ADRES/$ad\"><img src=\"$ADRES/$ad\" width=\"200\" alt=\"$ad\"></a>"
+            done
+            echo
+            for f in ekran/*.png; do echo "- $ADRES/$(basename "$f")"; done
+          } >> "$GITHUB_STEP_SUMMARY"

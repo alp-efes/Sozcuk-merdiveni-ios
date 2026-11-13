@@ -91,6 +91,14 @@ dosyaları (MIT), Zemberek-NLP'nin `LICENSE` dosyası, Apache Cordova'nın
 Apache 2.0 metni. Bağımlılık güncellenip lisansı değişirse test kırılır;
 metni `node_modules`'ten aynen kopyalayın.
 
+**Simülatör iş akışı (`simulator.yml`) gerçek derlemedir ama mağaza derlemesi
+değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adreslerde
+(README → "Simülatör ekran görüntüleri"). Hamleleri oynayan
+`araclar/otomatik-oyna.js` yalnızca `araclar/simulator.sh` içinde pakete eklenir;
+`www/`'e ya da TestFlight'a girerse test kırılır. Site `index.html`'de
+`<script src="yerel.js"></script>` satırı ya da `app.js`'te `pressKey`,
+`hideModal`, `#nasil-oynanir` değişirse bu iş akışı kırılır, tarayıcı testi de.
+
 **Tarayıcı testi sahte köprü kullanır.** Titreşimin ve paylaşım sayfasının
 gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 
@@ -124,3 +132,6 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
    Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine dokunmayın.
 4. `mailto:` bağlantısının Mail'i açması; `gizlilik.html` ↔ oyun geçişi.
 5. Ana ekranda "Sözcük Merdiveni" adının kısalması.
+6. `simulator.yml`'deki ön sürüm adımı (`gh release`) yalnızca `main`'de çalışır;
+   PR'da denenemedi. İlk birleştirmeden sonra
+   `releases/download/simulator/kucuk-1-gunun-bulmacasi.png` açılıyor mu bakın.

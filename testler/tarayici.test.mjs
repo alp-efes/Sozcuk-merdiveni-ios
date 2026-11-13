@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const WWW = resolve(dirname(fileURLToPath(import.meta.url)), "..", "www");
+const OTOMATIK = resolve(dirname(fileURLToPath(import.meta.url)), "..", "araclar", "otomatik-oyna.js");
 const TUR = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json" };
 const SITE_ADRESI = "https://xn--szckyolu-n4a6d.com/";
 const TELEFON = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
@@ -167,6 +168,27 @@ test("Capacitor yokken (tarayıcıda) yerel.js hiçbir şeye dokunmaz", async ()
   assert.equal(d.paylasimSarildi, false);
   await yaz(sayfa, d.bas);                  // geçersiz hamle hata vermeden reddedilir
   assert.equal(await sayfa.evaluate(() => oyun.chain.length), 1);
+  assert.deepEqual(kayit.disIstekler, []);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve aşamaları bildirir", async () => {
+  // simulator.sh betiği paketteki index.html'e app.js'ten sonra ekler; burada aynı kaynaktan yüklenir (CSP 'self')
+  const baglam = await tarayici.newContext(TELEFON);
+  await baglam.route("**/otomatik-oyna.js", (r) => r.fulfill({ path: OTOMATIK, contentType: "text/javascript" }));
+  const { sayfa, kayit } = await ac(baglam);
+  const isaretler = [];
+  sayfa.on("console", (m) => { const e = m.text().match(/^SM-OTOMATIK: (.*)$/); if (e) isaretler.push(e[1]); });
+  const son = sayfa.waitForEvent("console", { predicate: (m) => /^SM-OTOMATIK: (nasil|hata)/.test(m.text()), timeout: 60000 });
+  await sayfa.addScriptTag({ url: "otomatik-oyna.js" });
+  await son;
+  assert.deepEqual(isaretler, ["acilis", "hamle", "cozum", "nasil"]);
+  const d = await sayfa.evaluate(() => ({
+    bitti: oyun.over, modalKapali: oyun.el.modal.classList.contains("hidden"),
+    nasilGorunur: document.getElementById("nasil-oynanir").getBoundingClientRect().top < innerHeight / 2,
+  }));
+  assert.deepEqual(d, { bitti: true, modalKapali: true, nasilGorunur: true });
   assert.deepEqual(kayit.disIstekler, []);
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
