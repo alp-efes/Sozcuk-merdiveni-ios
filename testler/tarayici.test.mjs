@@ -282,6 +282,7 @@ const SAHTE_KOPRU = (ayar) => {
   window.__odul = "odul";
   window.__magaza = { plus: !!ayar.magazaPlus, satin: "tamam", geri: false };
   if (ayar.onbellekPlus) localStorage.setItem("sm_plus", "1");
+  if (ayar.haklar) localStorage.setItem("sm_haklar", JSON.stringify(ayar.haklar));   // sayılı haklar (geri al, ipucu)
   if (ayar.simulator) window.SM_OTOMATIK = true;
   window.__bilgiHata = ayar.bilgiHataSayisi || 0;          // ilk N requestConsentInfo çağrısı reddedilir (çevrimdışı açılış)
   const dinleyiciler = {};
@@ -1128,10 +1129,10 @@ test("uygulama arayüzü: ses tercihi hatırlanır; dar ekranda taşma ve küç�
 });
 
 test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf tahtaya gitmez", async () => {
-  const { baglam, sayfa, bekle } = await gelirSayfasi();
+  const { baglam, sayfa, bekle } = await gelirSayfasi({ haklar: { geriAl: 5, ipucu: 1, gun: "" } });
   await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
   await oyunaGir(sayfa);
-  await sayfa.tap("#btnHint");                            // günün ücretsiz ipucu
+  await sayfa.tap("#btnHint");                            // son ipucu hakkı
   const g = await durum(sayfa);
   await yaz(sayfa, enKisaYol(g.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
   await sayfa.tap("#btnHint");                            // hak bitti: teklif penceresi
@@ -1564,4 +1565,120 @@ test("uygulama arayüzü: Türkçe harf şeridi ana ekrandan kapatılır, hatır
   assert.ok(await tasmaYok(dar.sayfa), "320 px: oyunda taşma");
   assert.deepEqual(dar.kayit.hatalar, []);
   await dar.baglam.close();
+});
+
+/* ---------- Sayılı haklar (site PR'ı: sayili-haklar): geri al ve ipucu, yenile onayı ---------- */
+
+// Rozetler ve aria-label (Plus'ta rozet gizli)
+const haklar = (sayfa) => sayfa.evaluate(() => {
+  const r = (id) => { const e = document.querySelector(`#${id} .hak`); return getComputedStyle(e).display === "none" ? null : e.textContent; };
+  return { kayit: JSON.parse(localStorage.getItem("sm_haklar") || "null"), geri: r("btnUndo"), ipucu: r("btnHint"),
+    etiketGeri: document.getElementById("btnUndo").getAttribute("aria-label"), etiketIpucu: document.getElementById("btnHint").getAttribute("aria-label") };
+});
+// Başlangıçtan hedef olmayan bir komşuya: geri alınacak bir adım
+const birAdim = async (sayfa) => yaz(sayfa, await sayfa.evaluate(() =>
+  [...oyun.dict].find((w) => w !== oyun.targetWord && [...w].filter((c, i) => c !== oyun.currentWord[i]).length === 1)));
+
+test("uygulama arayüzü: sayılı haklar — rozet, 0 hakta geri al için ödüllü reklam (+1), günlük yenilenmez", async () => {
+  // Dünkü kayıt: uygulamada yeni gün hak vermez
+  const { baglam, sayfa, kayit, bekle } = await gelirSayfasi({ haklar: { geriAl: 0, ipucu: 5, gun: "2000-01-01" } });
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  await oyunaGir(sayfa);
+  let h = await haklar(sayfa);
+  assert.deepEqual([h.geri, h.ipucu, h.etiketGeri, h.etiketIpucu], ["0", "5", "Geri al, 0 hak kaldı", "İpucu, 5 hak kaldı"]);
+  await birAdim(sayfa);
+  // Silme tuşu hak harcamaz; yazılan harf silinir
+  await sayfa.keyboard.type("a");
+  await sil(sayfa, 1);
+  assert.equal((await durum(sayfa)).tampon, "");
+  if (process.env.EKRAN_DIZINI) {
+    await sayfa.waitForTimeout(400);
+    await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "h1-rozetler.png") });
+  }
+  await sayfa.tap("#btnUndo");                            // hak yok: teklif
+  await sayfa.waitForSelector("#offer:not(.hidden)");
+  assert.equal(await sayfa.textContent("#offerTitle"), "Geri alma hakkın bitti");
+  assert.equal(await sayfa.textContent("#btnOfferAd"), "Reklam izle, geri al");
+  assert.equal((await durum(sayfa)).zincir.length, 2, "teklif açılınca adım henüz geri alınmamalı");
+  assert.notEqual((await durum(sayfa)).odak, "giris", "teklif açıkken klavye kapanmalı");
+  if (process.env.EKRAN_DIZINI) {
+    await sayfa.waitForTimeout(400);
+    await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "h2-geri-al-teklifi.png") });
+  }
+  await sayfa.tap("#btnOfferAd");                         // sahte köprü ödülü verir
+  await bekle(() => oyun.chain.length === 1);
+  h = await haklar(sayfa);
+  assert.deepEqual([h.kayit.geriAl, h.geri], [0, "0"], "ödül +1 verip hemen kullanmalı");
+  assert.ok(await sayfa.evaluate(() => document.getElementById("offer").classList.contains("hidden")), "ödülden sonra teklif kapanmalı");
+  assert.ok(await sayfa.evaluate(() => window.__cagri.some((c) => c[0] === "showRewardVideoAd")), "ödüllü reklam gösterilmeli");
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  await baglam.close();
+
+  // Plus: rozet yok, hak 0 olsa da geri al reklamsız
+  const p = await gelirSayfasi({ onbellekPlus: true, magazaPlus: true, haklar: { geriAl: 0, ipucu: 0, gun: "" } });
+  await oyunaGir(p.sayfa);
+  await p.bekle(() => window.SozcukGelir.plusMu() === true);
+  h = await haklar(p.sayfa);
+  assert.deepEqual([h.geri, h.ipucu, h.etiketGeri, h.etiketIpucu], [null, null, "Geri al", "İpucu"], "Plus'ta rozet görünmemeli");
+  await birAdim(p.sayfa);
+  await p.sayfa.tap("#btnUndo");
+  assert.equal((await durum(p.sayfa)).zincir.length, 1, "Plus'ta geri al sınırsız");
+  assert.equal(await p.say("showRewardVideoAd"), 0);
+  await p.baglam.close();
+});
+
+test("uygulama arayüzü: yenile düğmesi geri al'dan uzakta; ilerleme varken onay ister, onay açıkken klavye kapanır", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  // Yenile başlığın sol ucunda (ana ekran düğmesinin yanında); geri al durum satırının sağ ucunda
+  const [y, a, m, g] = [await kutu(sayfa, "#btnRestart"), await kutu(sayfa, "#btnAna"), await kutu(sayfa, "#modAdi"), await kutu(sayfa, "#btnUndo")];
+  assert.ok(y.sol >= a.sag && y.sag <= m.sol, `yenile, ana ekran düğmesi ile mod adı arasında olmalı (${JSON.stringify({ y, a, m })})`);
+  assert.ok(g.sol - y.sag > 150, `yenile ile geri al arasında en az 150 px olmalı (${y.sag} → ${g.sol})`);
+  assert.deepEqual(await kucukHedefler(sayfa, "#oyun .icon-btn"), []);
+  await sayfa.tap("#btnRestart");                         // ilerleme yok: onaysız
+  assert.equal(await gorunur(sayfa, "#yenile"), false);
+  await birAdim(sayfa);
+  await sayfa.tap("#btnRestart");
+  await sayfa.waitForSelector("#yenile:not(.hidden)");
+  assert.equal(await sayfa.textContent("#yenileTitle"), "Baştan başlansın mı?");
+  assert.notEqual((await durum(sayfa)).odak, "giris", "onay açıkken klavye kapanmalı");
+  await sayfa.keyboard.type("ab");
+  assert.equal((await durum(sayfa)).tampon, "");
+  if (process.env.EKRAN_DIZINI) {
+    await sayfa.waitForTimeout(400);
+    await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "h3-yenile-onayi.png") });
+  }
+  await sayfa.tap("#btnYenileVazgec");
+  let d = await durum(sayfa);
+  assert.deepEqual([d.zincir.length, d.odak], [2, "giris"], "vazgeçince ilerleme kalmalı, klavye geri gelmeli");
+  await sayfa.tap("#btnRestart");
+  await sayfa.tap("#btnYenileEvet");
+  d = await durum(sayfa);
+  assert.deepEqual([d.zincir.length, d.odak, await sayfa.evaluate(() => document.getElementById("yenile").classList.contains("hidden"))],
+    [1, "giris", true], "onaydan sonra baştan açılmalı, onay kapanmalı, klavye açık kalmalı");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden açılışta korunur; hak yeniden harcanmaz", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  await birAdim(sayfa);
+  await sayfa.tap("#btnHint");
+  const ipucu = await sayfa.evaluate(() => JSON.stringify(oyun.hint));
+  assert.notEqual(ipucu, "null");
+  const ac = () => sayfa.evaluate(() => ({ h: JSON.stringify(oyun.hint), cerceve: document.querySelectorAll(".tile.hint").length, hak: JSON.parse(localStorage.getItem("sm_haklar")).ipucu }));
+  // Ana ekran → serbest oyun → ana ekran → günlük: kayıttan geri yüklenir
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnSerbest");
+  await sayfa.waitForFunction(() => oyun.mode === "free");
+  await sayfa.tap("#btnAna");
+  await sayfa.tap("#btnGunluk");
+  await sayfa.waitForFunction(() => oyun.mode === "daily");
+  assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "gidiş-dönüşte ipucu kayboldu ya da hak değişti");
+  await sayfa.reload();
+  await oyunaGir(sayfa);
+  assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "yeniden açılışta ipucu kayboldu ya da hak değişti");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
 });

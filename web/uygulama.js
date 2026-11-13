@@ -25,7 +25,7 @@
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer"), al("pes")];
+  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile")];
   // Açılış ekranı uygulama açılırken en az ACILIS_MS görünür (sayfa açılışından; yukarıda)
   const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
@@ -71,6 +71,13 @@
   const asilShowPes = P.showPes;
   P.showPes = function (ac, ...arg) {
     const s = asilShowPes.call(this, ac, ...arg);
+    if (ac) giris.blur(); else odakla();
+    return s;
+  };
+  // Yenile onayı (ilerleme varken): açıkken klavye kapanır, kapanınca geri gelir
+  const asilShowYenile = P.showYenile;
+  P.showYenile = function (ac, ...arg) {
+    const s = asilShowYenile.call(this, ac, ...arg);
     if (ac) giris.blur(); else odakla();
     return s;
   };
@@ -253,6 +260,7 @@
     giris.blur();
     oyun.hideModal();
     oyun.showOffer(false);
+    oyun.showYenile(false);
     anaCiz();
     al("ana").scrollTop = 0;
   };
@@ -331,6 +339,9 @@
     anaCiz();
   });
 
+  // Yenile düğmesi geri al'ın tam üstünde duruyordu ve ikisi karışıyordu: başlığın sol ucuna,
+  // ana ekran düğmesinin yanına taşınır (geri al ve ipucu durum satırının sağ ucunda kalır)
+  al("btnAna").after(al("btnRestart"));
   // Ses düğmesi ana ekrana taşınır (oyun başlığında mod adına yer açılır); seçim hatırlanır
   al("anaUst").append(al("btnMute"));
   // (app.js'in kendi dinleyicisi sesi bu dinleyiciden sonra değiştirir: durum bir tur sonra okunur)
