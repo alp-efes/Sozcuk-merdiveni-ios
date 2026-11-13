@@ -70,6 +70,15 @@ jobs:
           for ad in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do
             [ -n "${!ad}" ] || { echo "::error::Eksik gizli bilgi: $ad (SAHIP-ADIMLARI.md)"; exit 1; }
           done
+          # Yapıştırırken kalan boşluk ya da satır sonu kimliği bozar; ilk çalıştırmada
+          # Team ID başındaki satır sonu yüzünden "No Account for Team" hatası alındı.
+          for ad in ASC_KEY_ID ASC_ISSUER_ID APPLE_TEAM_ID; do
+            deger="${!ad}"; printf -v "$ad" '%s' "${deger//[[:space:]]/}"
+          done
+          # Değerleri yazdırmadan biçimlerini denetle
+          [[ $APPLE_TEAM_ID =~ ^[A-Z0-9]{10}$ ]] || { echo "::error::APPLE_TEAM_ID 10 karakterli Team ID olmalı (SAHIP-ADIMLARI 1)"; exit 1; }
+          [[ $ASC_KEY_ID =~ ^[A-Z0-9]{10}$ ]] || { echo "::error::ASC_KEY_ID 10 karakterli Key ID olmalı (SAHIP-ADIMLARI 4)"; exit 1; }
+          [[ $ASC_ISSUER_ID =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::ASC_ISSUER_ID bir UUID olmalı (SAHIP-ADIMLARI 4)"; exit 1; }
           ANAHTAR="$RUNNER_TEMP/AuthKey.p8"
           trap 'rm -f "$ANAHTAR"' EXIT
           (umask 077; printf '%s\n' "$ASC_KEY_P8" > "$ANAHTAR")
