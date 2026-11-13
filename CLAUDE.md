@@ -123,19 +123,13 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 2. WebKit'te CSP `'self'`in `capacitor://localhost` ile eşleşmesi (açıkça da
    yazıldı). Oyun boş açılırsa ilk bakılacak yer burası.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,
-   `viewport-fit=cover` yok. Bu yüzden `capacitor.config.json` →
-   `ios.contentInset = "always"`: web görünümü içeriği durum çubuğu ile ana
-   ekran çubuğunun arasında tutar, aradaki şerit `backgroundColor` (#f3eada,
-   sitenin `--bg` kâğıt rengi) olur. Doğrulanmayan: `.app { height: 100dvh }`
-   WKWebView'de kenar boşlukları düşülmüş yüksekliği mi verir? Vermezse oyun
-   kabuğunun altındaki ~80 pt ilk açılışta ekranın altında kalır. Ahşap
-   tasarımdan beri ekran klavyesi dokunmatikte de her zaman görünür ve kabuğun
-   en altındadır: kalan parça klavyenin alt sırası (GİR, sil) olur, oyuncu
-   yazmak için kaydırmak zorunda kalır. Simülatör ekran görüntüsünde
-   (`kucuk-1-gunun-bulmacasi.png`) klavyenin alt sırası tam görünüyor mu bakın.
-   Yatay taşma olmaz; başlık düğmelerinin Dynamic Island altında kalmasından
-   iyidir. Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine
-   dokunmayın.
+   `viewport-fit=cover` yok; `capacitor.config.json` → `ios.contentInset =
+   "always"` içeriği durum çubuğu ile ana ekran çubuğunun arasında tutar, aradaki
+   şerit `backgroundColor` (#f3eada, sitenin `--bg` kâğıt rengi) olur.
+   Simülatörde doğrulandı (PR #5, iPhone SE ve Pro Max): `.app { height: 100dvh }`
+   kenar boşlukları düşülmüş yüksekliği veriyor, her zaman görünen ekran
+   klavyesinin alt sırası (GİR, sil) tam görünüyor. Gerçek cihazda bir kez bakın.
+   Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine dokunmayın.
 4. `mailto:` bağlantısının Mail'i açması; `gizlilik.html` ↔ oyun geçişi.
 5. Ana ekranda "Sözcük Merdiveni" adının kısalması.
 6. `simulator.yml`'deki ön sürüm adımı (`gh release`) yalnızca `main`'de çalışır;
