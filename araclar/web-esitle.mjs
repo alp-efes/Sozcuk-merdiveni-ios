@@ -37,13 +37,13 @@ export const CSP = [
   `style-src ${KAYNAK}`,
   `img-src ${KAYNAK}`,
   `font-src ${KAYNAK}`,         // style.css paketteki Fraunces dosyalarını yükler
-  `connect-src ${KAYNAK}`,      // words.json fetch ile okunur
+  `connect-src ${KAYNAK}`,      // words.json ve ipuclari.json fetch ile okunur
   "base-uri 'none'",
   "form-action 'none'",
 ].join("; ");
 
 // Siteden değiştirilmeden kopyalananlar
-export const AYNEN = ["app.js", "style.css", "words.json",
+export const AYNEN = ["app.js", "style.css", "words.json", "ipuclari.json",
   "fonts/fraunces-latin.woff2", "fonts/fraunces-latin-ext.woff2", "fonts/OFL.txt"];
 // Uygulamanın kendi dosyaları (web/ içinde)
 export const KENDI = ["yerel.js", "uygulama.js", "uygulama.css", "gizlilik.html", "lisanslar.html"];
