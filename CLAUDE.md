@@ -79,7 +79,7 @@ kişiselleştirilmeden sürer. Geçiş reklamı: oturumun ilk çözümünde yok,
 (`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
 
 **Plus köprüsü uygulamanın içindedir:** `ios/App/App/SatinAlma.swift` hem
-`AnaGorunum`'u (storyboard'daki ana görünüm; köprüye eklentiyi kaydeder) hem de
+`AnaGorunum`'u (`SceneDelegate` kök görünüm olarak kurar, storyboard değil; köprüye eklentiyi kaydeder) hem de
 `SatinAlmaPlugin`'i içerir. `ios/App/Plus.storekit` yalnızca Xcode simülatör testi içindir
 (Scheme → Run → Options → StoreKit Configuration); pakete girmez.
 

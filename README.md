@@ -78,7 +78,7 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 - `project.pbxproj`: yalnızca iPhone (`TARGETED_DEVICE_FAMILY = 1`), geliştirme
   bölgesi `tr`, `PrivacyInfo.xcprivacy` kaynaklara eklendi, sürüm `1.0.0`.
 - `Info.plist`: `GADApplicationIdentifier` (gelir.json'dan), `NSUserTrackingUsageDescription`,
-  Google'ın 50 `SKAdNetworkItems` kimliği. `Main.storyboard`: ana görünüm `AnaGorunum`.
+  Google'ın 50 `SKAdNetworkItems` kimliği. `SceneDelegate`: kök görünüm `AnaGorunum` (Plus eklentisini köprüye kaydeder).
 - `PrivacyInfo.xcprivacy`: izleme var (`NSPrivacyTracking`), alan adı listesi bilerek boş
   (iOS, izin yokken listedeki adlara bağlantıyı keser; kişiselleştirilmemiş reklam da yüklenemezdi).
   Toplanan veri türlerini ve API gerekçelerini Google SDK'sı kendi bildiriminde taşır.

@@ -224,7 +224,7 @@ test("Xcode ayarları", () => {
   assert.equal((gizlilik.match(/<key>NSPrivacyCollectedDataTypeTracking<\/key><true\/>/g) || []).length, 1, "yalnızca cihaz kimliği izleme için");
   assert.match(gizlilik, /DeviceID<\/string><key>NSPrivacyCollectedDataTypeLinked<\/key><true\/><key>NSPrivacyCollectedDataTypeTracking<\/key><true\/>/);
 
-  // Yerel Plus köprüsü uygulamanın içinde: dosya, projeye kayıtlı, storyboard'da ana görünüm
+  // Yerel Plus köprüsü uygulamanın içinde: dosya, projeye kayıtlı, kök görünüm
   const swift = oku(KOK, "ios/App/App/SatinAlma.swift");
   assert.match(swift, /class AnaGorunum: CAPBridgeViewController/);
   assert.ok(swift.includes("bridge?.registerPluginInstance(SatinAlmaPlugin())"));
@@ -234,7 +234,10 @@ test("Xcode ayarları", () => {
   }
   assert.equal(say(/path = SatinAlma\.swift;/g), 1, "SatinAlma.swift dosya olarak kayıtlı olmalı");
   assert.equal(say(/SatinAlma\.swift in Sources/g), 2, "SatinAlma.swift derleme aşamasında olmalı");
-  assert.match(oku(KOK, "ios/App/App/Base.lproj/Main.storyboard"), /customClass="AnaGorunum" customModule="App" customModuleProvider="target"/);
+  // Kök görünüm SceneDelegate'te kodla kurulur (storyboard'daki sınıf kullanılmaz); AnaGorunum olmalı,
+  // yoksa Plus eklentisi köprüye hiç kaydolmaz (simülatör işinde yakalanır)
+  assert.match(oku(KOK, "ios/App/App/SceneDelegate.swift"), /window\?\.rootViewController = AnaGorunum\(\)/);
+  assert.doesNotMatch(oku(KOK, "ios/App/App/SceneDelegate.swift"), /CAPBridgeViewController\(\)/);
   assert.match(oku(KOK, "ios/App/CapApp-SPM/Package.swift"), /CapacitorCommunityAdmob/, "cap sync: Package.swift admob'u içermiyor");
 });
 
