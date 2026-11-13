@@ -318,6 +318,7 @@ const SAHTE_KOPRU = (ayar) => {
         durum: cagri("durum", () => (ayar.durumTakili ? new Promise(() => {}) : tamam({ plus: window.__magaza.plus }))),
         fiyat: cagri("fiyat", () => (ayar.fiyatYok ? Promise.reject(new Error("ürün yok")) : tamam({ fiyat: "₺99,99" }))),
         satinAl: cagri("satinAl", () => tamam({ sonuc: window.__magaza.satin })),
+        vitrin: cagri("vitrin", () => (ayar.vitrinTakili ? new Promise(() => {}) : ayar.vitrinHata ? Promise.reject(new Error("vitrin yok")) : tamam({ ulke: ayar.ulke ?? "TUR" }))),
         geriYukle: cagri("geriYukle", () => (ayar.geriHata ? Promise.reject(new Error("giriş iptal")) : tamam({ plus: window.__magaza.geri }))),
       },
     },
@@ -363,7 +364,7 @@ test("gelir kancası: sözleşmedeki altı yöntem var, açılışta UMP → ATT
   }), [true, true, false, true]);
   await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
   const akis = (await adlar()).filter((a) => !["titresim", "paylas"].includes(a));
-  assert.deepEqual(akis.filter((a) => a !== "fiyat"), ["durum", "requestConsentInfo", "trackingAuthorizationStatus", "requestTrackingAuthorization",
+  assert.deepEqual(akis.filter((a) => a !== "fiyat"), ["durum", "requestConsentInfo", "vitrin", "trackingAuthorizationStatus", "requestTrackingAuthorization",
                           "initialize", "prepareRewardVideoAd", "prepareInterstitial"]);
   // 4+ sınıfıyla uyumlu: yalnızca genel kitleye uygun (G) reklamlar
   assert.deepEqual(await sayfa.evaluate(() => window.__cagri.find((c) => c[0] === "initialize")[1]), { maxAdContentRating: "General" });
@@ -421,6 +422,27 @@ test("gelir kancası: UMP gerekiyorsa form gösterilir, reddedilirse reklam yok;
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   assert.equal(await g.say("initialize"), 0);
   await g.baglam.close();
+});
+
+test("gelir kancası: Birleşik Krallık vitrininde ATT sorulmaz ve TFUA yalnızca reklam başlatmaya konur, UMP'ye değil", async () => {
+  const baslatma = (sayfa) => sayfa.evaluate(() => window.__cagri.find((c) => c[0] === "initialize")[1]);
+  for (const [ayar, beklenen, attSayisi] of [
+    [{ ulke: "GBR" }, { maxAdContentRating: "General", tagForUnderAgeOfConsent: true }, 0],
+    [{ ulke: "TUR" }, { maxAdContentRating: "General" }, 1],
+    [{ vitrinHata: true }, { maxAdContentRating: "General" }, 1],   // vitrin alınamazsa etiket yok, ATT sorulur
+    [{ vitrinTakili: true }, { maxAdContentRating: "General" }, 1],  // takılırsa ~2 sn sonra etiketsiz başlar
+  ]) {
+    const g = await gelirSayfasi(ayar);
+    await g.bekle(() => window.__cagri.some((c) => c[0] === "initialize"));
+    assert.deepEqual(await baslatma(g.sayfa), beklenen, JSON.stringify(ayar));
+    assert.equal(await g.say("requestTrackingAuthorization"), attSayisi, "ATT: " + JSON.stringify(ayar));
+    // Vitrin ATT'den önce okunur
+    const adlar = await g.adlar();
+    assert.ok(adlar.indexOf("vitrin") < adlar.indexOf("initialize"), "vitrin, başlatmadan önce");
+    // UMP çağrısına etiket verilmez: cihaz erişimi onayı (PECR) pencereden toplanmaya devam eder
+    assert.deepEqual(await g.sayfa.evaluate(() => window.__cagri.find((c) => c[0] === "requestConsentInfo")[1] ?? null), null);
+    await g.baglam.close();
+  }
 });
 
 test("gelir kancası: ATT reddedilse de reklam çalışır (soru yeniden sorulmaz)", async () => {
