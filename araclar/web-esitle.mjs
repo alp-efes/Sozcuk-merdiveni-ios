@@ -65,10 +65,12 @@ export function donustur(html) {
   // Reklam yer tutucuları
   degistir(/[ \t]*<div class="ad-container[^"]*"[^>]*><\/div>\n?/g, "", "reklam alanı", 2);
   // Site artık analitik içermez (2026-11-13). Eski izleri silen tek satır içi
-  // temizlik betiği uygulamada gereksizdir (yeni kurulumda iz yok); siteden
-  // kaldırılırsa da sorun değil, bu yüzden 0 ya da 1 kez beklenir. Betik dışarıdan
-  // bir şey yüklemiyor olmalı, yoksa eşleşmez ve aşağıdaki denetimde durulur.
-  const temizlik = /[ \t]*<script>(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?_ga(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?deleteDatabase(?:(?!<\/script>)(?!import)(?!https?:)[\s\S])*?<\/script>\n?/g;
+  // temizlik betiği uygulamada gereksizdir (yeni kurulumda iz yok); çıkarılır,
+  // pakete girmez. Siteden kaldırılırsa da sorun değil: 0 ya da 1 kez beklenir.
+  // Betik içinde import, adres (http, //host), fetch( ve createElement varsa
+  // eşleşmez; betik yerinde kalır ve aşağıdaki betik denetiminde derleme durur.
+  const ic = String.raw`(?:(?!<\/script>)(?!import)(?!https?:)(?!\/\/[a-z])(?!fetch\()(?!createElement)[\s\S])*?`;
+  const temizlik = new RegExp(String.raw`[ \t]*<script>${ic}_ga${ic}deleteDatabase${ic}<\/script>\n?`, "g");
   if ((html.match(temizlik) || []).length > 1) throw new Error("index.html beklenen yapıda değil: birden çok temizlik betiği");
   html = html.replace(temizlik, "");
   // Analitik ve izin arayüzü geri gelirse (Firebase betiği, izin bildirimi, Çerez

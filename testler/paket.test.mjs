@@ -89,6 +89,8 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["iframe", siteIndex.replace("</body>", '<iframe src="x.html"></iframe></body>')],
     ["Firebase modül betiği geri gelmiş", siteIndex.replace("</body>", '<script type="module">import("https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js")</script></body>')],
     ["Firebase adı satır içinde geçiyor", siteIndex.replace("</body>", '<script>const firebaseConfig = {}</script></body>')],
+    ["temizlik betiği fetch ile veri gönderiyor", siteIndex.replace("deleteDatabase", "deleteDatabase; fetch('x')")],
+    ["temizlik betiği betik ekliyor", siteIndex.replace("deleteDatabase", "deleteDatabase; document.createElement('script')")],
     ["temizlik betiği dışarıdan yüklüyor", siteIndex.replace("deleteDatabase", "deleteDatabase; import('x.js')")],
     ["trackEvent geri gelmiş", siteIndex.replace("</body>", '<script>window.trackEvent = () => {}</script></body>')],
     ["reklam alanı sayısı değişti", siteIndex.replace('id="adBottom"', 'id="adBottom" data-x="1"></div><div class="ad-container"')],

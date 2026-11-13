@@ -153,14 +153,14 @@ kararlar (alan adları Apple'ın İngilizce arayüzündeki gibidir; yerleri
 değişmiş olabilir):
 
 - **Privacy Policy URL** (zorunlu, herkese açık web sayfası):
-  `https://xn--szckyolu-n4a6d.com/gizlilik`. Sitedeki sayfa web analitiğini
-  (izinle) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
+  `https://xn--szckyolu-n4a6d.com/gizlilik`. Sitedeki sayfa (sitede analitik yok;
+  yalnızca Cloudflare'in güvenlik çerezi var) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
   Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
   yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
   Uygulamanın içindeki metin `web/gizlilik.html`'dir. E-postaların saklama
   süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
-  (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare yönlendirmesi ve
-  e-posta hizmet sağlayıcınız; ikisi de yurt dışında olabilir) sizin
+  (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare Email Routing, Cloudflare, Inc., ABD ve
+  e-postanın iletildiği posta hizmeti sağlayıcısı; yurt dışında olabilir) sizin
   onayınızı bekliyor. AB'de yayına karar verirseniz (aşağıdaki DSA) metin
   gözden geçirilmeli.
 - **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
