@@ -337,6 +337,18 @@
     catch (_) { /* kayıt tutulamadı */ }
   }, 0));
   if (oku("sm_ses") === "0") muteGame(true);
+  // Türkçe harf şeridi: varsayılan açık; kapatılırsa hiç görünmez, yerini merdiven alır (sm_serit)
+  const seritAyarla = (acik) => {
+    govde.classList.toggle("serit-yok", !acik);
+    al("btnSerit").setAttribute("aria-pressed", String(acik));
+  };
+  al("btnSerit").addEventListener("click", () => {
+    const acik = govde.classList.contains("serit-yok");
+    seritAyarla(acik);
+    try { acik ? localStorage.removeItem("sm_serit") : localStorage.setItem("sm_serit", "0"); }
+    catch (_) { /* kayıt tutulamadı */ }
+  });
+  seritAyarla(oku("sm_serit") !== "0");
   // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
   // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca gelir kancası varsa görünür).
   al("plusBox").classList.add("kart");

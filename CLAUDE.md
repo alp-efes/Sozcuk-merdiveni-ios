@@ -91,7 +91,9 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I), şapkalı harf şapkasız yazılır
   (â → A, î → İ, û → U) ve `TR_LETTER` ile süzülür; bileşim (IME) bitince eşitlenir. Alan
   ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
-  Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için).
+  Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için). Oyuncu
+  şeridi ana ekrandaki düğmeyle (`#btnSerit`, ses düğmesinin yanında) kapatabilir: varsayılan
+  açık, tercih `sm_serit`; kapalıyken `body.serit-yok` şeridi hiç göstermez, yerini merdiven alır.
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
   `visualViewport.height`'tir (`--vvh`, `--vv-top`). iOS boyut olayını klavye animasyonu
   bitince gönderdiği için son klavyeli/klavyesiz boy hatırlanır ve odak değişir değişmez

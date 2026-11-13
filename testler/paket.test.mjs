@@ -462,7 +462,7 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
   const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
   for (const [, ad] of oku(KOK, "web", "uygulama.js").matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
-  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses", "sm_serit"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
   // Kayıt adları uygulama.js'te birleştirilerek üretilmez: yukarıdaki tarama her adı tam görmeli
   assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /["'`]sm_[a-z_]*["'`]\s*\+/, "sm_* adı birleştirilerek üretiliyor: gizlilik denetimi göremez");
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);

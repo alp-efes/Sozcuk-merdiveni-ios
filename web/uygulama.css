@@ -81,7 +81,10 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 [data-ekran="ana"] .app, [data-ekran="acilis"] .app, body:not([data-ekran]) .app,
 .yardim .app, .yardim .ana { visibility: hidden; }
 
-.ana-ust { display: flex; justify-content: flex-end; flex-shrink: 0; min-height: var(--tap-min); }
+.ana-ust { display: flex; justify-content: flex-end; gap: var(--space-1h); flex-shrink: 0; min-height: var(--tap-min); }
+/* Harf şeridi düğmesi: açıkken klavye, kapalıyken üstü çizili klavye */
+.icon-serit-kapali, [aria-pressed="false"] > .icon-serit-acik { display: none; }
+[aria-pressed="false"] > .icon-serit-kapali { display: block; }
 .ana-marka { text-align: center; color: var(--text-dim); flex-shrink: 0; }
 .ana-marka .isaret { width: 88px; height: 88px; margin: 0 auto var(--space-2); }
 .ana-ad {
@@ -213,6 +216,7 @@ body:not([data-ekran="ana"]) .ana { display: none; }
   flex-shrink: 0;
 }
 .game.bitti ~ .harfler { display: none; }   /* Çözülen bulmacada yazılacak bir şey yok */
+.serit-yok .harfler { display: none; }      /* Oyuncu ana ekrandan kapattı: yer de kaplamaz */
 .harf {
   flex: 1;
   min-width: var(--tap-min);

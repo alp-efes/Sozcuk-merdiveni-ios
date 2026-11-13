@@ -26,13 +26,19 @@ const ISARET = `<svg class="isaret" viewBox="0 0 320 320" aria-hidden="true" foc
     </svg>`;
 
 // Açılış ekranı (sözlük yüklenene dek durur) ve ana ekran: iki büyük seçenek
+// Ana ekranın üst satırı: Türkçe harf şeridi aç/kapa (sm_serit); ses düğmesi uygulama.js ile yanına taşınır
 export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
     ${ISARET}
     <p class="acilis-ad">Sözcük Merdiveni</p>
   </div>
 
   <section class="ana" id="ana" aria-label="Ana ekran">
-    <div class="ana-ust" id="anaUst"></div>
+    <div class="ana-ust" id="anaUst">
+      <button class="icon-btn" id="btnSerit" type="button" aria-label="Türkçe harf şeridi" aria-pressed="true">
+        <svg class="icon icon-serit-acik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+        <svg class="icon icon-serit-kapali" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/><path d="m3 3 18 18"/></svg>
+      </button>
+    </div>
     <div class="ana-marka">
     ${ISARET}
       <h1 class="ana-ad">Sözcük Merdiveni</h1>
@@ -84,7 +90,8 @@ ${[["Ç"], ["Ğ"], ["I", "Noktasız I"], ["İ", "Noktalı İ"], ["Ö"], ["Ş"], 
 // "Nasıl oynanır?" uygulamada pencere olarak açılır: kapatma düğmesi ve klavye açıklaması
 export const YARDIM_KAPAT = `<button class="modal-close" id="btnYardimKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>`;
 export const YARDIM_KLAVYE = `<p>Kelimeyi telefonunun klavyesiyle yaz, klavyenin sağ altındaki tuşla gönder.
-  Klavyende Türkçe harf yoksa merdivenin altındaki <strong>Ç Ğ I İ Ö Ş Ü</strong> şeridini kullan.</p>`;
+  Klavyende Türkçe harf yoksa merdivenin altındaki <strong>Ç Ğ I İ Ö Ş Ü</strong> şeridini kullan;
+  şeridi ana ekrandan kapatabilirsin.</p>`;
 
 // uygulama.js'in bağlandığı site ögeleri: her biri index.html'de tam bir kez bulunmalı
 export const SITE_OGELERI = [
