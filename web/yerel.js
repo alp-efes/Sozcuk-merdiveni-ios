@@ -18,8 +18,10 @@
   if (typeof WordLadder === "undefined") return;   // app.js yüklenmediyse bağlanacak bir şey yok
 
   // Paylaşılan sonuçtaki adres: uygulamada location "capacitor://localhost"
-  // olduğu için sitenin adresi yazılır. Makine alanı olduğundan punycode.
-  const SITE = "https://xn--szckyolu-n4a6d.com/";
+  // olduğu için sitenin adresi yazılır. Paylaşım metni kullanıcıya görünür:
+  // Unicode (punycode çirkin görünür). Share eklentisine yalnızca `text` verilir,
+  // ayrı bir `url` alanı yoktur; olsaydı o makine alanı olarak punycode kalırdı.
+  const SITE = "https://sözcükyolu.com/";
 
   // Titreşim başarısız olursa (eski cihaz, eklenti yok) oyun etkilenmesin
   const titret = (yontem, secenek) => {

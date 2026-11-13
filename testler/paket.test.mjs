@@ -38,9 +38,10 @@ test("site CSS'inin yüklediği her dosya pakete kopyalanır", () => {
 });
 
 // Yalnızca metin olarak geçebilecek adresler; hiçbiri bağlantı ya da kaynak değildir.
-// Site adresi paylaşım metnine yazılır (yerel.js), diğerleri lisans metinlerindedir.
+// Unicode site adresi paylaşım metnine yazılır (yerel.js); punycode makine alanlarındadır
+// (canonical, og:url); diğerleri lisans metinlerindedir.
 const METIN_ADRESLERI = new Set([
-  "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
+  "https://sözcükyolu.com/", "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
   "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
   "https://github.com/undercasetype/Fraunces", "http://scripts.sil.org/OFL",
 ]);
@@ -148,6 +149,13 @@ test("site temizlik betiğini kaldırsa da dönüşüm çalışır, betik pakete
   assert.doesNotThrow(() => donustur(betiksiz));
 });
 
+test("paylaşım metninde Unicode adres, makine alanlarında punycode", () => {
+  const yerel = oku(KOK, "web/yerel.js");
+  assert.match(yerel, /const SITE = "https:\/\/sözcükyolu\.com\/";/, "paylaşım adresi Unicode olmalı");
+  assert.doesNotMatch(yerel, /xn--/, "yerel.js'te punycode olmamalı (kullanıcıya görünen metin)");
+  assert.match(siteIndex, /<link rel="canonical" href="https:\/\/xn--szckyolu-n4a6d\.com\/">/, "sitede canonical punycode kalmalı");
+});
+
 test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   // yerel.js bunları sarar ya da varsayar; site değişirse burada fark edilir
   assert.match(siteApp, /^class WordLadder \{/m, "WordLadder sınıfı");
@@ -155,7 +163,8 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   assert.match(siteApp, /^  win\(\) \{/m, "win(): çözüm titreşimi");
   assert.match(siteApp, /^  accept\(word\) \{/m, "accept(): kabul edilen kelimede hafif dokunuş");
   assert.ok(siteApp.includes("await navigator.share({ text: metin })"), "share(): navigator.share({ text })");
-  assert.ok(siteApp.includes("location.href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
+  // yerel.js bu adresi (uygulamada capacitor://localhost/) site adresiyle değiştirir
+  assert.ok(siteApp.includes("this.paylasimAdresi(location.href)") && siteApp.includes("href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
   // Site analitiği kaldırıldı; app.js'te trackEvent çağrısı kalmamalı
   assert.doesNotMatch(siteApp, /trackEvent/, "app.js'te trackEvent kalmış");
   assert.ok(siteApp.includes('fetch("words.json"'), "words.json göreli yoldan okunmalı");
