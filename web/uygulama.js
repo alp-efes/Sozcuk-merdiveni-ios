@@ -21,7 +21,7 @@
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer")];
+  const pencereler = [al("modal"), al("offer"), al("pes")];
   // Açılış ekranı uygulama açılırken en az bu kadar görünür (sayfa açılışından). Gizlilik ya da
   // lisans sayfasından dönüşte (referrer dolu) bekletilmez.
   const ACILIS_MS = document.referrer ? 0 : 800;
@@ -53,11 +53,30 @@
   };
 
   // Çözülünce klavye kapanır: merdivenin tamamı ve sonuç penceresi görünür
+  // Çözüm penceresi win()'den 650 ms sonra açılır; o arada oyuncu ana ekrana dönüp
+  // başka bir bulmacaya (ör. bugün zaten çözülmüş Günün Bulmacası) geçmiş olabilir.
+  // Pencere yalnızca hâlâ aynı biten oyundaysa açılır.
+  let kazanilan = null;
   const asilWin = P.win;
   P.win = function (...arg) {
     giris.disabled = true;
     giris.blur();
+    kazanilan = { mod: this.mode, bas: this.startWord, hedef: this.targetWord, uzunluk: this.chain.length };
     return asilWin.apply(this, arg);
+  };
+  // Sonucu göster: onay penceresi açıkken klavye kapanır (teklifteki gibi); yol
+  // gösterilince oyun biter, klavye kapanır
+  const asilShowPes = P.showPes;
+  P.showPes = function (ac, ...arg) {
+    const s = asilShowPes.call(this, ac, ...arg);
+    if (ac) giris.blur(); else odakla();
+    return s;
+  };
+  const asilShowResult = P.showResult;
+  P.showResult = function (...arg) {
+    const s = asilShowResult.apply(this, arg);
+    if (this.over) giris.blur();
+    return s;
   };
 
   // İpucu teklifi açıkken yazılan harf arkadaki tahtaya gitmesin; kapanınca klavye geri gelir
@@ -198,7 +217,11 @@
       { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Istanbul" }).format(new Date());
     al("gunlukBulmaca").textContent = `${bas} → ${hedef}`;
     const cozuldu = !!kayit && !tekrar;
-    if (cozuldu) {
+    // "Sonucu göster" ile bitirilmiş (çözüm kaydı yok): ayrı metin, ayrı eylem
+    const gosterildi = !kayit && oyun.dailyShown();
+    if (gosterildi) {
+      al("gunlukDurum").textContent = "Çözüm gösterildi" + enAzYazi;
+    } else if (cozuldu) {
       const enIyi = kayit.enIyi || kayit.steps;
       al("gunlukDurum").textContent = `Çözüldü · ${kayit.steps} adım` + (enIyi < kayit.steps ? ` · en iyi ${enIyi}` : "") + enAzYazi;
     } else {
@@ -206,8 +229,8 @@
         : adim > 0 ? `${adim} adım attın` + enAzYazi
         : "Herkese aynı bulmaca" + (enAz ? ` · en az ${enAz} adım` : "");
     }
-    al("btnGunluk").textContent = cozuldu ? "Sonucu gör" : tekrar || adim > 0 ? "Devam et" : "Oyna";
-    al("gunlukSonraki").hidden = !cozuldu;
+    al("btnGunluk").textContent = cozuldu || gosterildi ? "Sonucu gör" : tekrar || adim > 0 ? "Devam et" : "Oyna";
+    al("gunlukSonraki").hidden = !(cozuldu || gosterildi);
 
     const s = suruyor("free") ? { start: oyun.startWord, target: oyun.targetWord, chain: oyun.chain } : kayitli("free")?.s;
     const yarim = !!s && s.chain.length > 1;
@@ -258,9 +281,16 @@
   // app.js çözüm penceresini çözümden 650 ms sonra açar. O arada ana ekrana ya da başka bir
   // oyuna geçildiyse pencere açılmaz (bitmemiş oyunun ya da ana ekranın üstünde çözüm penceresi olmaz).
   const asilShowModal = P.showModal;
-  P.showModal = function (...arg) {
+  // Ayrıca pencere yalnızca hâlâ aynı biten oyundaysa açılır: ana ekrana dönüp bugün zaten
+  // çözülmüş günlüğe (ya da başka bir bulmacaya) geçildiyse, o oyunun üstünde "Tebrikler" açılmaz.
+  P.showModal = function (secenek, ...arg) {
     if (ekran !== "oyun" || !this.over) return undefined;
-    return asilShowModal.apply(this, arg);
+    if (!secenek?.oncedenCozuldu) {          // gecikmeli çözüm penceresi (win)
+      const k = kazanilan;
+      kazanilan = null;
+      if (!k || k.mod !== this.mode || k.bas !== this.startWord || k.hedef !== this.targetWord || k.uzunluk !== this.chain.length) return undefined;
+    }
+    return asilShowModal.call(this, secenek, ...arg);
   };
 
   // Mod adı başlıkta yazar (sekmelerin yerine); app.js her mod değişiminde updateTabs çağırır
@@ -307,6 +337,18 @@
     catch (_) { /* kayıt tutulamadı */ }
   }, 0));
   if (oku("sm_ses") === "0") muteGame(true);
+  // Türkçe harf şeridi: varsayılan açık; kapatılırsa hiç görünmez, yerini merdiven alır (sm_serit)
+  const seritAyarla = (acik) => {
+    govde.classList.toggle("serit-yok", !acik);
+    al("btnSerit").setAttribute("aria-pressed", String(acik));
+  };
+  al("btnSerit").addEventListener("click", () => {
+    const acik = govde.classList.contains("serit-yok");
+    seritAyarla(acik);
+    try { acik ? localStorage.removeItem("sm_serit") : localStorage.setItem("sm_serit", "0"); }
+    catch (_) { /* kayıt tutulamadı */ }
+  });
+  seritAyarla(oku("sm_serit") !== "0");
   // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
   // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca gelir kancası varsa görünür).
   al("plusBox").classList.add("kart");
