@@ -147,7 +147,13 @@
     if ((await AdMob.trackingAuthorizationStatus()).status === "notDetermined") await AdMob.requestTrackingAuthorization();
     // 4+ App Store sınıfıyla uyumlu: yalnızca genel kitleye uygun (G) reklamlar. Çocuklara
     // yönelik uygulama değil (Kids kategorisi yok), bu yüzden child-directed işareti konmaz.
-    await AdMob.initialize({ maxAdContentRating: "General" });
+    // Birleşik Krallık: reşit olmayan kullanıcı etiketi (TFUA) yalnızca reklam isteklerine konur, böylece
+    // kişiselleştirilmemiş reklam gider. UMP'ye (requestConsentInfo) ETİKET VERİLMEZ: cihaz erişimi onayı
+    // (PECR) pencereden toplanmaya devam eder. Ülke App Store vitrininden; alınamazsa etiket konmaz.
+    const baslat = { maxAdContentRating: "General" };
+    const ulke = SatinAlma ? await Promise.race([SatinAlma.vitrin().then((r) => r.ulke, () => null), uyu(2000).then(() => null)]) : null;
+    if (ulke === "GBR") baslat.tagForUnderAgeOfConsent = true;
+    await AdMob.initialize(baslat);
     hazirla("odul"); hazirla("gecis");   // ilk istekte beklemesinler
     return true;
   };

@@ -87,6 +87,18 @@ yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki 
 `localStorage.sm_plus`, her açılışta StoreKit düzeltir. Simülatör derlemesi
 (`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
 
+**Türkiye'de ayrı reklam rıza ekranı yok (sahip kararı, 13 Kasım 2026; kabul edilmiş risk).**
+Kişiselleştirilmemiş reklam meşru menfaate (KVKK m.5/2-f), kişiselleştirme ATT'ye dayanır. Hukuk
+taslağı bunun KVKK Çerez Rehberi'yle çeliştiğini söyledi; sahip riski bilerek kabul etti. `hukuk-uyum`
+bulgu olarak yazabilir ama "sahip kararı, kabul edilmiş risk" diye; engel sayılmaz, tekrar tekrar açılmaz.
+
+**Birleşik Krallık: TFUA yalnızca `AdMob.initialize`'da, UMP'de değil.** App Store vitrini `GBR` ise
+(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa 2 sn sonra etiket konmaz)
+`tagForUnderAgeOfConsent: true` verilir: reklam isteklerine TFUA konur, kişiselleştirilmemiş reklam gider.
+`requestConsentInfo`'ya etiket VERİLMEZ: Google, UMP tarafında bu etiketin onay penceresini nasıl
+etkilediğini belgelemiyor; PECR gereği BK'da cihaz erişimi onayı penceresi toplanmaya devam etmeli. Bunu
+değiştirmek sahip kararıdır.
+
 **`PrivacyInfo.xcprivacy`: `NSPrivacyTracking` bilerek `false`.** Uygulamanın kendi kodu izleme yapmaz;
 Google SDK'sı kendi bildirimini taşır (13.11.0'da `NSPrivacyTracking` ve alan adı yok). Toplanan
 veri türleri SDK'dakilerle aynen yinelenir. App Store Connect gizlilik etiketinde yine

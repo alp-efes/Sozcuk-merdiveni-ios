@@ -230,7 +230,7 @@ test("Xcode ayarları", () => {
   assert.match(swift, /class AnaGorunum: CAPBridgeViewController/);
   assert.ok(swift.includes("bridge?.registerPluginInstance(SatinAlmaPlugin())"));
   assert.ok(swift.includes('public let jsName = "SatinAlma"'));
-  for (const yontem of ["durum", "fiyat", "satinAl", "geriYukle"]) {
+  for (const yontem of ["durum", "fiyat", "satinAl", "geriYukle", "vitrin"]) {
     assert.ok(swift.includes(`CAPPluginMethod(name: "${yontem}"`) && swift.includes(`@objc func ${yontem}(`), `SatinAlma.${yontem}`);
   }
   assert.equal(say(/path = SatinAlma\.swift;/g), 1, "SatinAlma.swift dosya olarak kayıtlı olmalı");
