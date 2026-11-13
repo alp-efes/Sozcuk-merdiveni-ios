@@ -70,14 +70,9 @@ Apple reddeder; başka ad gerekir.
 
 1. App Store Connect → *Users and Access* → *Integrations* → *App Store
    Connect API* → *Team Keys* → **+**.
-2. Erişim rolü: önce en dar olan **App Manager**'ı deneyin.
-   Derleme sırasında Xcode bu anahtarla geliştirme sertifikası, profil ve
-   bulutta tutulan dağıtım sertifikası kullanır. Apple'ın belgelerine göre
-   bulut dağıtım sertifikası *Account Holder*/*Admin* rolünü ya da ayrıca
-   verilen bir erişimi ister; bunun API anahtarlarında App Manager ile yetip
-   yetmediği **doğrulanmadı**. İlk derleme imzalamada yetki/izin hatası
-   verirse anahtarı iptal edip **Admin** rolüyle yeniden oluşturun ve 5.
-   adımdaki değerleri güncelleyin.
+2. Erişim rolü: **Admin**. İlk TestFlight çalıştırmasında (13 Kasım 2026, #3) App Manager
+   geliştirme imzası için yetti ama bulutta dağıtım imzası için yetmedi; Admin ile derleme
+   yüklendi (Xcode 26.6, `macos-26`).
 3. `.p8` dosyasını indirin (**yalnızca bir kez indirilebilir**), **Key ID** ve
    sayfanın üstündeki **Issuer ID**'yi not edin.
 
@@ -222,7 +217,9 @@ değişmiş olabilir):
 
 Uygulama reklam gösterir (ödüllü: ipucu/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
 satar (reklamsız, sınırsız ipucu/tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
-gerçek para için aşağıdakiler gerekir. **Engeller** her adımın yanında yazılı.
+gerçek para için aşağıdakiler gerekir. **9.1 ve 9.2 yapıldı** (13 Kasım 2026): `gelir.json` gerçek
+AdMob kimliklerini taşır; PR denetimi (`test.yml`) ve TestFlight iş akışı bunu her seferinde
+denetler. **Engeller** her adımın yanında yazılı.
 
 | # | Adım | Neyi engeller |
 |---|---|---|

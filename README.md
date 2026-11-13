@@ -50,7 +50,7 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 
 | Yol | Görev |
 |---|---|
-| `gelir.json` | Reklam (AdMob) ve Plus kimlikleri: **tek yer**. Şu an Google test kimlikleri; gerçekleri `SAHIP-ADIMLARI.md` 9 |
+| `gelir.json` | Reklam (AdMob) ve Plus kimlikleri: **tek yer**. Gerçek AdMob kimlikleri (13 Kasım 2026); kurulum `SAHIP-ADIMLARI.md` 9 |
 | `capacitor.config.json` | Paket kimliği (`appId`), görünen ad, durum çubuğu ve zemin rengi |
 | `package.json` | Sürüm (`version` → Xcode `MARKETING_VERSION`), bağımlılıklar |
 | `araclar/web-esitle.mjs` | Siteyi `www/` içine kopyalar; reklam/analitik/SEO'yu çıkarır, CSP ekler |

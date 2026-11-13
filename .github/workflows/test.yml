@@ -50,3 +50,8 @@ jobs:
 
       - name: Capacitor eşitlemesi
         run: npx cap sync ios
+
+      # Yayın yapılandırması her PR'da denenir: gelir.json gerçek AdMob kimlikleri taşımalı
+      # (Google test kimliği varsa ya da pakette simülatör/test seçeneği kalmışsa PR kırılır)
+      - name: Yayın denetimi (gerçek reklam kimlikleri)
+        run: node araclar/yayin-denetle.mjs

@@ -164,10 +164,10 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
    `currentEntitlement`'ı boş dönüp Plus'ı silmesi olasılığı bilinmiyor (yerel önbellek
    yalnızca açık "yok" cevabıyla silinir; ama boş cevabın ne zaman geldiği doğrulanmadı).
 
-1. `testflight.yml` hiç çalıştırılmadı (koşucu adı, Xcode sürümü, imzalama
-   bayrakları). Arşiv geliştirme imzasıyla alınır ve takımda kayıtlı bir cihaz
-   ister; API anahtarının App Manager rolüyle bulut imzalamaya yetip yetmediği
-   bilinmiyor (SAHIP-ADIMLARI 2 ve 4).
+1. `testflight.yml` çalıştı: #3 (13 Kasım 2026) başarılı, derleme 3 yüklendi (Xcode 26.6,
+   `macos-26`). API anahtarı **Admin** olmalı: App Manager geliştirme imzasına yetti, bulutta
+   dağıtım imzasına yetmedi (SAHIP-ADIMLARI 4). Gerçek AdMob kimlikleri girdikten sonra
+   yayın denetimi adımının ilk gerçek çalışması izlenecek.
 2. WebKit'te CSP `'self'`in `capacitor://localhost` ile eşleşmesi (açıkça da
    yazıldı). Oyun boş açılırsa ilk bakılacak yer burası.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,
