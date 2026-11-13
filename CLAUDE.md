@@ -93,7 +93,7 @@ taslağı bunun KVKK Çerez Rehberi'yle çeliştiğini söyledi; sahip riski bil
 bulgu olarak yazabilir ama "sahip kararı, kabul edilmiş risk" diye; engel sayılmaz, tekrar tekrar açılmaz.
 
 **Birleşik Krallık: TFUA yalnızca `AdMob.initialize`'da, UMP'de değil.** App Store vitrini `GBR` ise
-(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa 2 sn sonra etiket konmaz)
+(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa ya da 2 sn içinde gelmezse etiket konmaz)
 `tagForUnderAgeOfConsent: true` verilir: reklam isteklerine TFUA konur, kişiselleştirilmemiş reklam gider.
 `requestConsentInfo`'ya etiket VERİLMEZ: Google, UMP tarafında bu etiketin onay penceresini nasıl
 etkilediğini belgelemiyor; PECR gereği BK'da cihaz erişimi onayı penceresi toplanmaya devam etmeli. Bunu
