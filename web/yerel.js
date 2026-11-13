@@ -142,12 +142,20 @@
     if (bilgi.isConsentFormAvailable && bilgi.status === "REQUIRED") bilgi = await AdMob.showConsentForm();
     if (!bilgi.canRequestAds) return false;
     if (bilgi.privacyOptionsRequirementStatus === "REQUIRED") tercihBaglantisiEkle();
+    // Birleşik Krallık: ülke App Store vitrininden okunur (alınamazsa ya da 2 sn içinde gelmezse "bilinmiyor").
+    // GBR ise iOS izleme izni (ATT) sorulmaz ve reşit olmayan kullanıcı etiketi (TFUA) konur: kişiselleştirilmemiş
+    // reklam gider. TFUA yalnızca reklam isteklerine konur; UMP'ye (requestConsentInfo) ETİKET VERİLMEZ,
+    // cihaz erişimi onayı (PECR) pencereden toplanmaya devam eder. Bilinmiyorsa etiket konmaz, ATT sorulur.
+    const ulke = SatinAlma ? await Promise.race([SatinAlma.vitrin().then((r) => r.ulke, () => null), uyu(2000).then(() => null)]) : null;
+    const bk = ulke === "GBR";
     // Form kapanırken sistem istemi bazen yutulur; kısa bekleme
     await uyu(500);
-    if ((await AdMob.trackingAuthorizationStatus()).status === "notDetermined") await AdMob.requestTrackingAuthorization();
+    if (!bk && (await AdMob.trackingAuthorizationStatus()).status === "notDetermined") await AdMob.requestTrackingAuthorization();
     // 4+ App Store sınıfıyla uyumlu: yalnızca genel kitleye uygun (G) reklamlar. Çocuklara
     // yönelik uygulama değil (Kids kategorisi yok), bu yüzden child-directed işareti konmaz.
-    await AdMob.initialize({ maxAdContentRating: "General" });
+    const baslat = { maxAdContentRating: "General" };
+    if (bk) baslat.tagForUnderAgeOfConsent = true;
+    await AdMob.initialize(baslat);
     hazirla("odul"); hazirla("gecis");   // ilk istekte beklemesinler
     return true;
   };
