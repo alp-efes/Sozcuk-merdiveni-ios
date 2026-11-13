@@ -226,7 +226,7 @@
     plusMu: () => plus,   // DÜZ boolean, söz (Promise) değil: app.js !!plusMu() yazar, söz herkesi Plus yapardı
 
     async odulluReklam(_neden) {
-      if (plus) return true;                                       // Plus: sınırsız ipucu/tekrar
+      if (plus) return true;                                       // Plus: sınırsız ipucu/geri al/tekrar
       if (!(await reklamIzni())) return false;
       // Yüklenmesi uzun sürüyorsa oyuncuyu bekletme; yükleme arkada sürer
       if (!(await Promise.race([hazirla("odul"), uyu(8000).then(() => false)]))) return false;
