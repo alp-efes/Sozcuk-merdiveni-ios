@@ -362,12 +362,26 @@
     else if (ekran !== "oyun") e.stopPropagation();
   }, true);
 
-  // Açılış ekranı sözlük yüklenene dek (en az ACILIS_MS) durur, sonra ana ekran gelir
+  // Açılış: bloklar basamaklara düşer (uygulama.css → acilisDus). Sayfa dönüşünde bloklar
+  // baştan yerindedir ve beklenmez. Animasyon olayları gelmezse (sayfa arka planda)
+  // ACILIS_UST_MS'te (sayfa açılışından) beklemek bırakılır.
+  const ACILIS_UST_MS = 2000;
+  const acilis = al("acilis");
+  if (!ACILIS_MS) acilis.classList.add("hemen");
+  const animasyonBitti = () => Promise.race([
+    Promise.all((acilis.getAnimations?.({ subtree: true }) || []).map((a) => a.finished.catch(() => {}))),
+    new Promise((coz) => setTimeout(coz, Math.max(0, ACILIS_UST_MS - performance.now()))),
+  ]);
+
+  // Açılış ekranı sözlük yüklenene ve bloklar oturana dek (en az ACILIS_MS) durur, sonra ana ekran gelir
   const asilInit = P.init;
   P.init = async function (...arg) {
     await asilInit.apply(this, arg);
     oyun = this;
-    await new Promise((coz) => setTimeout(coz, Math.max(0, ACILIS_MS - performance.now())));
+    await Promise.all([
+      new Promise((coz) => setTimeout(coz, Math.max(0, ACILIS_MS - performance.now()))),
+      animasyonBitti(),
+    ]);
     anaAc();
   };
 })();
