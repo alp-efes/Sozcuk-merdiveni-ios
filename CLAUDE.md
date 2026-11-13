@@ -75,7 +75,8 @@ tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
 ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
 `odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
 Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
-→ ATT (yalnızca karar verilmemişse) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
+→ vitrin (App Store ülkesi, en çok 2 sn) → ATT (yalnızca karar verilmemişse ve vitrin GBR değilse;
+GBR'de ATT sorulmaz ve `tagForUnderAgeOfConsent` verilir) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
 Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
 kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
 hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
@@ -93,7 +94,7 @@ taslağı bunun KVKK Çerez Rehberi'yle çeliştiğini söyledi; sahip riski bil
 bulgu olarak yazabilir ama "sahip kararı, kabul edilmiş risk" diye; engel sayılmaz, tekrar tekrar açılmaz.
 
 **Birleşik Krallık: TFUA yalnızca `AdMob.initialize`'da, UMP'de değil.** App Store vitrini `GBR` ise
-(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa ya da 2 sn içinde gelmezse etiket konmaz)
+(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa ya da 2 sn içinde gelmezse etiket konmaz ve ATT sorulur)
 `tagForUnderAgeOfConsent: true` verilir: reklam isteklerine TFUA konur, kişiselleştirilmemiş reklam gider.
 `requestConsentInfo`'ya etiket VERİLMEZ: Google, UMP tarafında bu etiketin onay penceresini nasıl
 etkilediğini belgelemiyor; PECR gereği BK'da cihaz erişimi onayı penceresi toplanmaya devam etmeli. Bunu
