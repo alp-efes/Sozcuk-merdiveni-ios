@@ -8,6 +8,7 @@
 # hemen önce ios/App/App/public içine eklenir. www/, npm run ios:sync ve TestFlight
 # paketi onu içermez (testler/paket.test.mjs).
 set -euo pipefail
+shopt -s inherit_errexit   # $(...) içindeki hata da betiği durdursun
 
 CIKTI=${1:?"kullanım: bash araclar/simulator.sh <çıktı klasörü>"}
 KOK=$(cd "$(dirname "$0")/.." && pwd)
@@ -38,21 +39,28 @@ xcodebuild build -quiet -project "$KOK/ios/App/App.xcodeproj" -scheme App -confi
 echo "::endgroup::"
 
 # $1 adı desene uyan simülatörün kimliği: en yeni iOS sürümündeki seçilir.
-# Koşucu görüntüsünde yoksa o cihaz tipiyle en yeni iOS'ta $2 adıyla yenisi yaratılır.
+# Koşucu görüntüsünde yoksa, o tipi destekleyen en yeni iOS'ta $2 adıyla yaratılır.
 simulator_sec() {
-  local desen=$1 ad=$2 udid tur surum
+  local desen=$1 ad=$2 udid secim
   udid=$(xcrun simctl list devices available -j | jq -r --arg d "$desen" '
     [.devices | to_entries[] | select(.key | test("SimRuntime\\.iOS-"))
      | (.key | capture("iOS-(?<a>[0-9]+)-(?<b>[0-9]+)") | [(.a | tonumber), (.b | tonumber)]) as $s
      | .value[] | select(.name | test($d)) | {s: $s, name, udid}]
     | sort_by([.s, .name]) | last | .udid // empty')
   if [ -z "$udid" ]; then
-    tur=$(xcrun simctl list devicetypes -j | jq -r --arg d "$desen" \
-      '[.devicetypes[] | select(.name | test($d))] | last | .identifier // empty')
-    surum=$(xcrun simctl list runtimes available -j | jq -r \
-      '[.runtimes[] | select(.platform == "iOS")] | last | .identifier // empty')
-    [ -n "$tur" ] && [ -n "$surum" ] || { echo "::error::'$desen' simülatörü yok ve yaratılamadı" >&2; return 1; }
-    udid=$(xcrun simctl create "$ad" "$tur" "$surum")
+    # Her iOS sürümü yalnızca bazı cihaz tiplerini destekler (ör. iOS 26'da 1. nesil SE yok)
+    secim=$(xcrun simctl list runtimes available -j | jq -r --arg d "$desen" '
+      [.runtimes[] | select(.platform == "iOS") | . as $r
+       | .supportedDeviceTypes[] | select(.name | test($d))
+       | {v: ($r.version | split(".") | map(tonumber)), name, tur: .identifier, surum: $r.identifier}]
+      | sort_by([.v, .name]) | last | select(. != null) | "\(.tur) \(.surum)"')
+    if [ -z "$secim" ]; then
+      echo "::error::'$desen' simülatörü yok ve yaratılamadı. Desteklenen iPhone'lar:" >&2
+      xcrun simctl list runtimes available -j |
+        jq -r '.runtimes[] | select(.platform == "iOS") | .name + ": " + ([.supportedDeviceTypes[].name | select(test("iPhone"))] | join(", "))' >&2
+      return 1
+    fi
+    udid=$(xcrun simctl create "$ad" ${secim% *} ${secim#* }) || return 1
   fi
   echo "$udid"
 }
