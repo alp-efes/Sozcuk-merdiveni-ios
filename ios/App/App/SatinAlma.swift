@@ -22,6 +22,7 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "fiyat", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "satinAl", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "geriYukle", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "vitrin", returnType: CAPPluginReturnPromise),
     ]
 
     /// App Store Connect'teki ürün kimliği (paket kimliği + ".plus"; testle denetlenir).
@@ -99,6 +100,15 @@ public class SatinAlmaPlugin: CAPPlugin, CAPBridgedPlugin {
         Task { [self] in
             do { try await AppStore.sync() } catch { return call.reject(error.localizedDescription) }
             call.resolve(["plus": await sahip()])
+        }
+    }
+
+    /// { ulke?: String }. App Store vitrininin ülke kodu (ISO 3166 alfa-3, örn. "GBR");
+    /// Birleşik Krallık'ta reklam etiketi için kullanılır. Vitrin yoksa alan yok.
+    @objc func vitrin(_ call: CAPPluginCall) {
+        Task {
+            let ulke = await Storefront.current?.countryCode
+            call.resolve(ulke.map { ["ulke": $0] } ?? [:])
         }
     }
 }

@@ -88,7 +88,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   yoktur (ses düğmesi ana ekrana taşınır, tercih `sm_ses`'te hatırlanır).
 - **Telefonun klavyesi.** Sitenin ekran klavyesi gizlidir. Görünmez `#giris` metin alanı
   odaklanınca klavye açılır; alan `app.js`'teki `buffer`'ın aynısını tutar. Harfler
-  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I) ve `TR_LETTER` ile süzülür. Alan
+  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I), şapkalı harf şapkasız yazılır
+  (â → A, î → İ, û → U) ve `TR_LETTER` ile süzülür; bileşim (IME) bitince eşitlenir. Alan
   ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
   Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için).
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
@@ -96,15 +97,23 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   bitince gönderdiği için son klavyeli/klavyesiz boy hatırlanır ve odak değişir değişmez
   uygulanır; 1 sn sonra gerçek ölçüyle eşitlenir. `@capacitor/keyboard` eklentisi YOK.
 - **Her modun oyunu ayrı saklanır:** `sm_mod_daily`, `sm_mod_free` (`sm_state`'in kopyaları);
-  ana ekrandan öteki moda geçmek kalınan yeri silmez. Yeni `sm_*` adı `web/gizlilik.html`'e
-  yazılır (test kırılır).
+  ana ekrandan öteki moda geçmek kalınan yeri silmez. Günlük çözüm penceresindeki "Serbest
+  Oyun" ve bitmiş günlükte Enter de aynı yoldan gider (`#modal`'da yakalanır; `app.js` yeni
+  bulmaca çekip kaydı ezerdi). Serbest kayıt, bulmaca `freePool()`'da ise sürdürülür. Yeni
+  `sm_*` adı tam yazılır (birleştirilmez) ve `web/gizlilik.html`'e eklenir (test kırılır).
+- **Çözüm penceresi yalnızca oyun ekranında ve bitmiş oyunda açılır** (`showModal` sarılır):
+  `app.js` pencereyi çözümden 650 ms sonra açar; o arada başka ekrana geçildiyse açılmaz.
+- **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
+  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca varsa). Alt bilgi
+  (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
 ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
 `odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
 Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
-→ ATT (yalnızca karar verilmemişse) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
+→ vitrin (App Store ülkesi, en çok 2 sn) → ATT (yalnızca karar verilmemişse ve vitrin GBR değilse;
+GBR'de ATT sorulmaz ve `tagForUnderAgeOfConsent` verilir) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
 Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
 kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
 hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
@@ -115,6 +124,18 @@ yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki 
 `yerel.js`'e yazar; `admobAppId` → `ios-ayarla.mjs` → `Info.plist`. Plus önbelleği
 `localStorage.sm_plus`, her açılışta StoreKit düzeltir. Simülatör derlemesi
 (`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
+
+**Türkiye'de ayrı reklam rıza ekranı yok (sahip kararı, 13 Kasım 2026; kabul edilmiş risk).**
+Kişiselleştirilmemiş reklam meşru menfaate (KVKK m.5/2-f), kişiselleştirme ATT'ye dayanır. Hukuk
+taslağı bunun KVKK Çerez Rehberi'yle çeliştiğini söyledi; sahip riski bilerek kabul etti. `hukuk-uyum`
+bulgu olarak yazabilir ama "sahip kararı, kabul edilmiş risk" diye; engel sayılmaz, tekrar tekrar açılmaz.
+
+**Birleşik Krallık: TFUA yalnızca `AdMob.initialize`'da, UMP'de değil.** App Store vitrini `GBR` ise
+(`SatinAlma.vitrin()`, StoreKit `Storefront.current`; alınamazsa ya da 2 sn içinde gelmezse etiket konmaz ve ATT sorulur)
+`tagForUnderAgeOfConsent: true` verilir: reklam isteklerine TFUA konur, kişiselleştirilmemiş reklam gider.
+`requestConsentInfo`'ya etiket VERİLMEZ: Google, UMP tarafında bu etiketin onay penceresini nasıl
+etkilediğini belgelemiyor; PECR gereği BK'da cihaz erişimi onayı penceresi toplanmaya devam etmeli. Bunu
+değiştirmek sahip kararıdır.
 
 **`PrivacyInfo.xcprivacy`: `NSPrivacyTracking` bilerek `false`.** Uygulamanın kendi kodu izleme yapmaz;
 Google SDK'sı kendi bildirimini taşır (13.11.0'da `NSPrivacyTracking` ve alan adı yok). Toplanan
