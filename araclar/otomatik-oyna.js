@@ -1,5 +1,10 @@
 "use strict";
 
+// yerel.js bunu okuyup reklamı, ATT penceresini ve satın almayı devre dışı bırakır:
+// sistem pencereleri ekran görüntüsünü ve oynamayı bloklamasın. Bu yüzden betik
+// yerel.js'ten ÖNCE yüklenir (araclar/simulator.sh).
+window.SM_OTOMATIK = true;
+
 /* =========================================================
  * YALNIZCA SİMÜLATÖR İŞ AKIŞI İÇİN: günün bulmacasını kendi kendine oynar.
  * ---------------------------------------------------------
@@ -10,7 +15,8 @@
  * Aşamalar: acilis, hamle, cozum, nasil (hata olursa "hata …").
  *
  * Uygulama paketine (www/, npm run ios:sync, TestFlight) GİRMEZ:
- * araclar/simulator.sh derlemeden hemen önce ios/App/App/public içine ekler;
+ * araclar/simulator.sh derlemeden hemen önce ios/App/App/public içine, yerel.js'ten
+ * önce yüklenecek biçimde ekler;
  * her `cap sync` o klasörü www/'den yeniden yazar.
  * ========================================================= */
 (async () => {
@@ -65,6 +71,13 @@
       throw new Error("günün bulmacası açık değil");
     }
     if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
+    // Yerel eklentiler köprüye kayıtlı olmalı: yalnızca uygulamada denetlenir (tarayıcıda köprü yok).
+    // Reklam ve satın alma bu derlemede kapalıdır ama eklentilerin bağlandığı burada görülür.
+    if (window.Capacitor?.isNativePlatform?.()) {
+      for (const ad of ["AdMob", "SatinAlma", "Haptics", "Share"]) {
+        if (!Capacitor.Plugins[ad]) throw new Error("yerel eklenti köprüde kayıtlı değil: " + ad);
+      }
+    }
     await uyu(1000);                       // ilk boyama ve yazı tipi
     await asama("acilis");
 

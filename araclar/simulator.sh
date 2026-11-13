@@ -21,7 +21,8 @@ mkdir -p "$CIKTI"
 echo "::group::Otomatik oynama betiği ekleniyor"
 [ -f "$PUBLIC/index.html" ] || { echo "::error::$PUBLIC/index.html yok: önce npm run ios:sync"; exit 1; }
 cp "$KOK/araclar/otomatik-oyna.js" "$PUBLIC/"
-perl -0pi -e 's|<script src="yerel\.js"></script>|$&\n  <script src="otomatik-oyna.js"></script>|' "$PUBLIC/index.html"
+# yerel.js'ten ÖNCE: betik reklam/ATT/satın almayı kapatan bayrağı yerel.js okumadan koyar
+perl -0pi -e 's|<script src="yerel\.js"></script>|<script src="otomatik-oyna.js"></script>\n  $&|' "$PUBLIC/index.html"
 grep -q '<script src="otomatik-oyna.js"></script>' "$PUBLIC/index.html" ||
   { echo "::error::otomatik-oyna.js index.html'e eklenemedi"; exit 1; }
 echo "::endgroup::"

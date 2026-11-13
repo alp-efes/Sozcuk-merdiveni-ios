@@ -142,7 +142,10 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   // Gizlilik sayfası paketin içinden açılır ve oyuna geri döner
   await sayfa.locator('.site-footer a[href="gizlilik.html"]').tap();
   await sayfa.waitForURL(ADRES + "gizlilik.html");
-  assert.match(await sayfa.textContent("main"), /hiçbir veri toplamaz/);
+  const gizlilik = await sayfa.textContent("main");
+  assert.match(gizlilik, /Google AdMob/);
+  assert.match(gizlilik, /İzin vermezsen reklamlar yine görünür/);
+  assert.match(gizlilik, /Plus/);
   assert.equal(await sayfa.evaluate(() => getComputedStyle(document.body).backgroundColor !== "rgba(0, 0, 0, 0)"), true,
                "gizlilik sayfasına stil uygulanmadı");
   await goruntu("5-gizlilik.png");
@@ -172,6 +175,7 @@ test("Capacitor yokken (tarayıcıda) yerel.js hiçbir şeye dokunmaz", async ()
     paylasimSarildi: Object.prototype.hasOwnProperty.call(navigator, "share"),
   }));
   assert.equal(d.paylasimSarildi, false);
+  assert.equal(await sayfa.evaluate(() => typeof window.SozcukGelir), "undefined", "web'de gelir kancası olmamalı (oyun web davranışına düşer)");
   await yaz(sayfa, d.bas);                  // geçersiz hamle hata vermeden reddedilir
   assert.equal(await sayfa.evaluate(() => oyun.chain.length), 1);
   assert.deepEqual(kayit.disIstekler, []);
@@ -212,4 +216,277 @@ test("otomatik oynama betiği yedek sözlükle oynamaz, hata bildirir", async ()
   const { baglam, isaretler } = await otomatikOyna({ sozlukYok: true });
   assert.deepEqual(isaretler, ["hata words.json yüklenmedi (mock sözlük)"]);
   await baglam.close();
+});
+
+/* ---------- Gelir kancası (window.SozcukGelir): sahte AdMob ve StoreKit köprüsü ---------- */
+
+// Sahte köprü: her yerel çağrıyı __cagri'ya yazar. `ayar` senaryoyu belirler; oyun sırasında
+// değişecekler window.__odul ("odul" | "erken" | "hata") ve window.__magaza'dadır.
+// Gerçek reklam ve satın alma ancak cihazda (TestFlight) denenebilir.
+const SAHTE_KOPRU = (ayar) => {
+  window.__cagri = [];
+  window.__ofset = 0;                                  // Date.now() ileri sarma (geçiş reklamı aralığı)
+  const gercekSimdi = Date.now.bind(Date);
+  Date.now = () => gercekSimdi() + window.__ofset;
+  window.__odul = "odul";
+  window.__magaza = { plus: !!ayar.magazaPlus, satin: "tamam", geri: false };
+  if (ayar.onbellekPlus) localStorage.setItem("sm_plus", "1");
+  if (ayar.simulator) window.SM_OTOMATIK = true;
+  const dinleyiciler = {};
+  window.__yay = (ad, veri) => (dinleyiciler[ad] || []).slice().forEach((f) => f(veri));
+  const cagri = (ad, don) => (arg) => { window.__cagri.push([ad, arg]); return don(arg); };
+  const tamam = (v) => Promise.resolve(v);
+  const bilgi = ayar.bilgi || { status: "NOT_REQUIRED", isConsentFormAvailable: false, canRequestAds: true, privacyOptionsRequirementStatus: "NOT_REQUIRED" };
+  const yukle = (arg) => (ayar.yuklemeHata ? Promise.reject(new Error("no fill")) : tamam({ adUnitId: arg.adId }));
+  window.Capacitor = {
+    isNativePlatform: () => true,
+    Plugins: {
+      Haptics: { notification: cagri("titresim", () => tamam()) },
+      Share: { share: cagri("paylas", () => tamam()) },
+      AdMob: {
+        addListener: (ad, f) => {
+          (dinleyiciler[ad] ??= []).push(f);
+          return tamam({ remove: () => { dinleyiciler[ad] = dinleyiciler[ad].filter((x) => x !== f); } });
+        },
+        requestConsentInfo: cagri("requestConsentInfo", () => tamam(bilgi)),
+        showConsentForm: cagri("showConsentForm", () => (ayar.formHata ? Promise.reject(new Error("form")) : tamam(ayar.formSonrasi))),
+        showPrivacyOptionsForm: cagri("showPrivacyOptionsForm", () => tamam()),
+        trackingAuthorizationStatus: cagri("trackingAuthorizationStatus", () => tamam({ status: ayar.att || "notDetermined" })),
+        requestTrackingAuthorization: cagri("requestTrackingAuthorization", () => tamam()),
+        initialize: cagri("initialize", () => tamam()),
+        prepareRewardVideoAd: cagri("prepareRewardVideoAd", yukle),
+        prepareInterstitial: cagri("prepareInterstitial", yukle),
+        // Gerçek eklenti gibi: showRewardVideoAd yalnızca ödülde çözülür, erken kapanışta asla
+        showRewardVideoAd: cagri("showRewardVideoAd", () => new Promise((coz, red) => {
+          if (window.__odul === "hata") return red(new Error("hazır değil"));
+          setTimeout(() => {
+            if (window.__odul === "odul") { window.__yay("onRewardedVideoAdReward", { type: "x", amount: 1 }); coz({ type: "x", amount: 1 }); }
+            window.__yay("onRewardedVideoAdDismissed");
+          }, 20);
+        })),
+        showInterstitial: cagri("showInterstitial", () => { setTimeout(() => window.__yay("interstitialAdDismissed"), 20); return tamam(); }),
+      },
+      SatinAlma: {
+        addListener: (ad, f) => { (dinleyiciler[ad] ??= []).push(f); return tamam({ remove() {} }); },
+        durum: cagri("durum", () => tamam({ plus: window.__magaza.plus })),
+        fiyat: cagri("fiyat", () => (ayar.fiyatYok ? Promise.reject(new Error("ürün yok")) : tamam({ fiyat: "₺99,99" }))),
+        satinAl: cagri("satinAl", () => tamam({ sonuc: window.__magaza.satin })),
+        geriYukle: cagri("geriYukle", () => (ayar.geriHata ? Promise.reject(new Error("giriş iptal")) : tamam({ plus: window.__magaza.geri }))),
+      },
+    },
+  };
+};
+
+async function gelirSayfasi(ayar = {}) {
+  const baglam = await tarayici.newContext(TELEFON);
+  await baglam.addInitScript(SAHTE_KOPRU, ayar);
+  const { sayfa, kayit } = await ac(baglam);
+  const adlar = () => sayfa.evaluate(() => window.__cagri.map((c) => c[0]));
+  const say = async (ad) => (await adlar()).filter((a) => a === ad).length;
+  const bekle = (kosul, arg) => sayfa.waitForFunction(kosul, arg, { timeout: 5000 });
+  return { baglam, sayfa, kayit, adlar, say, bekle };
+}
+
+test("gelir kancası: sözleşmedeki altı yöntem var, açılışta UMP → ATT → başlat → önyükleme", async () => {
+  const { baglam, sayfa, kayit, adlar, bekle } = await gelirSayfasi();
+  assert.deepEqual(await sayfa.evaluate(() => Object.keys(window.SozcukGelir).sort()),
+                   ["gecisReklami", "odulluReklam", "plusFiyat", "plusGeriYukle", "plusMu", "plusSatinAl"]);
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.plusMu()), false);
+  // plusMu düz boolean olmalı: app.js !!plusMu() yazar, bir söz (Promise) herkesi Plus yapardı
+  assert.equal(await sayfa.evaluate(() => typeof window.SozcukGelir.plusMu()), "boolean");
+  // Kanca değiştirilemez: sayfadaki başka bir betik üzerine yazamaz, tanımı değiştiremez
+  assert.deepEqual(await sayfa.evaluate(() => {
+    const once = window.SozcukGelir;
+    window.SozcukGelir = { plusMu: () => true };
+    try { window.SozcukGelir.plusMu = () => true; } catch (_) { /* sıkı kipte hata atar */ }
+    let tanimHatasi = false;
+    try { Object.defineProperty(window, "SozcukGelir", { value: {} }); } catch (_) { tanimHatasi = true; }
+    return [window.SozcukGelir === once, Object.isFrozen(once), window.SozcukGelir.plusMu(), tanimHatasi];
+  }), [true, true, false, true]);
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  const akis = (await adlar()).filter((a) => !["titresim", "paylas"].includes(a));
+  assert.deepEqual(akis.filter((a) => a !== "fiyat"), ["durum", "requestConsentInfo", "trackingAuthorizationStatus", "requestTrackingAuthorization",
+                          "initialize", "prepareRewardVideoAd", "prepareInterstitial"]);
+  // 4+ sınıfıyla uyumlu: yalnızca genel kitleye uygun (G) reklamlar
+  assert.deepEqual(await sayfa.evaluate(() => window.__cagri.find((c) => c[0] === "initialize")[1]), { maxAdContentRating: "General" });
+  // Reklamlar yerel; web görünümüne hiçbir şey yüklenmez, CSP değişmez
+  assert.deepEqual(kayit.disIstekler, []);
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+  assert.doesNotMatch(await sayfa.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]').content), /google|unsafe|\*/);
+  await baglam.close();
+});
+
+test("gelir kancası: ödüllü reklam yalnızca ödül kazanılırsa true döner", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  const dene = (mod, neden) => sayfa.evaluate(([m, n]) => { window.__odul = m; return window.SozcukGelir.odulluReklam(n); }, [mod, neden]);
+  assert.equal(await dene("odul", "ipucu"), true, "izlendi: ödül");
+  assert.equal(await dene("erken", "tekrar"), false, "erken kapatıldı: ödül yok (eklentinin sözü hiç çözülmez)");
+  assert.equal(await dene("hata", "ipucu"), false, "gösterilemedi");
+  assert.equal(await say("showRewardVideoAd"), 3);
+  assert.ok(await say("prepareRewardVideoAd") >= 4, "her gösterimden sonra bir sonraki önyüklenmeli");
+  await baglam.close();
+});
+
+test("gelir kancası: reklam yüklenemezse ödüllü false, geçiş reklamı gösterilmez, oyun takılmaz", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi({ yuklemeHata: true });
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
+  await sayfa.evaluate(async () => { await window.SozcukGelir.gecisReklami("cozum"); await window.SozcukGelir.gecisReklami("cozum"); });
+  assert.equal(await say("showRewardVideoAd") + await say("showInterstitial"), 0);
+  await baglam.close();
+});
+
+test("gelir kancası: geçiş reklamı sıklık sınırı (ilk çözümde yok, 3 dk aralık, pencere kapanınca)", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
+  const coz = () => sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
+  await coz();
+  assert.equal(await say("showInterstitial"), 0, "oturumun ilk çözümünde reklam yok");
+  // Çözüm penceresi açıkken reklam gelmez; kapanınca gelir
+  await sayfa.evaluate(() => document.getElementById("modal").classList.remove("hidden"));
+  const bekleyen = sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
+  await sayfa.waitForTimeout(1200);
+  assert.equal(await say("showInterstitial"), 0, "pencere açıkken reklam gösterildi");
+  await sayfa.evaluate(() => document.getElementById("modal").classList.add("hidden"));
+  await bekleyen;
+  assert.equal(await say("showInterstitial"), 1, "ikinci çözümde reklam");
+  await coz();
+  assert.equal(await say("showInterstitial"), 1, "3 dk dolmadan ikinci reklam yok");
+  await sayfa.evaluate(() => { window.__ofset += 2 * 60 * 1000; });
+  await coz();
+  assert.equal(await say("showInterstitial"), 1, "2 dk yetmez");
+  await sayfa.evaluate(() => { window.__ofset += 2 * 60 * 1000; });
+  await bekle(() => window.__cagri.filter((c) => c[0] === "prepareInterstitial").length >= 2);
+  await coz();
+  assert.equal(await say("showInterstitial"), 2, "3 dk sonra yeniden");
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("baska")), undefined);
+  assert.equal(await say("showInterstitial"), 2, "yalnızca 'cozum' anında");
+  await baglam.close();
+});
+
+test("gelir kancası: UMP gerekiyorsa form gösterilir, reddedilirse reklam yok; tercih bağlantısı çıkar", async () => {
+  const gerekli = { status: "REQUIRED", isConsentFormAvailable: true, canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" };
+  // Onay alındı
+  let g = await gelirSayfasi({ bilgi: gerekli, formSonrasi: { status: "OBTAINED", canRequestAds: true, privacyOptionsRequirementStatus: "REQUIRED" } });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "initialize"));
+  assert.ok((await g.adlar()).indexOf("showConsentForm") < (await g.adlar()).indexOf("requestTrackingAuthorization"), "UMP, ATT'den önce");
+  await g.bekle(() => [...document.querySelectorAll(".site-footer a")].some((a) => a.textContent === "Reklam Tercihleri"));
+  await g.sayfa.locator(".site-footer a", { hasText: "Reklam Tercihleri" }).tap();
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "showPrivacyOptionsForm"));
+  await g.baglam.close();
+  // Onay verilmedi: reklam başlatılmaz, ödüllü false
+  g = await gelirSayfasi({ bilgi: gerekli, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
+  assert.deepEqual([await g.say("initialize"), await g.say("requestTrackingAuthorization")], [0, 0]);
+  await g.baglam.close();
+  // Form hatası: reklam yok, oyun etkilenmez
+  g = await gelirSayfasi({ bilgi: gerekli, formHata: true });
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
+  assert.equal(await g.say("initialize"), 0);
+  await g.baglam.close();
+});
+
+test("gelir kancası: ATT reddedilse de reklam çalışır (soru yeniden sorulmaz)", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi({ att: "denied" });
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await say("requestTrackingAuthorization"), 0, "karar verilmişse yeniden sorulmaz");
+  assert.equal(await say("initialize"), 1);
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true);
+  await baglam.close();
+});
+
+test("gelir kancası: Plus sahibi reklam görmez, ATT/UMP sorulmaz; iade önbelleği siler", async () => {
+  // Önbellekte Plus var, StoreKit de doğruluyor
+  let g = await gelirSayfasi({ onbellekPlus: true, magazaPlus: true });
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.plusMu()), true);
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true, "Plus: sınırsız");
+  await g.sayfa.evaluate(async () => { await window.SozcukGelir.gecisReklami("cozum"); await window.SozcukGelir.gecisReklami("cozum"); });
+  for (const ad of ["requestConsentInfo", "requestTrackingAuthorization", "initialize", "showRewardVideoAd", "showInterstitial"]) {
+    assert.equal(await g.say(ad), 0, `Plus sahibinde ${ad} çağrılmamalı`);
+  }
+  await g.baglam.close();
+  // Önbellekte Plus var ama StoreKit artık yok diyor (iade): Plus silinir, reklam akışı başlar
+  g = await gelirSayfasi({ onbellekPlus: true });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "initialize"));
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.plusMu()), false);
+  assert.equal(await g.sayfa.evaluate(() => localStorage.getItem("sm_plus")), null);
+  await g.baglam.close();
+});
+
+test("gelir kancası: Plus satın alma ve geri yükleme", async () => {
+  const { baglam, sayfa } = await gelirSayfasi();
+  const plusMu = () => sayfa.evaluate(() => window.SozcukGelir.plusMu());
+  const dene = (ad, ayar) => sayfa.evaluate(([a, m]) => { Object.assign(window.__magaza, m); return window.SozcukGelir[a](); }, [ad, ayar]);
+  assert.equal(await dene("plusSatinAl", { satin: "iptal" }), false);
+  assert.equal(await dene("plusSatinAl", { satin: "bekliyor" }), false, "ebeveyn onayı bekleyen alım Plus sayılmaz");
+  assert.equal(await dene("plusSatinAl", { satin: "dogrulanamadi" }), false);
+  assert.equal(await dene("plusGeriYukle", { geri: false }), false, "geri yüklenecek alım yok");
+  assert.equal(await plusMu(), false);
+  assert.equal(await dene("plusSatinAl", { satin: "tamam" }), true);
+  assert.equal(await plusMu(), true);
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_plus")), "1", "yerelde saklanır");
+  const cagrilar = await sayfa.evaluate(() => window.__cagri.filter((c) => c[0] === "satinAl").map((c) => c[1]));
+  assert.ok(cagrilar.every((a) => a.urun === "com.sozcukyolu.sozcukmerdiveni.plus"));
+  await baglam.close();
+  // Geri yükleme: alım bulunur → Plus; giriş iptal edilirse (reddedilir) → false, oyun takılmaz
+  const g = await gelirSayfasi();
+  assert.equal(await g.sayfa.evaluate(() => { window.__magaza.geri = true; return window.SozcukGelir.plusGeriYukle(); }), true);
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.plusMu()), true);
+  await g.baglam.close();
+  const h = await gelirSayfasi({ geriHata: true });
+  assert.equal(await h.sayfa.evaluate(() => window.SozcukGelir.plusGeriYukle()), false);
+  await h.baglam.close();
+});
+
+test("gelir kancası: simülatör derlemesinde reklam, ATT ve satın alma yok; ödül hep verilir", async () => {
+  const { baglam, sayfa, adlar } = await gelirSayfasi({ simulator: true });
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true);
+  await sayfa.evaluate(async () => { await window.SozcukGelir.gecisReklami("cozum"); await window.SozcukGelir.gecisReklami("cozum"); });
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.plusSatinAl()), false);
+  await sayfa.waitForTimeout(800);
+  assert.deepEqual((await adlar()).filter((a) => !["titresim", "paylas"].includes(a)), [], "hiçbir yerel reklam/satın alma çağrısı yapılmamalı");
+  await baglam.close();
+});
+
+test("gelir kancası: arka arkaya reklam yok (ödüllü reklam bekleyen geçiş reklamını düşürür)", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi();
+  await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial" ) && window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));              // 1. çözüm: reklam yok
+  // 2. çözüm: pencere açık, geçiş reklamı bekliyor; oyuncu "reklam izle, tekrar dene"ye basar
+  await sayfa.evaluate(() => document.getElementById("modal").classList.remove("hidden"));
+  const bekleyen = sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("tekrar")), true);
+  await sayfa.evaluate(() => document.getElementById("modal").classList.add("hidden"));   // tekrar başlarken pencere kapanır
+  await bekleyen;
+  assert.equal(await say("showRewardVideoAd"), 1);
+  assert.equal(await say("showInterstitial"), 0, "ödüllü reklamın hemen ardından geçiş reklamı gösterildi");
+  // Ödüllü reklamdan sonra 3 dk dolmadan da gelmez; dolunca gelir
+  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
+  assert.equal(await say("showInterstitial"), 0);
+  await sayfa.evaluate(() => { window.__ofset += 3 * 60 * 1000 + 1000; });
+  await sayfa.evaluate(() => window.SozcukGelir.gecisReklami("cozum"));
+  assert.equal(await say("showInterstitial"), 1);
+  await baglam.close();
+});
+
+test("gelir kancası: Plus değişince ve fiyat gelince sayfaya 'sozcukgelir' olayı gider", async () => {
+  const { baglam, sayfa, bekle } = await gelirSayfasi();
+  await sayfa.evaluate(() => { window.__olaylar = 0; window.addEventListener("sozcukgelir", () => window.__olaylar++); });
+  // Fiyat açılışta yüklenip önbelleğe alınır (eşzamanlı string); olay sayfa dinlemeden önce gelmiş olabilir
+  await bekle(() => window.SozcukGelir.plusFiyat() === "₺99,99");
+  assert.equal(await sayfa.evaluate(() => typeof window.SozcukGelir.plusFiyat()), "string");
+  // Uygulama dışında biten alım (ebeveyn onayı): yerel dinleyici Plus'ı verir
+  await sayfa.evaluate(() => window.__yay("plus", { plus: true }));
+  assert.deepEqual(await sayfa.evaluate(() => [window.SozcukGelir.plusMu(), window.__olaylar]), [true, 1]);
+  await sayfa.evaluate(() => window.__yay("plus", { plus: true }));
+  assert.equal(await sayfa.evaluate(() => window.__olaylar), 1, "değişmeyen durumda olay yok");
+  await sayfa.evaluate(() => window.__yay("plus", { plus: false }));            // iade
+  assert.deepEqual(await sayfa.evaluate(() => [window.SozcukGelir.plusMu(), window.__olaylar]), [false, 2]);
+  await baglam.close();
+  // Ürün yoksa fiyat null kalır, kanca bozulmaz
+  const g = await gelirSayfasi({ fiyatYok: true });
+  await g.sayfa.waitForTimeout(300);
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.plusFiyat()), null);
+  await g.baglam.close();
 });

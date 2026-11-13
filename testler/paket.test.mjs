@@ -9,9 +9,11 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AYNEN, CSP, SITE, WWW_DOSYALARI, donustur } from "../araclar/web-esitle.mjs";
 import { GORSELLER, gorselDenetle } from "../araclar/gorsel.mjs";
+import { TEST_YAYINCI, kimlikHatalari } from "../araclar/yayin-denetle.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const oku = (...yol) => readFileSync(join(...yol), "utf8");
+const gelir = JSON.parse(oku(KOK, "gelir.json"));
 const siteIndex = oku(SITE, "index.html");
 const siteApp = oku(SITE, "app.js");
 
@@ -143,8 +145,16 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
 test("bağımlılıklar kesin sürümlü ve izinli listede", () => {
   const paket = JSON.parse(oku(KOK, "package.json"));
   // Yeni paket ya da eklenti eklemek sahip onayı ister (ekip/KURALLAR.md 8)
+  // Reklam eklentisi sahip kararıdır (13 Kasım 2026): yalnızca @capacitor-community/admob.
+  // Satın alma eklentisi yok: StoreKit köprüsü uygulamanın içinde (ios/App/App/SatinAlma.swift).
   assert.deepEqual(Object.keys(paket.dependencies).sort(),
-                   ["@capacitor/core", "@capacitor/haptics", "@capacitor/ios", "@capacitor/share"]);
+                   ["@capacitor-community/admob", "@capacitor/core", "@capacitor/haptics", "@capacitor/ios", "@capacitor/share"]);
+  // 8.3.0 yeni ve iki haftalık bir bağımlılık ekliyor (@webview-native-ui/engine, yalnızca yerel reklam
+  // ögeleri için); kullanmadığımız şey için tedarik zinciri yüzeyi açılmaz.
+  assert.equal(paket.dependencies["@capacitor-community/admob"], "8.2.1");
+  const kilit = JSON.parse(oku(KOK, "package-lock.json")).packages;
+  assert.equal(kilit["node_modules/@capacitor-community/admob"]?.version, "8.2.1");
+  assert.ok(!kilit["node_modules/@webview-native-ui/engine"], "admob'un 8.3.0 bağımlılığı girmiş");
   assert.deepEqual(Object.keys(paket.devDependencies).sort(), ["@capacitor/cli", "playwright"]);
   for (const [ad, surum] of Object.entries({ ...paket.dependencies, ...paket.devDependencies })) {
     assert.match(surum, /^\d+\.\d+\.\d+$/, `${ad}: sürüm kesin olmalı (${surum})`);
@@ -181,18 +191,51 @@ test("Xcode ayarları", () => {
   assert.match(plist, /<key>UISupportedInterfaceOrientations<\/key>\s*<array>\s*<string>UIInterfaceOrientationPortrait<\/string>\s*<\/array>/,
                "yalnızca dikey");
   assert.doesNotMatch(plist, /~ipad/);
-  // İzin isteyen hiçbir şey yok: izin açıklaması ya da arka plan kipi eklenirse sahip onayı gerekir
-  assert.doesNotMatch(plist, /UsageDescription|UIBackgroundModes|NSAppTransportSecurity/);
+  // Tek izin istemi App Tracking Transparency (sahip kararı, 13 Kasım 2026). Başka bir izin
+  // açıklaması, arka plan kipi ya da ATS istisnası eklenirse sahip onayı gerekir.
+  assert.deepEqual(plist.match(/<key>\w*UsageDescription<\/key>/g), ["<key>NSUserTrackingUsageDescription</key>"]);
+  assert.doesNotMatch(plist, /UIBackgroundModes|NSAppTransportSecurity/);
+  assert.match(deger("NSUserTrackingUsageDescription"), /^<string>[^<]*reklam[^<]*<\/string>$/, "ATT metni Türkçe ve reklamı anlatmalı");
+  // AdMob: uygulama kimliği yoksa Google SDK başlarken uygulamayı çökertir; gelir.json ile aynı olmalı
+  assert.equal(deger("GADApplicationIdentifier"), `<string>${gelir.admobAppId}</string>`);
+  // SKAdNetwork: Google'ın istediği liste (50 kimlik, benzersiz, Google'ın kendi kimliği dahil)
+  const skan = [...plist.matchAll(/<key>SKAdNetworkIdentifier<\/key>\s*<string>([^<]+)<\/string>/g)].map((m) => m[1]);
+  assert.equal(skan.length, 50);
+  assert.equal(new Set(skan).size, 50);
+  assert.ok(skan.every((k) => /^[a-z0-9]{10}\.skadnetwork$/.test(k)));
+  assert.ok(skan.includes("cstr6suwn9.skadnetwork"));
   // Açılış ekranı (açık kâğıt zemin) için koyu durum çubuğu yazısı. Açıldıktan sonra
   // SystemBars yönetir; bunun için görünüm denetleyicisi tabanlı görünüm açık kalmalı.
   assert.equal(deger("UIStatusBarStyle"), "<string>UIStatusBarStyleDarkContent</string>");
   assert.equal(deger("UIViewControllerBasedStatusBarAppearance"), "<true/>");
 
+  // Gizlilik bildirimi (Google'ın 13.11.0 SDK bildirimiyle doğrulandı): SDK'nın kendi bildirimi toplanan
+  // veri türlerini ve gerekçeli API'leri taşır ama NSPrivacyTracking içermez; izleme beyanı uygulamanındır.
+  // Toplanan veri türleri SDK'dakilerle aynen yinelenir (App Store gizlilik etiketiyle tutarlı).
+  // İzleme alan adı LİSTELENMEZ: Google kendi bildiriminde de listelemiyor ve iOS, izin verilmediğinde
+  // listedeki adlara bağlantıyı keser; kişiselleştirilmemiş reklamlar da yüklenemezdi.
   const gizlilik = oku(KOK, "ios/App/App/PrivacyInfo.xcprivacy").replace(/\s+/g, "");
-  assert.ok(gizlilik.includes("<key>NSPrivacyTracking</key><false/>"));
-  for (const dizi of ["NSPrivacyTrackingDomains", "NSPrivacyCollectedDataTypes", "NSPrivacyAccessedAPITypes"]) {
+  assert.ok(gizlilik.includes("<key>NSPrivacyTracking</key><true/>"));
+  for (const dizi of ["NSPrivacyTrackingDomains", "NSPrivacyAccessedAPITypes"]) {
     assert.ok(gizlilik.includes(`<key>${dizi}</key><array/>`), `${dizi} boş olmalı`);
   }
+  const veriler = [...gizlilik.matchAll(/<key>NSPrivacyCollectedDataType<\/key><string>NSPrivacyCollectedDataType(\w+)<\/string>/g)].map((m) => m[1]);
+  assert.deepEqual(veriler.sort(), ["AdvertisingData", "CoarseLocation", "CrashData", "DeviceID", "OtherDiagnosticData", "PerformanceData", "ProductInteraction"]);
+  assert.equal((gizlilik.match(/<key>NSPrivacyCollectedDataTypeTracking<\/key><true\/>/g) || []).length, 1, "yalnızca cihaz kimliği izleme için");
+  assert.match(gizlilik, /DeviceID<\/string><key>NSPrivacyCollectedDataTypeLinked<\/key><true\/><key>NSPrivacyCollectedDataTypeTracking<\/key><true\/>/);
+
+  // Yerel Plus köprüsü uygulamanın içinde: dosya, projeye kayıtlı, storyboard'da ana görünüm
+  const swift = oku(KOK, "ios/App/App/SatinAlma.swift");
+  assert.match(swift, /class AnaGorunum: CAPBridgeViewController/);
+  assert.ok(swift.includes("bridge?.registerPluginInstance(SatinAlmaPlugin())"));
+  assert.ok(swift.includes('public let jsName = "SatinAlma"'));
+  for (const yontem of ["durum", "fiyat", "satinAl", "geriYukle"]) {
+    assert.ok(swift.includes(`CAPPluginMethod(name: "${yontem}"`) && swift.includes(`@objc func ${yontem}(`), `SatinAlma.${yontem}`);
+  }
+  assert.equal(say(/path = SatinAlma\.swift;/g), 1, "SatinAlma.swift dosya olarak kayıtlı olmalı");
+  assert.equal(say(/SatinAlma\.swift in Sources/g), 2, "SatinAlma.swift derleme aşamasında olmalı");
+  assert.match(oku(KOK, "ios/App/App/Base.lproj/Main.storyboard"), /customClass="AnaGorunum" customModule="App" customModuleProvider="target"/);
+  assert.match(oku(KOK, "ios/App/CapApp-SPM/Package.swift"), /CapacitorCommunityAdmob/, "cap sync: Package.swift admob'u içermiyor");
 });
 
 test("simge ve açılış görseli doğru boyutta, alfasız ve kaynağıyla aynı", () => {
@@ -259,6 +302,70 @@ test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere g
   assert.deepEqual(Object.keys(is).filter((ad) => /contents: write/.test(is[ad].metin)), ["yayinla"]);
   assert.match(is.yayinla.metin, /^    if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m);
   assert.doesNotMatch(is.ekran.metin, /permissions:|github\.token|GH_TOKEN/);
+});
+
+test("gelir.json: kimlikler biçimli; TestFlight denetimi test kimliğini yakalar", () => {
+  assert.deepEqual(kimlikHatalari(gelir), [], "gelir.json biçimi");
+  assert.equal(gelir.plusUrunId, "com.sozcukyolu.sozcukmerdiveni.plus");
+  // Geliştirmede test kimliği serbest, yayın denetiminde hata
+  const testMi = JSON.stringify(gelir).includes(TEST_YAYINCI);
+  assert.equal(kimlikHatalari(gelir, { yayin: true }).length > 0, testMi);
+  const test = { ...gelir, admobAppId: `ca-app-pub-${TEST_YAYINCI}~1458002511` };
+  assert.match(kimlikHatalari(test, { yayin: true }).join("\n"), /TEST reklam kimlikleri/);
+  // Gerçek görünümlü (uydurma) kimlikler yayın denetiminden geçer
+  const gercek = { ...gelir, admobAppId: "ca-app-pub-1234567890123456~1111111111",
+    oduluId: "ca-app-pub-1234567890123456/2222222222", gecisId: "ca-app-pub-1234567890123456/3333333333" };
+  assert.deepEqual(kimlikHatalari(gercek, { yayin: true }), []);
+  // Karışık (test + gerçek) ya da bozuk kimlik yakalanır
+  assert.ok(kimlikHatalari({ ...gercek, gecisId: gelir.gecisId }).some((h) => /farklı yayıncı/.test(h)));
+  assert.ok(kimlikHatalari({ ...gercek, oduluId: "x" }).some((h) => /oduluId/.test(h)));
+  // Komut satırı denetimi: test kimlikleri varken (bu depoda varsayılan) sıfırdan farklı çıkış
+  if (testMi) {
+    assert.throws(() => execFileSync("node", [join(KOK, "araclar/yayin-denetle.mjs")], { stdio: "pipe" }), /TEST reklam kimlikleri/);
+  }
+});
+
+test("TestFlight iş akışı, arşivden önce yayın denetimini çalıştırır", () => {
+  const tf = oku(KOK, ".github/workflows/testflight.yml");
+  const denetim = tf.indexOf("run: node araclar/yayin-denetle.mjs");
+  assert.ok(denetim > 0, "yayın denetimi adımı yok");
+  assert.ok(tf.lastIndexOf("npx cap sync ios", denetim) > 0, "denetim cap sync'ten sonra olmalı (paketlenen dosyalara bakar)");
+  assert.ok(denetim < tf.indexOf("xcodebuild archive"), "denetim arşivden önce olmalı");
+  // Denetim bir koşula bağlanıp atlanamaz
+  assert.doesNotMatch(tf.slice(tf.lastIndexOf("- name:", denetim), denetim), /^\s+if:/m);
+});
+
+test("www/yerel.js: gelir ayarı gelir.json'dan gelir, yer tutucu kalmaz", () => {
+  const yerel = oku(KOK, "www", "yerel.js");
+  assert.ok(yerel.includes(`const AYAR = ${JSON.stringify(gelir)};`));
+  assert.ok(!yerel.includes("GELIR_AYAR"));
+  assert.ok(oku(KOK, "web", "yerel.js").includes("const AYAR = /*GELIR_AYAR*/ null;"));
+});
+
+test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () => {
+  // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
+  const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
+  for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
+  assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
+  const gizlilik = oku(KOK, "web", "gizlilik.html");
+  for (const ad of adlar) assert.ok(gizlilik.includes(ad), `gizlilik.html "${ad}" kaydını listelemiyor`);
+});
+
+test("simülatör betiği yerel.js'ten önce yüklenir (reklam/ATT bayrağı)", () => {
+  const sh = oku(KOK, "araclar/simulator.sh");
+  assert.match(sh, /<script src="otomatik-oyna\.js"><\/script>\\n  \$&/, "otomatik-oyna.js yerel.js'ten önce eklenmeli");
+  assert.match(oku(KOK, "araclar/otomatik-oyna.js"), /^window\.SM_OTOMATIK = true;$/m);
+  assert.ok(oku(KOK, "web/yerel.js").includes("window.SM_OTOMATIK === true"));
+});
+
+test("site, yalnızca yerel.js'in tanımladığı gelir kancalarını çağırır", () => {
+  // Oyun ekibi kancayı eklediğinde sözleşme dışı bir ad çağrılırsa burada fark edilir
+  const tanimli = ["plusMu", "plusFiyat", "odulluReklam", "gecisReklami", "plusSatinAl", "plusGeriYukle"];
+  const yerel = oku(KOK, "web", "yerel.js");
+  for (const ad of tanimli) assert.ok(new RegExp(`\\b${ad}\\b`).test(yerel), `yerel.js ${ad} tanımlamıyor`);
+  const cagrilan = [...siteApp.matchAll(/SozcukGelir\??\.(\w+)/g)].map((m) => m[1])
+    .concat([...siteApp.matchAll(/kancaya\("(\w+)"/g)].map((m) => m[1]));
+  for (const ad of cagrilan) assert.ok(tanimli.includes(ad), `app.js tanımsız kancayı çağırıyor: ${ad}`);
 });
 
 // Basit YAML ayrıştırma: jobs: altındaki her 2 boşluk girintili anahtar bir iştir.

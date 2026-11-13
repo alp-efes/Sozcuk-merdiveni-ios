@@ -145,6 +145,11 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
    - Sayfanın altındaki *Gizlilik Politikası*, *Lisanslar* ve e-posta
      bağlantısı çalışıyor mu?
    - Ana ekranda ad nasıl görünüyor?
+   - Reklam/Plus (9. bölüm yapıldıysa): açılışta izleme (ATT) penceresi çıkıyor mu; reddedince
+     de reklam geliyor mu; ipucu/tekrar için ödüllü reklam açılıp kapanınca ödül veriyor mu
+     (erken kapatınca vermemeli); çözümden sonra ikinci/üçüncü bulmacada geçiş reklamı
+     geliyor mu (ilkinde gelmemeli); Sandbox hesabıyla Plus satın alma ve geri yükleme;
+     Plus açıkken reklam ve ATT yok mu.
 
 ## 8. Mağazaya göndermeden önce (bu iskelette yok)
 
@@ -157,14 +162,15 @@ değişmiş olabilir):
   yalnızca Cloudflare'in güvenlik çerezi var) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
   Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
   yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
-  Uygulamanın içindeki metin `web/gizlilik.html`'dir. E-postaların saklama
+  Uygulamanın içindeki metin `web/gizlilik.html`'dir (AdMob, ATT/UMP, Plus ve saklanan kayıtlar
+  eklendi; sitedeki sayfa da aynı dilde güncellenmeli, hukuk-uyum bakacak). E-postaların saklama
   süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
   (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare Email Routing, Cloudflare, Inc., ABD ve
   e-postanın iletildiği posta hizmeti sağlayıcısı; yurt dışında olabilir) sizin
   onayınızı bekliyor. AB'de yayına karar verirseniz (aşağıdaki DSA) metin
   gözden geçirilmeli.
-- **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
-  → "Data Not Collected". Reklam ya da analitik eklenirse bu beyan değişir.
+- **App Privacy (gizlilik etiketi):** artık "Data Not Collected" **değil**. Reklam (Google AdMob)
+  veri topluyor; doldurulacak cevaplar aşağıda **9.6**'da.
 - **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
   iletişim adresi sayfanın altında).
 - **Copyright:** hakların sahibi ve yılı, ör. `2026 Ad Soyad` ya da şirket adı.
@@ -172,9 +178,13 @@ değişmiş olabilir):
   **Evet**: sözlük Zemberek-NLP'den (Apache 2.0) üretildi. Lisans bunu
   kullanmaya izin veriyor; gereken bildirimler uygulamanın *Lisanslar*
   sayfasında.
-- **Age Rating:** **4+** önerilir. Uygulamada şiddet, kumar, korku, kullanıcı
-  içeriği, mesajlaşma, reklam ve uygulama içi tarayıcı yok; anketteki
-  sorulara buna göre "Yok/Hayır" denir. Apple 2025'te anketi ve yaş
+- **Age Rating:** **4+** hedeflenir (reklamlar G sınıfıyla sınırlı: `maxAdContentRating`).
+  Uygulamada şiddet, kumar, korku, kullanıcı içeriği, mesajlaşma ve uygulama içi
+  tarayıcı yok → "Yok/Hayır". **Reklam artık var:** anketteki reklam/"Advertising"
+  sorusuna **Evet** denir (soru metni ve etkisi **doğrulanmadı**; Apple'ın güncel anketi
+  reklam için ayrı bir soru ya da yaş sınıfı etkisi getirmiş olabilir. Çıkan sınıf 4+
+  değilse 9+ kabul edilebilir; kararı siz verin). Oyun içi harcama (Plus) kumar sayılmaz:
+  "Loot boxes / simulated gambling" sorularına Hayır. Apple 2025'te anketi ve yaş
   sınıflarını yeniledi; güncel soru metinleri **doğrulanmadı**, soruları
   okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
@@ -187,9 +197,9 @@ değişmiş olabilir):
   açabileceğiniz bir kapıdır: açarken beyanı yapmanız ve gizlilik metnini
   gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
   beyanı uygun olmayabilir (hukuki değerlendirme).
-- **Reklam:** 1.0 reklamsız çıkar. AdMob ileride, AdMob hesabınızı
-  açtıktan sonraki bir sürümde gelecek; o zaman AEA, Birleşik Krallık ve İsviçre için Google onaylı bir CMP
-  gerekir, gizlilik etiketi ve sayfası güncellenir.
+- **Reklam ve Plus:** sahip kararıyla (13 Kasım 2026) uygulama reklam (AdMob), tek seferlik
+  Plus ve ücretli ipucu/tekrar ile çıkar. Kurulum ve sıralama **9. bölümde**; TestFlight
+  derlemesinden önce yapılması gerekenler orada işaretli.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
   diye macOS'ta üretmek gerekiyor (`tools/magaza_gorsel.js`).
@@ -199,5 +209,124 @@ değişmiş olabilir):
   çevrimdışı çalışır ve yerel titreşim/paylaşım kullanır; bu riski azaltır ama
   kaldırmaz. Reddedilirse seçenekler takımla konuşulur (ör. widget, bildirim —
   bunlar izin ve onay ister).
+- **Cayma hakkı (Türkiye, mesafeli satış): sahibin/avukatın kararı.** Plus uygulama içinde
+  satılır; anında teslim edilen dijital içerikte cayma hakkı tanınmayabilir. Satın alma
+  kutusuna "Plus anında teslim edilen dijital içeriktir; cayma hakkı yoktur. Satın alma Apple
+  üzerinden yapılır" gibi bir satır gerekip gerekmediğini ve metnini avukata sorun. Satıcı
+  olarak Apple mı siz mi göründüğünüz (Apple'ın komisyoncu rolü) bu cevabı etkiler. Metin
+  netleşince site ekibine verilir (satın alma kutusu sitedeki oyun kodundadır).
 - **Şifreleme beyanı:** `ITSAppUsesNonExemptEncryption = NO` ayarlı; uygulama
   şifreleme kullanmıyor, ek soru çıkmamalı.
+
+## 9. Gelir: AdMob reklamı ve Plus (sahip kararı, 13 Kasım 2026)
+
+Uygulama reklam gösterir (ödüllü: ipucu/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
+satar (reklamsız, sınırsız ipucu/tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
+gerçek para için aşağıdakiler gerekir. **Engeller** her adımın yanında yazılı.
+
+| # | Adım | Neyi engeller |
+|---|---|---|
+| 9.1 | AdMob hesabı + uygulama + iki reklam birimi | **TestFlight derlemesini** (iş akışı test kimliğiyle durur) ve her reklam gelirini |
+| 9.2 | Kimlikleri `gelir.json`'a yazdırma | 9.1 ile aynı |
+| 9.3 | AdMob'da Avrupa düzenlemeleri mesajını yayınlama | Birleşik Krallık/İsviçre'de reklam gösterimini |
+| 9.4 | Paid Applications Agreement (banka + vergi) | Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
+| 9.5 | App Store Connect'te Plus ürünü | Plus'ı denemeyi ve mağaza gönderimini |
+| 9.6 | App Privacy etiketi | App Store gönderimini (iç TestFlight'ı değil) |
+
+### 9.1 AdMob hesabı ve birimler — [ÜCRETSİZ]
+
+1. <https://admob.google.com> → Google hesabınızla hesap açın (ülke, saat dilimi, para birimi).
+2. *Apps* → *Add app* → iOS → "Evet, mağazada yayında" demeyin (henüz değil) → ad
+   "Sözcük Merdiveni". Verilen **App ID** (`ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY`) not edilir.
+3. Uygulamaya iki **reklam birimi** ekleyin: **Rewarded** (ad: `odullu`) ve **Interstitial**
+   (ad: `gecis`). Birim kimlikleri `ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ` biçimindedir.
+   Banner eklemeyin (kullanılmıyor).
+4. Ödüllü birimde ödül: ne olursa (1 / "ipucu"); kodda kullanılmıyor, ödül olayı yeter.
+5. *Blocking controls* → reklam içeriği filtrelerini isteğe göre daraltın. Kod zaten genel kitleye
+   uygun (G) reklam ister.
+6. Ödeme için *Payments* → adres doğrulama (posta ile PIN gelebilir), vergi bilgisi, ödeme
+   profili. Bu adım gelirin size ulaşmasını belirler; kod ya da TestFlight'ı engellemez.
+
+### 9.2 Kimlikleri koda aktarma
+
+Üç kimliği ve App ID'yi takıma verin (ya da kendiniz `gelir.json`'u düzenleyin):
+
+```json
+{
+  "admobAppId": "ca-app-pub-…~…",
+  "oduluId": "ca-app-pub-…/…",
+  "gecisId": "ca-app-pub-…/…",
+  "plusUrunId": "com.sozcukyolu.sozcukmerdiveni.plus"
+}
+```
+
+Sonra `npm run ios:ayarla` (App ID'yi `Info.plist`'e yazar) ve `npm test`. Bunlar gizli
+bilgi değildir; depoda durur. **Güvence:** TestFlight iş akışı arşivden önce
+`araclar/yayin-denetle.mjs` çalıştırır; `gelir.json`, `Info.plist` ya da paketlenen `yerel.js`
+Google'ın test kimliğini (`ca-app-pub-3940256099942544`) içeriyorsa derleme durur. Bu yüzden
+**gerçek kimlikler olmadan TestFlight derlemesi çıkmaz** (istenen davranış: TestFlight'a giden
+derleme mağazaya gider). Simülatör ve PR testleri test kimlikleriyle geçer.
+
+### 9.3 Avrupa düzenlemeleri mesajı (UMP) — [ÜCRETSİZ]
+
+AdMob → *Privacy & messaging* → *European regulations* → mesaj oluşturun, uygulamayı seçin,
+**yayınlayın**. Mesaj yoksa AEA/Birleşik Krallık/İsviçre'deki kullanıcılar için onay
+penceresi çıkmaz ve bu bölgelerde reklam gösterilmez (uygulama yine çalışır). Uygulama AB
+mağazalarında yayınlanmasa da Birleşik Krallık ve İsviçre için gerekir. İsterseniz *IDFA
+explainer* mesajını **açmayın**: kod ATT penceresini kendisi gösterir.
+
+### 9.4 Paid Applications Agreement — [BANKA/VERGİ]
+
+App Store Connect → *Business* (eski adıyla *Agreements, Tax, and Banking*) → **Paid
+Applications** sözleşmesini kabul edin; banka hesabı ve vergi formlarını doldurun. Apple
+doğrulayana dek (günler sürebilir) uygulama içi satın alma ürünleri yüklenmeyebilir
+(**doğrulanmadı**; yaygın bildirilen davranış).
+
+### 9.5 Plus ürünü (App Store Connect)
+
+Uygulama → *Monetization* → *In-App Purchases* → **+**:
+
+| Alan | Değer |
+|---|---|
+| Tür | **Non-Consumable** (tüketilmeyen) |
+| Reference Name | `Plus` |
+| Product ID | `com.sozcukyolu.sozcukmerdiveni.plus` (**tam olarak**; kodda ve `gelir.json`'da böyle) |
+| Fiyat (öneri) | **99,99 TL** düzeyinde bir fiyat basamağı (~3 USD). Apple diğer ülkeleri çevirir; kodda sabit fiyat yok, StoreKit'in `displayPrice`'ı gösterilir |
+| Kullanılabilirlik | Uygulamayla aynı ülkeler (AB hariç) |
+| Aile Paylaşımı | Kapalı (öneri) |
+| Görünen ad (Türkçe) | `Sözcük Merdiveni Plus` |
+| Açıklama (Türkçe) | `Reklamları kaldırır, sınırsız ipucu ve tekrar` |
+| İnceleme ekran görüntüsü | Oyundaki Plus kutusunun ekran görüntüsü (zorunlu; TestFlight/simülatörden) |
+| İnceleme notu | "Plus, reklamları kaldıran ve ipucu/tekrarı sınırsızlaştıran tek seferlik satın alımdır. Satın alma Apple hesabıyla, geri yükleme oyundaki 'satın alımı geri yükle' düğmesiyle yapılır." |
+
+Ürünü **sürümle birlikte incelemeye gönderin** (ilk IAP uygulamanın sürümüne eklenir).
+TestFlight'ta denemek için *Users and Access* → *Sandbox* altında bir **Sandbox test hesabı**
+açın. Xcode kullanan biri için `ios/App/Plus.storekit` simülatörde ürünü Apple olmadan
+sunar (Scheme → Run → Options → StoreKit Configuration; **doğrulanmadı**).
+
+### 9.6 App Privacy etiketi (taslak cevaplar)
+
+App Store Connect → uygulama → *App Privacy*. "Do you or your third-party partners collect
+data from this app?" → **Yes**. Kaynak: Google'ın AdMob veri açıklaması ve SDK 13.11.0'ın
+kendi gizlilik bildirimi (içeriği `ios/App/App/PrivacyInfo.xcprivacy` ile aynı). Üçüncü taraf
+(Google) veriyi kendi amacıyla topladığı için bunlar sizin beyanınızdır. Apple'ın ekranları
+farklıysa eşdeğer olanı seçin.
+
+| Veri türü (Apple) | Toplanıyor | Kullanıcıya bağlı | İzleme (tracking) | Amaç |
+|---|---|---|---|---|
+| Identifiers → **Device ID** | Evet | Evet | **Evet** | Third-Party Advertising, Analytics, Developer's Advertising |
+| Usage Data → **Advertising Data** | Evet | Evet | Hayır | Third-Party Advertising, Developer's Advertising, Analytics |
+| Usage Data → **Product Interaction** | Evet | Evet | Hayır | Analytics, Developer's Advertising, Third-Party Advertising |
+| Location → **Coarse Location** | Evet | Evet | Hayır | Third-Party Advertising, Analytics, Developer's Advertising |
+| Diagnostics → **Crash Data** | Evet | Hayır | Hayır | Analytics |
+| Diagnostics → **Performance Data** | Evet | Hayır | Hayır | Third-Party Advertising, Developer's Advertising, Analytics |
+| Diagnostics → **Other Diagnostic Data** | Evet | Hayır | Hayır | Third-Party Advertising, Developer's Advertising, Analytics |
+
+- **Purchases:** işaretlemeyin. Satın almayı Apple işler; Sözcük Yolu satın alma geçmişini
+  toplamaz ve sunucusu yoktur (**doğrulanmadı**: Apple'ın "Purchases" tanımı yalnızca
+  geliştiricinin topladığı alım verisini kapsıyor gibi görünüyor).
+- **Tracking:** "Does this app use data for tracking?" → **Yes** (ATT penceresi bu yüzden var).
+- Contact Info, Health, Financial, Contacts, User Content, Browsing/Search History, Sensitive Info:
+  **toplanmıyor**.
+- Google bu listeyi SDK sürümüne göre günceller; SDK güncellenirken (`@capacitor-community/admob`)
+  etiket yeniden karşılaştırılır.

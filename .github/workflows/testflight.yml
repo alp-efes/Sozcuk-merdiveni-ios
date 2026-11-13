@@ -59,6 +59,11 @@ jobs:
       - name: Capacitor eşitlemesi
         run: npx cap sync ios
 
+      # TestFlight'a giden derleme App Store'a gönderilen derlemedir: Google'ın test
+      # reklam kimlikleri varsa burada durur (gelir.json; SAHIP-ADIMLARI 9)
+      - name: Yayın denetimi (gerçek reklam kimlikleri)
+        run: node araclar/yayin-denetle.mjs
+
       - name: Arşivle, imzala, TestFlight'a yükle
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}

@@ -16,13 +16,20 @@ Kod yorumları, belgeler, commit mesajları ve kullanıcıya görünen her metin
 
 Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek günceller:
 
-- **Uzak içerik yok, ağ isteği yok.** Uygulama yalnızca paketindeki dosyaları
-  yükler. Reklam, analitik, uzaktan `words.json` eklemek gizlilik etiketini
-  ("Veri Toplanmıyor"), `PrivacyInfo.xcprivacy`'yi ve `web/gizlilik.html`'i değiştirir.
-- **İzin isteyen özellik yok** (bildirim, takip, konum, kamera…). `Info.plist`'e
-  `…UsageDescription` eklenirse test kırılır.
-- **Yeni paket ya da eklenti yok.** Bağımlılık listesi testte sabittir; sürümler
-  kesin (`^` yok), `package-lock.json` depoda, `npm audit` temiz.
+- **Web görünümü yalnızca paketten yükler; ağ yalnızca yerel reklam ve satın alma SDK'larının.**
+  Reklam (Google) ve StoreKit (Apple) trafiği yerel taraftadır; CSP `default-src 'none'`
+  kalır. Uzak `words.json`, uzak içerik, Google/Apple dışı hizmet ve analitik yok. Bunlardan
+  biri gizlilik etiketini, `PrivacyInfo.xcprivacy`'yi ve `web/gizlilik.html`'i değiştirir
+  (sahip kararı, 13 Kasım 2026: reklam, Plus, ücretli ipucu/tekrar).
+- **Tek izin istemi: App Tracking Transparency.** `Info.plist`'te
+  `NSUserTrackingUsageDescription` dışında `…UsageDescription` olmaz; test kırılır.
+- **Eklentiler adlıdır:** `@capacitor-community/admob` (kesin **8.2.1**; 8.3.0 yeni ve
+  kullanmadığımız bir bağımlılık getiriyor) ve uygulamanın içindeki `SatinAlma.swift`
+  (StoreKit 2, npm paketi yok). Başkası sahip onayı ister; sürümler kesin (`^` yok),
+  `package-lock.json` depoda, `npm audit` temiz.
+- **Google test reklam kimlikleri yayına girmez.** Kimlikler tek yerde, `gelir.json`'da.
+  TestFlight iş akışı arşivden önce `araclar/yayin-denetle.mjs` çalıştırır; test kimliği
+  varsa derleme durur. Bu adımı kaldırmayın ya da koşula bağlamayın (testle korunur).
 - **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
@@ -58,6 +65,23 @@ bilerek güncelleyin. Denetimi gevşetmeyin.
 `navigator.share`'i yerel paylaşım sayfasına yönlendirir. Derleyici olmadığı
 için eklentilere `window.Capacitor.Plugins.<Ad>` ile erişilir (köprü bunu yerel
 tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
+
+**Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
+ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
+`odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
+Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
+→ ATT (yalnızca karar verilmemişse) → AdMob başlat → ödüllü ve geçiş reklamını önyükle.
+Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
+kişiselleştirilmeden sürer. Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
+çözüm penceresi kapanınca, hazır değilse atlanır. Kimlikler `gelir.json` → `web-esitle.mjs`
+`yerel.js`'e yazar; `admobAppId` → `ios-ayarla.mjs` → `Info.plist`. Plus önbelleği
+`localStorage.sm_plus`, her açılışta StoreKit düzeltir. Simülatör derlemesi
+(`window.SM_OTOMATIK`) reklamı, ATT'yi ve satın almayı kapatır, ödülü hep verir.
+
+**Plus köprüsü uygulamanın içindedir:** `ios/App/App/SatinAlma.swift` hem
+`AnaGorunum`'u (storyboard'daki ana görünüm; köprüye eklentiyi kaydeder) hem de
+`SatinAlmaPlugin`'i içerir. `ios/App/Plus.storekit` yalnızca Xcode simülatör testi içindir
+(Scheme → Run → Options → StoreKit Configuration); pakete girmez.
 
 **Paket kimliği tek yerde:** `capacitor.config.json` → `appId`. Değiştirince
 `npm run ios:ayarla`. Sürüm `package.json` → `version`. Derleme numarası
@@ -102,8 +126,9 @@ yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da `app.js`'te `pressKey`,
 `hideModal`, `#nasil-oynanir` değişirse bu iş akışı kırılır, tarayıcı testi de.
 
-**Tarayıcı testi sahte köprü kullanır.** Titreşimin ve paylaşım sayfasının
-gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
+**Tarayıcı testi sahte köprü kullanır.** Titreşimin, paylaşım sayfasının, gerçek
+reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı ancak cihazda
+(TestFlight, Sandbox hesabı) görülür.
 
 **Paylaşım metnindeki adres** uygulamada `capacitor://localhost` olurdu;
 `yerel.js` onu site adresiyle (punycode) değiştirir.
@@ -115,6 +140,14 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 ## Doğrulanmamış varsayımlar
 
 İlk gerçek cihaz derlemesinde bakılacaklar (bulunca bu listeden silin):
+
+0. Gelir: hiçbiri cihazda denenmedi. `SatinAlma.swift` Linux'ta derlenemedi (simülatör işi
+   derler); `capacitorDidLoad` ile kayıtlı yerel eklentinin `Capacitor.Plugins.SatinAlma`
+   olarak görünmesi simülatör işinde `otomatik-oyna.js` ile denetlenir. Gerçek reklam,
+   ATT/UMP pencereleri, ödüllü reklamın kapanış olayları, satın alma ve geri yükleme
+   TestFlight'ta ve Sandbox hesabıyla bakılacak. Çevrimdışı açılışta StoreKit'in
+   `currentEntitlement`'ı boş dönüp Plus'ı silmesi olasılığı bilinmiyor (yerel önbellek
+   yalnızca açık "yok" cevabıyla silinir; ama boş cevabın ne zaman geldiği doğrulanmadı).
 
 1. `testflight.yml` hiç çalıştırılmadı (koşucu adı, Xcode sürümü, imzalama
    bayrakları). Arşiv geliştirme imzasıyla alınır ve takımda kayıtlı bir cihaz

@@ -5,7 +5,8 @@
  *   node araclar/ios-ayarla.mjs           # yaz
  *   node araclar/ios-ayarla.mjs --denetle # yazma; fark varsa hata ver (test kullanır)
  *
- * Kaynak: capacitor.config.json (appId, appName) ve package.json (version).
+ * Kaynak: capacitor.config.json (appId, appName), package.json (version) ve
+ * gelir.json (admobAppId → Info.plist GADApplicationIdentifier).
  * Bunları değiştirdikten sonra çalıştırın; Xcode dosyalarını elle düzenlemeyin.
  * ========================================================= */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -16,10 +17,12 @@ const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const oku = (yol) => readFileSync(join(KOK, yol), "utf8");
 const { appId, appName } = JSON.parse(oku("capacitor.config.json"));
 const { version } = JSON.parse(oku("package.json"));
+const { admobAppId } = JSON.parse(oku("gelir.json"));
 
 // Bu değerler Xcode dosyalarına ham metin olarak girer; beklenmeyen karakter dosyayı bozar
 if (!/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(appId)) throw new Error(`Geçersiz paket kimliği: ${appId}`);
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Geçersiz sürüm: ${version}`);
+if (!/^ca-app-pub-\d{16}~\d{10}$/.test(admobAppId)) throw new Error(`Geçersiz AdMob uygulama kimliği: ${admobAppId}`);
 if (/[<>&]/.test(appName)) throw new Error(`Görünen adda < > & olamaz: ${appName}`);
 
 const DOSYALAR = {
@@ -29,6 +32,7 @@ const DOSYALAR = {
   ],
   "ios/App/App/Info.plist": [
     [/(<key>CFBundleDisplayName<\/key>\s*<string>)[^<]*/g, `$1${appName}`, 1],
+    [/(<key>GADApplicationIdentifier<\/key>\s*<string>)[^<]*/g, `$1${admobAppId}`, 1],
   ],
 };
 

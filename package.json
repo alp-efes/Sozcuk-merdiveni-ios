@@ -15,6 +15,7 @@
     "test": "npm run esitle && node --test \"testler/*.test.mjs\""
   },
   "dependencies": {
+    "@capacitor-community/admob": "8.2.1",
     "@capacitor/core": "8.6.2",
     "@capacitor/haptics": "8.0.2",
     "@capacitor/ios": "8.6.2",

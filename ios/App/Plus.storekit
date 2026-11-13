@@ -1,0 +1,33 @@
+{
+  "identifier" : "0A1B2C3D",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "99.99",
+      "familyShareable" : false,
+      "internalID" : "6746000001",
+      "localizations" : [
+        {
+          "description" : "Reklamları kaldırır, sınırsız ipucu ve tekrar",
+          "displayName" : "Sözcük Merdiveni Plus",
+          "locale" : "tr"
+        }
+      ],
+      "productID" : "com.sozcukyolu.sozcukmerdiveni.plus",
+      "referenceName" : "Plus",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
