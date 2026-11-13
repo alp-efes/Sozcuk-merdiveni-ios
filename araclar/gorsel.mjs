@@ -41,7 +41,7 @@ export function gorselDenetle(yol, kenar) {
 }
 
 // Geçici görsel: favicon.svg, köşeleri yuvarlatılmadan (iOS kendisi yuvarlatır),
-// koyu zemin üzerinde. Simgede kareyi doldurur, açılışta ortada küçük durur.
+// kâğıt zemin (sitenin --bg rengi) üzerinde. Simgede kareyi doldurur, açılışta ortada küçük durur.
 async function faviconCiz(kenar, hedef) {
   const { chromium } = await import("playwright");
   const svg = readFileSync(join(SITE, "favicon.svg"), "utf8");
@@ -50,7 +50,7 @@ async function faviconCiz(kenar, hedef) {
     const sayfa = await tarayici.newPage({ viewport: { width: kenar, height: kenar } });
     const oran = kenar === 1024 ? 100 : 30;
     await sayfa.setContent(
-      `<body style="margin:0;height:100vh;display:grid;place-items:center;background:#121213">` +
+      `<body style="margin:0;height:100vh;display:grid;place-items:center;background:#f3eada">` +
       `<div style="width:${oran}%">${svg}</div>`);
     // Simgede dış dikdörtgenin köşe yuvarlaması kalırsa köşelerde zemin görünür
     if (kenar === 1024) await sayfa.evaluate(() => document.querySelector("svg > rect").removeAttribute("rx"));

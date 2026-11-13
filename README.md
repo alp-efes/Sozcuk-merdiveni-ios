@@ -12,7 +12,7 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
 ## Nasıl çalışır
 
 ```
-site deposu (index.html, app.js, style.css, words.json)
+site deposu (index.html, app.js, style.css, words.json, fonts/)
    │  npm run esitle   → araclar/web-esitle.mjs: kopyalar, index.html'i dönüştürür
    ▼
 www/  (üretilir, depoya girmez)  + web/yerel.js + web/gizlilik.html
@@ -74,7 +74,7 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 - `Assets.xcassets`: simge ve açılış görseli (`npm run gorsel`).
 
 Durum çubuğu Capacitor 8'in çekirdeğindeki SystemBars ile ayarlanır
-(`capacitor.config.json` → `SystemBars.style = DARK`: koyu zeminde açık yazı).
+(`capacitor.config.json` → `SystemBars.style = LIGHT`: açık kâğıt zeminde koyu yazı).
 Site güvenli alanı bilmediği için `ios.contentInset = "always"`: içerik çentiğin
 ve ana ekran çubuğunun altına girmez (ayrıntı: `CLAUDE.md`).
 Açılış ekranı Capacitor şablonunun `LaunchScreen.storyboard`'udur. Bu ikisi

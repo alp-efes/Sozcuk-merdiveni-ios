@@ -63,7 +63,7 @@ tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
 `npm run ios:ayarla`. Sürüm `package.json` → `version`. Derleme numarası
 depoda `1` kalır; TestFlight iş akışı çalıştırma sayısını kullanır.
 
-**CSP:** `default-src 'none'`, betik/stil/bağlantı yalnızca paketten.
+**CSP:** `default-src 'none'`, betik/stil/yazı tipi/bağlantı yalnızca paketten.
 `'unsafe-inline'` yok; site satır içi betik ya da `style=` eklerse dönüşüm durur.
 
 ## Tuzaklar
@@ -87,9 +87,10 @@ benzersiz olmalı; bozuk dosyayı ancak Xcode fark eder.
 **Lisanslar elle güncellenir.** `web/lisanslar.html` şunları kelimesi
 kelimesine içerir: pakete giren bağımlılıkların `node_modules/<paket>/LICENSE`
 dosyaları (MIT), Zemberek-NLP'nin `LICENSE` dosyası, Apache Cordova'nın
-`NOTICE` dosyası (`@capacitor/ios` Cordova kodu içerir) ve apache.org'daki
-Apache 2.0 metni. Bağımlılık güncellenip lisansı değişirse test kırılır;
-metni `node_modules`'ten aynen kopyalayın.
+`NOTICE` dosyası (`@capacitor/ios` Cordova kodu içerir), apache.org'daki
+Apache 2.0 metni ve Fraunces yazı tipinin sitedeki `fonts/OFL.txt` dosyası
+(SIL OFL 1.1). Bağımlılık güncellenip lisansı değişirse test kırılır;
+metni `node_modules`'ten (yazı tipi için siteden) aynen kopyalayın.
 
 **Simülatör iş akışı (`simulator.yml`) gerçek derlemedir ama mağaza derlemesi
 değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adreslerde
@@ -124,14 +125,17 @@ gerçekten çalıştığı ancak cihazda (TestFlight) görülür.
 3. Çentik/güvenli alan: site CSS'i `env(safe-area-inset-*)` kullanmıyor,
    `viewport-fit=cover` yok. Bu yüzden `capacitor.config.json` →
    `ios.contentInset = "always"`: web görünümü içeriği durum çubuğu ile ana
-   ekran çubuğunun arasında tutar, aradaki şerit `backgroundColor` (#121213)
-   olur. Doğrulanmayan: `.app { height: 100dvh }` WKWebView'de kenar
-   boşlukları düşülmüş yüksekliği mi verir? Vermezse oyun kabuğunun altındaki
-   ~80 pt (dokunmatikte yalnızca "Nasıl oynanır?" ipucu; ekran klavyesi
-   dokunmatikte gizli) ilk açılışta ekranın altında kalır ve kaydırınca görünür.
-   Sayfa zaten dikey kaydırılıyor (altında "Nasıl Oynanır" var), yatay taşma
-   olmaz; başlık düğmelerinin Dynamic Island altında kalmasından iyidir.
-   Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine dokunmayın.
+   ekran çubuğunun arasında tutar, aradaki şerit `backgroundColor` (#f3eada,
+   sitenin `--bg` kâğıt rengi) olur. Doğrulanmayan: `.app { height: 100dvh }`
+   WKWebView'de kenar boşlukları düşülmüş yüksekliği mi verir? Vermezse oyun
+   kabuğunun altındaki ~80 pt ilk açılışta ekranın altında kalır. Ahşap
+   tasarımdan beri ekran klavyesi dokunmatikte de her zaman görünür ve kabuğun
+   en altındadır: kalan parça klavyenin alt sırası (GİR, sil) olur, oyuncu
+   yazmak için kaydırmak zorunda kalır. Simülatör ekran görüntüsünde
+   (`kucuk-1-gunun-bulmacasi.png`) klavyenin alt sırası tam görünüyor mu bakın.
+   Yatay taşma olmaz; başlık düğmelerinin Dynamic Island altında kalmasından
+   iyidir. Sorun çıkarsa çözüm uygulamaya özel küçük bir CSS'tir, site CSS'ine
+   dokunmayın.
 4. `mailto:` bağlantısının Mail'i açması; `gizlilik.html` ↔ oyun geçişi.
 5. Ana ekranda "Sözcük Merdiveni" adının kısalması.
 6. `simulator.yml`'deki ön sürüm adımı (`gh release`) yalnızca `main`'de çalışır;
