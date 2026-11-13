@@ -91,10 +91,19 @@ açar ve şu anlarda ekran görüntüsü alır: günün bulmacası, iki hamle so
 çalıştığına ve JavaScript hatası olmadığına bakar.
 
 Hamleleri `araclar/otomatik-oyna.js` oynar: `araclar/simulator.sh` onu derlemeden
-hemen önce `ios/App/App/public` içine ekler. `www/`, `npm run ios:sync` ve
-TestFlight paketi bu betiği içermez (`testler/paket.test.mjs`). Betik her aşamada
-konsola `SM-OTOMATIK: <aşama>` yazar; Debug derlemesinde Capacitor bunu
-uygulamanın çıktısına aktarır, betik o satırı görünce ekran görüntüsü alır.
+hemen önce `ios/App/App/public` içine ekler. Asıl güvence `cap sync`'tir: her
+`npm run ios:sync` ya da `npx cap sync ios` o klasörü `www/`'den yeniden yazar ve
+betik silinir; TestFlight iş akışı arşivden önce eşitler. `www/`'in ve diğer iş
+akışlarının betiği içermediğini `testler/paket.test.mjs` denetler.
+**Dikkat:** yerelde `simulator.sh` çalıştırıp `cap sync` yapmadan Xcode'da
+arşivlerseniz betik uygulamaya girer.
+
+Betik her aşamada konsola `SM-OTOMATIK: <aşama>` yazar; Debug derlemesinde
+Capacitor bunu uygulamanın çıktısına aktarır. `simulator.sh` satırı görünce ekran
+görüntüsü alır ve paketin içine `onay-<aşama>.txt` yazar; betik bu dosyayı
+görene dek o ekranda bekler. Çıktı gecikse de her görüntü doğru aşamadır.
+Art arda iki aynı görüntü, `words.json` yerine yedek sözlüğe düşme ya da günün
+bulmacası dışında bir bulmaca iş akışını durdurur.
 
 Görüntüler her çalıştırmada `simulator-ekran` iş akışı çıktısıdır. `main`'deki
 çalıştırmalar (PR'lar değil) onları **simulator** ön sürümüne de yükler; adresler

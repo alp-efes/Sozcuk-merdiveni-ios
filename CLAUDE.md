@@ -94,8 +94,10 @@ metni `node_modules`'ten aynen kopyalayın.
 **Simülatör iş akışı (`simulator.yml`) gerçek derlemedir ama mağaza derlemesi
 değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adreslerde
 (README → "Simülatör ekran görüntüleri"). Hamleleri oynayan
-`araclar/otomatik-oyna.js` yalnızca `araclar/simulator.sh` içinde pakete eklenir;
-`www/`'e ya da TestFlight'a girerse test kırılır. Site `index.html`'de
+`araclar/otomatik-oyna.js` yalnızca `araclar/simulator.sh` içinde
+`ios/App/App/public`'e eklenir; her `cap sync` o klasörü yeniden yazıp siler
+(TestFlight arşivden önce eşitler). Yerelde `simulator.sh`'tan sonra `cap sync`
+yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da `app.js`'te `pressKey`,
 `hideModal`, `#nasil-oynanir` değişirse bu iş akışı kırılır, tarayıcı testi de.
 

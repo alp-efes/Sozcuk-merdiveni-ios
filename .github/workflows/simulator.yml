@@ -22,7 +22,8 @@ permissions:
 
 concurrency:
   group: simulator-${{ github.ref }}
-  cancel-in-progress: true
+  # main'de iptal yok: yayinla yüklemenin ortasında kesilmesin
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ekran:

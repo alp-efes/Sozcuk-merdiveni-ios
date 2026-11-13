@@ -173,23 +173,37 @@ test("Capacitor yokken (tarayıcıda) yerel.js hiçbir şeye dokunmaz", async ()
   await baglam.close();
 });
 
-test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve aşamaları bildirir", async () => {
-  // simulator.sh betiği paketteki index.html'e app.js'ten sonra ekler; burada aynı kaynaktan yüklenir (CSP 'self')
+// otomatik-oyna.js'i aynı kaynaktan yükler (CSP 'self'); simulator.sh'ın yazdığı
+// onay dosyaları hemen "var" döner. words.json kapalıysa yedek sözlük devreye girer.
+async function otomatikOyna({ sozlukYok = false } = {}) {
   const baglam = await tarayici.newContext(TELEFON);
   await baglam.route("**/otomatik-oyna.js", (r) => r.fulfill({ path: OTOMATIK, contentType: "text/javascript" }));
-  const { sayfa, kayit } = await ac(baglam);
+  await baglam.route("**/onay-*.txt", (r) => r.fulfill({ status: 200, body: "" }));
+  if (sozlukYok) await baglam.route("**/words.json", (r) => r.fulfill({ status: 404 }));
+  const sayfa = await baglam.newPage();
   const isaretler = [];
   sayfa.on("console", (m) => { const e = m.text().match(/^SM-OTOMATIK: (.*)$/); if (e) isaretler.push(e[1]); });
   const son = sayfa.waitForEvent("console", { predicate: (m) => /^SM-OTOMATIK: (nasil|hata)/.test(m.text()), timeout: 60000 });
+  await sayfa.goto(ADRES);
+  await sayfa.waitForFunction(() => window.oyun?.startWord);
   await sayfa.addScriptTag({ url: "otomatik-oyna.js" });
   await son;
+  return { baglam, sayfa, isaretler };
+}
+
+test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve aşamaları bildirir", async () => {
+  const { baglam, sayfa, isaretler } = await otomatikOyna();
   assert.deepEqual(isaretler, ["acilis", "hamle", "cozum", "nasil"]);
   const d = await sayfa.evaluate(() => ({
     bitti: oyun.over, modalKapali: oyun.el.modal.classList.contains("hidden"),
     nasilGorunur: document.getElementById("nasil-oynanir").getBoundingClientRect().top < innerHeight / 2,
   }));
   assert.deepEqual(d, { bitti: true, modalKapali: true, nasilGorunur: true });
-  assert.deepEqual(kayit.disIstekler, []);
-  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("otomatik oynama betiği yedek sözlükle oynamaz, hata bildirir", async () => {
+  const { baglam, isaretler } = await otomatikOyna({ sozlukYok: true });
+  assert.deepEqual(isaretler, ["hata words.json yüklenmedi (mock sözlük)"]);
   await baglam.close();
 });

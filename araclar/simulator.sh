@@ -5,8 +5,9 @@
 #   npm ci && npm run ios:sync && bash araclar/simulator.sh <çıktı klasörü>
 #
 # Otomatik oynama betiği (araclar/otomatik-oyna.js) YALNIZCA burada, derlemeden
-# hemen önce ios/App/App/public içine eklenir. www/, npm run ios:sync ve TestFlight
-# paketi onu içermez (testler/paket.test.mjs).
+# hemen önce ios/App/App/public içine eklenir. Her `cap sync` (npm run ios:sync,
+# TestFlight iş akışı) o klasörü www/'den yeniden yazar ve betiği siler.
+# DİKKAT: bunu yerelde çalıştırıp cap sync yapmadan Xcode'da arşivlemeyin.
 set -euo pipefail   # macOS bash 3.2: $(...) içinde set -e geçmez, hatalar açıkça döndürülür
 
 CIKTI=${1:?"kullanım: bash araclar/simulator.sh <çıktı klasörü>"}
@@ -79,34 +80,41 @@ bekle() {
 
 # $1: dosya adı öneki, $2: simülatör adı deseni
 calistir() {
-  local on=$1 udid gunluk pid adim
+  local on=$1 udid gunluk paket adim onceki=""
   udid=$(simulator_sec "$2" "sozcuk-$on")
   gunluk="$CIKTI/$on.log"
   echo "::group::$on: $(xcrun simctl list devices | grep "$udid")"
   xcrun simctl bootstatus "$udid" -b
   xcrun simctl install "$udid" "$APP"
-  # --console-pty: uygulamanın çıktısı satır satır gelir (dosyaya yönlendirilen
-  # çıktı arabelleğe alınır, işaretler gecikir)
-  xcrun simctl launch --console-pty "$udid" "$KIMLIK" > "$gunluk" 2>&1 &
-  pid=$!
+  paket=$(xcrun simctl get_app_container "$udid" "$KIMLIK" app)
+  # Uygulamanın çıktısı doğrudan dosyaya; NSUnbufferedIO arabelleği kapatır
+  # (kapatmasa da otomatik-oyna.js her aşamada onay bekler, yalnızca yavaşlar)
+  SIMCTL_CHILD_NSUnbufferedIO=YES xcrun simctl launch \
+    --stdout="$gunluk" --stderr="$CIKTI/$on.err.log" "$udid" "$KIMLIK"
   for adim in 1-gunun-bulmacasi:acilis 2-hamleler:hamle 3-cozum:cozum 4-nasil-oynanir:nasil; do
     if ! bekle "$gunluk" "${adim#*:}"; then
       xcrun simctl io "$udid" screenshot "$CIKTI/$on-hata.png" || true
-      cat "$gunluk"; exit 1
+      grep -v "(yineleme)" "$gunluk"; exit 1
     fi
     xcrun simctl io "$udid" screenshot "$CIKTI/$on-${adim%%:*}.png"
+    # Ekran görüntüsü alındı: uygulama bir sonraki aşamaya geçebilir
+    touch "$paket/public/onay-${adim#*:}.txt"
+    # Art arda iki aynı görüntü: aşama ilerlememiş ya da görüntü bayat
+    if [ -n "$onceki" ] && cmp -s "$onceki" "$CIKTI/$on-${adim%%:*}.png"; then
+      echo "::error::$on: $(basename "$onceki") ile ${adim%%:*} aynı görüntü"; exit 1
+    fi
+    onceki="$CIKTI/$on-${adim%%:*}.png"
   done
   sleep 2
   # Çökme denetimi: uygulama hamlelerden sonra hâlâ çalışıyor olmalı (PID'li launchd işi)
   if ! xcrun simctl spawn "$udid" launchctl list |
        awk -v k="UIKitApplication:$KIMLIK" 'index($3, k) == 1 && $1 ~ /^[0-9]+$/ { b = 1 } END { exit !b }'; then
-    echo "::error::$on: uygulama çalışmıyor (çöktü mü?)"; cat "$gunluk"; exit 1
+    echo "::error::$on: uygulama çalışmıyor (çöktü mü?)"; grep -v "(yineleme)" "$gunluk"; exit 1
   fi
-  # Sayfa hatası ya da console.error Capacitor çıktısına düşer
-  if grep -E "JS ERROR|\[error\]" "$gunluk"; then
-    echo "::error::$on: JavaScript hatası"; cat "$gunluk"; exit 1
+  # Sayfa hatası, console.error ve yedek sözlüğe düşme Capacitor çıktısına yazılır
+  if grep -E "JS ERROR|\[error\]|mock sözlük" "$gunluk" "$CIKTI/$on.err.log"; then
+    echo "::error::$on: JavaScript hatası ya da words.json yüklenmedi"; exit 1
   fi
-  kill "$pid" 2>/dev/null || true
   xcrun simctl shutdown "$udid"
   echo "::endgroup::"
 }
