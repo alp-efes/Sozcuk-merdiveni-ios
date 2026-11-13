@@ -9,7 +9,9 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
   Ağa yalnızca yerel Google AdMob SDK'sı (reklam) ve Apple StoreKit (Plus) çıkar.
 - Gelir: ödüllü reklam (ipucu/tekrar), çözüm sonrası geçiş reklamı ve tek seferlik **Plus**
   satın alması (reklamsız, sınırsız ipucu/tekrar). Tek izin istemi App Tracking Transparency.
-- Yerel özellikler: titreşim (geçersiz hamle, çözüm), iOS paylaşım sayfası, reklam, Plus.
+- Yerel özellikler: titreşim (geçersiz hamle, kabul, çözüm), iOS paylaşım sayfası, reklam, Plus.
+- Arayüz siteden farklıdır: açılış ekranı, ana ekran (Günün Bulmacası / Serbest Oyun),
+  sitenin ekran klavyesi yerine telefonun klavyesi ve Türkçe harf şeridi. Site aynı kalır.
 - Yalnızca iPhone, yalnızca dikey, iOS 15+, Türkçe.
 
 ## Nasıl çalışır
@@ -18,15 +20,16 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
 site deposu (index.html, app.js, style.css, words.json, fonts/)
    │  npm run esitle   → araclar/web-esitle.mjs: kopyalar, index.html'i dönüştürür
    ▼
-www/  (üretilir, depoya girmez)  + web/yerel.js + web/gizlilik.html
+www/  (üretilir, depoya girmez)  + web/yerel.js + web/uygulama.js + web/uygulama.css + web/gizlilik.html
    │  npx cap sync ios
    ▼
 ios/App  (Xcode projesi, Swift Package Manager)  →  TestFlight iş akışı
 ```
 
 Site dosyaları elle düzenlenmez. `index.html` üzerindeki bütün fark
-`araclar/web-esitle.mjs` içindedir; `app.js`'e yerel özellikler
-`web/yerel.js` ile dışarıdan bağlanır.
+`araclar/web-esitle.mjs` içindedir (eklenen arayüz parçaları `araclar/arayuz.mjs`);
+`app.js`'e yerel özellikler `web/yerel.js`, uygulama arayüzü `web/uygulama.js` ile
+dışarıdan bağlanır.
 
 ## Komutlar
 
@@ -53,7 +56,10 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 | `gelir.json` | Reklam (AdMob) ve Plus kimlikleri: **tek yer**. Gerçek AdMob kimlikleri (13 Kasım 2026); kurulum `SAHIP-ADIMLARI.md` 9 |
 | `capacitor.config.json` | Paket kimliği (`appId`), görünen ad, durum çubuğu ve zemin rengi |
 | `package.json` | Sürüm (`version` → Xcode `MARKETING_VERSION`), bağımlılıklar |
-| `araclar/web-esitle.mjs` | Siteyi `www/` içine kopyalar; reklam/analitik/SEO'yu çıkarır, CSP ekler |
+| `araclar/web-esitle.mjs` | Siteyi `www/` içine kopyalar; reklam/analitik/SEO'yu çıkarır, CSP ve uygulama arayüzünü ekler |
+| `araclar/arayuz.mjs` | Uygulama arayüzünün `index.html`'e eklenen parçaları: açılış, ana ekran, metin alanı, harf şeridi |
+| `web/uygulama.js` | Uygulama arayüzü: açılış → ana ekran ⇄ oyun, telefonun klavyesi, kaymayan ekran, yardım penceresi |
+| `web/uygulama.css` | Uygulama arayüzünün görünümü (yalnızca sitenin tasarım belirteçleriyle) |
 | `araclar/ios-ayarla.mjs` | Kimlik, ad ve sürümü Xcode projesine yazar |
 | `araclar/gorsel.mjs` | Simge ve açılış görseli |
 | `araclar/ExportOptions.plist` | TestFlight yüklemesinin dışa aktarma ayarı |
@@ -97,9 +103,10 @@ kurulmadı: gerek yok.
 **Simülatör** iş akışı (`simulator.yml`) her PR'da, `main`'e her push'ta, her
 gün ve elle çalışır. macOS'ta uygulamayı iOS Simülatörü için imzasız derler
 (Apple hesabı, gizli bilgi yok), küçük (iPhone SE) ve büyük (Pro Max) iPhone'da
-açar ve şu anlarda ekran görüntüsü alır: günün bulmacası, iki hamle sonrası,
-çözüm penceresi, "Nasıl Oynanır". Hamlelerden sonra uygulamanın hâlâ
-çalıştığına ve JavaScript hatası olmadığına bakar.
+açar ve şu anlarda ekran görüntüsü alır: ana ekran, günün bulmacası (telefonun
+klavyesi açık), iki hamle sonrası, çözüm penceresi, "Nasıl Oynanır". Hamlelerden sonra
+uygulamanın hâlâ çalıştığına ve JavaScript hatası olmadığına bakar; klavye açıkken
+ölçülen görünen alanı iş günlüğüne yazar (`SM-OTOMATIK: bilgi …`).
 
 Hamleleri `araclar/otomatik-oyna.js` oynar: `araclar/simulator.sh` onu derlemeden
 hemen önce `ios/App/App/public` içine ekler. Asıl güvence `cap sync`'tir: her
@@ -122,7 +129,7 @@ sabittir, giriş istemez:
 
 ```
 https://github.com/alp-efes/Sozcuk-merdiveni-ios/releases/download/simulator/kucuk-1-gunun-bulmacasi.png
-… kucuk-2-hamleler, kucuk-3-cozum, kucuk-4-nasil-oynanir; aynıları buyuk- önekiyle
+… kucuk-0-ana-ekran, kucuk-2-hamleler, kucuk-3-cozum, kucuk-4-nasil-oynanir; aynıları buyuk- önekiyle
 ```
 
 ## Yayın

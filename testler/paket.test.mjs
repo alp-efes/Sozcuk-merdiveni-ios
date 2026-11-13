@@ -9,6 +9,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AYNEN, CSP, SITE, WWW_DOSYALARI, donustur } from "../araclar/web-esitle.mjs";
+import { SITE_OGELERI } from "../araclar/arayuz.mjs";
 import { GORSELLER, gorselDenetle } from "../araclar/gorsel.mjs";
 import { TEST_YAYINCI, kimlikHatalari, paketHatalari } from "../araclar/yayin-denetle.mjs";
 
@@ -65,6 +66,11 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
   }
   const index = oku(KOK, "www", "index.html");
   assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/i);
+  // Dönüşüm sitenin sayfasını eklemelerden ÖNCE denetler; eklenen arayüz parçaları (araclar/arayuz.mjs)
+  // burada denetlenir: satır içi stil/olay, iframe, dış kaynak yok (CSP zaten çalıştırmazdı)
+  assert.doesNotMatch(index, /\sstyle\s*=|\son[a-z]+\s*=|javascript:|<iframe|<object|<embed|<img|<form/i, "index.html'de izinsiz içerik");
+  assert.deepEqual(index.match(/<script\b[^>]*>/g), ['<script src="app.js">', '<script src="uygulama.js">', '<script src="yerel.js">']);
+  assert.deepEqual(index.match(/<link\b[^>]*>/g), ['<link rel="stylesheet" href="style.css">', '<link rel="stylesheet" href="uygulama.css">']);
   // Uygulama hiçbir şey toplamaz: analitik, izin bildirimi ve onu açan bağlantı da yok
   assert.doesNotMatch(index, /id="izin|class="izin|cerez-tercihi|sm_izin|Çerez Tercih/i, "uygulamada analitik izin arayüzü kalmış");
   assert.ok(index.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), "CSP yok");
@@ -115,6 +121,18 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["çerez tercihleri bağlantısı geri gelmiş", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', '<a href="gizlilik.html">Gizlilik Politikası</a><a href="#cerez-tercihi">Çerez Tercihleri</a>')],
     ["app.js betiği yok", siteIndex.replace('<script src="app.js"></script>', "")],
     ["gizlilik bağlantısı yok", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', "")],
+    // Uygulama arayüzünün eklendiği ve bağlandığı yerler
+    ["başlık yok", siteIndex.replace('<header class="header">', '<header class="ust">')],
+    ["oyun kabuğu değişmiş", siteIndex.replace('<div class="app" id="oyun">', '<div class="app" id="oyun2">')],
+    ["ekran klavyesi yok", siteIndex.replace(/<footer class="keyboard"[^>]*><\/footer>/, "")],
+    ["nasıl oynanır bölümü değişmiş", siteIndex.replace('<section class="info page" id="nasil-oynanir">', '<section class="info page" id="yardim">')],
+    ["örnek açıklaması yok", siteIndex.replace('<p class="legend">', '<p class="aciklama">')],
+    ["stil dosyası değişmiş", siteIndex.replace('<link rel="stylesheet" href="style.css">', '<link rel="stylesheet" href="stil.css">')],
+    ["yardım bağlantısı düğme olmuş", siteIndex.replace('id="btnHelp" href="#nasil-oynanir"', 'id="btnHelp" type="button"')],
+    ["Anladım bağlantısı yok", siteIndex.replace('<a class="btn-primary" href="#oyun">', '<a class="btn-primary" href="#ust">')],
+    ["ses düğmesi yok", siteIndex.replace('id="btnMute"', 'id="btnSes"')],
+    ["ikinci alt bilgi", siteIndex.replace("</body>", '<nav class="site-footer"></nav></body>')],
+    ...SITE_OGELERI.map((parca) => [`"${parca}" yok`, siteIndex.replace(parca, "")]),
   ];
   for (const [ad, html] of bozuk) {
     assert.notEqual(html, siteIndex, `${ad}: deneme girdisi siteden farklı olmalı`);
@@ -135,12 +153,87 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   assert.match(siteApp, /^class WordLadder \{/m, "WordLadder sınıfı");
   assert.match(siteApp, /^  reject\(message\) \{/m, "reject(): geçersiz hamle titreşimi");
   assert.match(siteApp, /^  win\(\) \{/m, "win(): çözüm titreşimi");
+  assert.match(siteApp, /^  accept\(word\) \{/m, "accept(): kabul edilen kelimede hafif dokunuş");
   assert.ok(siteApp.includes("await navigator.share({ text: metin })"), "share(): navigator.share({ text })");
   assert.ok(siteApp.includes("location.href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
   // Site analitiği kaldırıldı; app.js'te trackEvent çağrısı kalmamalı
   assert.doesNotMatch(siteApp, /trackEvent/, "app.js'te trackEvent kalmış");
   assert.ok(siteApp.includes('fetch("words.json"'), "words.json göreli yoldan okunmalı");
   assert.ok(siteIndex.includes('href="gizlilik.html"'), "gizlilik bağlantısı (uygulamada kendi metnine gider)");
+});
+
+test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
+  // uygulama.js bu metotları sarar ya da çağırır, bu alanları okur; site değişirse burada fark edilir
+  for (const [desen, ad] of [
+    [/^  async init\(\) \{/m, "init(): açılış ekranı → ana ekran"],
+    [/^  renderInput\(popLast = false\) \{/m, "renderInput(): metin alanı tamponla eşitlenir"],
+    [/^  win\(\) \{/m, "win(): klavye kapanır"],
+    [/^  showOffer\(open\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
+    [/^  beginRetry\(\) \{/m, "beginRetry(): tekrar başlayınca klavye açılır"],
+    [/^  saveState\(\) \{/m, "saveState(): her modun kaydı"],
+    [/^  restoreState\(\) \{/m, "restoreState(): modun kaydından sürdürme"],
+    [/^  newGame\(mode = this\.mode\) \{/m, "newGame(mod)"],
+    [/^  updateTabs\(\) \{/m, "updateTabs(): başlıktaki mod adı"],
+    [/^  tickCountdown\(\) \{/m, "tickCountdown(): ana ekran geri sayımı"],
+    [/^  pressKey\(key\) \{/m, "pressKey(): yeni harf"],
+    [/^  hideModal\(\) \{/m, "hideModal()"],
+    [/^  showModal\(\{ oncedenCozuldu = false \} = \{\}\) \{/m, "showModal(): başka ekrana geçildiyse açılmaz"],
+    [/setTimeout\(\(\) => this\.showModal\(\), 650\);/, "win(): pencere prototipteki showModal ile gecikmeli açılır"],
+    [/^  freePool\(\) \{/m, "freePool(): serbest bulmaca seçime uyuyor mu"],
+    [/^  renderPlus\(\) \{/m, "renderPlus(): ana ekrandaki Plus kartı"],
+    [/this\.el\.plusBox\.classList\.toggle\("hidden", !G\);/, "Plus kutusu yalnızca kanca varsa görünür"],
+    [/showInterstitialAd\(\(\) => this\.newGame\("free"\)\);/, "btnNewGame: uygulamada günlükten serbeste geçiş yönlendirilir"],
+    [/if \(this\.over\) \{ this\.el\.btnNewGame\.click\(\); return; \}/, "bitmiş oyunda Enter btnNewGame'e basar"],
+    [/^  dailyPuzzle\(\) \{/m, "dailyPuzzle()"],
+    [/^  dailyRecord\(\) \{/m, "dailyRecord()"],
+    [/^  dayNumber\(\) \{/m, "dayNumber()"],
+    [/^  savePref\(anahtar, deger\) \{/m, "savePref()"],
+    [/^function muteGame\(mute\) \{/m, "muteGame(): ses tercihi"],
+    [/^  static TR_LETTER = /m, "TR_LETTER: Türk alfabesi süzgeci"],
+    [/this\.buffer = "";/, "buffer: yazılan kelime"],
+    [/this\.gosterilenGun = this\.dayNumber\(\);/, "gosterilenGun"],
+    [/this\.lenPref = this\.loadPref\("sm_uzunluk"/, "lenPref"],
+    [/this\.diffPref = this\.loadPref\("sm_zorluk"/, "diffPref"],
+    [/this\.puzzleDiff = puzzleDiff;/, "puzzleDiff"],
+    [/steps:\s+document\.getElementById\("steps"\)/, "el.steps"],
+    [/game:\s+document\.getElementById\("game"\)/, "el.game"],
+    [/input:\s+document\.getElementById\("inputRow"\)/, "el.input"],
+    [/countdown:\s+document\.getElementById\("dailyCountdown"\)/, "el.countdown"],
+    [/localStorage\.setItem\("sm_state", JSON\.stringify\(\{\s+v: 1,\s+mode: this\.mode,\s+day: [^\n]+\s+start: [^\n]+\s+target: [^\n]+\s+optimal: [^\n]+\s+puzzleDiff: [^\n]+\s+chain: this\.chain,\s+over: this\.over,/,
+      "sm_state alanları (mod kaydı bunları okur)"],
+    [/if \(e\.key === "Enter"\) \{/, "Enter: belge düzeyindeki dinleyici kelimeyi gönderir"],
+    [/e\.key\.toLocaleUpperCase\("tr-TR"\)/, "bağlı klavyede Türkçe büyük harf"],
+  ]) assert.match(siteApp, desen, ad);
+  // Sarılan her metot uygulama.js'te gerçekten sarılıyor
+  const uygulama = oku(KOK, "web", "uygulama.js");
+  for (const ad of ["init", "renderInput", "win", "showOffer", "showModal", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
+    assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
+  }
+  // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar)
+  assert.ok(uygulama.includes('toLocaleUpperCase("tr-TR")'));
+  assert.doesNotMatch(uygulama, /toUpperCase\(\)|toLowerCase\(\)/, "yerel ayarsız büyük/küçük harf dönüşümü");
+  assert.deepEqual(["i", "ı", "ş", "ğ", "ç", "ö", "ü"].map((h) => h.toLocaleUpperCase("tr-TR")), ["İ", "I", "Ş", "Ğ", "Ç", "Ö", "Ü"]);
+  // Uygulama betiği dışarıya hiçbir şey göndermez, dinamik kod çalıştırmaz
+  assert.doesNotMatch(uygulama, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|import\(|eval\(|new Function|innerHTML|document\.write|insertAdjacentHTML/);
+});
+
+test("uygulama.css yalnızca sitenin tasarım belirteçlerini kullanır", () => {
+  const css = oku(KOK, "web", "uygulama.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  // Sabit renk, dış kaynak, içe aktarma yok
+  assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|url\(|@import|expression\(/i);
+  // Kullanılan her belirteç sitenin style.css'inde tanımlı (iki tanesi uygulama.js'ten gelir)
+  const tanimli = new Set([...oku(SITE, "style.css").matchAll(/^\s*(--[\w-]+)\s*:/gm)].map((m) => m[1]));
+  const kullanilan = new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
+  assert.ok(kullanilan.size > 20, "belirteç bulunamadı: desen bozulmuş olabilir");
+  for (const ad of kullanilan) {
+    assert.ok(tanimli.has(ad) || ["--vvh", "--vv-top"].includes(ad), `uygulama.css tanımsız belirteç kullanıyor: ${ad}`);
+  }
+  // Sitenin gizlediği ya da yeniden düzenlediği sınıflar style.css'te duruyor
+  const stil = oku(SITE, "style.css");
+  for (const sinif of [".app", ".mode-tabs", ".free-settings", ".keyboard", ".brand-game", ".toast", ".modal-overlay", ".info",
+                       ".modal-close", ".cap", ".btn-group", ".pick-btn", ".btn-primary", ".icon-btn", ".site-footer", ".game.bitti"]) {
+    assert.ok(stil.includes(sinif + " ") || stil.includes(sinif + ",") || stil.includes(sinif + ":") || stil.includes(sinif + "."), `style.css'te ${sinif} yok`);
+  }
 });
 
 test("bağımlılıklar kesin sürümlü ve izinli listede", () => {
@@ -287,7 +380,7 @@ test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere g
   // www/ (dolayısıyla npm run ios:sync ve TestFlight) betiği içermez
   assert.ok(!existsSync(join(KOK, "www", "otomatik-oyna.js")));
   assert.doesNotMatch(oku(KOK, "www", "index.html"), /otomatik-oyna/);
-  for (const yol of ["package.json", "capacitor.config.json", "araclar/web-esitle.mjs",
+  for (const yol of ["package.json", "capacitor.config.json", "araclar/web-esitle.mjs", "araclar/arayuz.mjs", "web/uygulama.js",
                      ".github/workflows/test.yml", ".github/workflows/testflight.yml"]) {
     assert.doesNotMatch(oku(KOK, yol), /otomatik-oyna|simulator\.sh/, `${yol} simülatör betiğine dokunmamalı`);
   }
@@ -365,10 +458,17 @@ test("www/yerel.js: gelir ayarı gelir.json'dan gelir, yer tutucu kalmaz", () =>
 test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () => {
   // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
   const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
+  for (const [, ad] of oku(KOK, "web", "uygulama.js").matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
+  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  // Kayıt adları uygulama.js'te birleştirilerek üretilmez: yukarıdaki tarama her adı tam görmeli
+  assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /["'`]sm_[a-z_]*["'`]\s*\+/, "sm_* adı birleştirilerek üretiliyor: gizlilik denetimi göremez");
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
   assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
   const gizlilik = oku(KOK, "web", "gizlilik.html");
   for (const ad of adlar) assert.ok(gizlilik.includes(ad), `gizlilik.html "${ad}" kaydını listelemiyor`);
+  // "Reklam Tercihleri" bağlantısı alt bilgiyle birlikte ana ekranın altındadır (uygulama.js taşır)
+  assert.match(gizlilik.replace(/\s+/g, " "), /ana ekranın altındaki "Reklam Tercihleri" bağlantısını/);
+  assert.doesNotMatch(gizlilik, /oyunun alt bilgisindeki/);
 });
 
 test("simülatör betiği yerel.js'ten önce yüklenir (reklam/ATT bayrağı)", () => {

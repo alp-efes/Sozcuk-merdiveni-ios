@@ -12,7 +12,10 @@ window.SM_OTOMATIK = true;
  * çıktısına aktarır) ve araclar/simulator.sh ekran görüntüsünü alıp paketin
  * içine "onay-<aşama>.txt" dosyasını yazana dek o ekranda bekler. Böylece
  * çıktı ne kadar gecikirse geciksin her görüntü doğru aşamayı gösterir.
- * Aşamalar: acilis, hamle, cozum, nasil (hata olursa "hata …").
+ * Aşamalar: ana, oyun, hamle, cozum, nasil (hata olursa "hata …").
+ * Oyuncunun yolundan gider: ana ekranda "Oyna"ya basar, kelimeleri telefonun
+ * klavyesinin yazdığı metin alanına yazar. "SM-OTOMATIK: bilgi …" satırı,
+ * klavye açıldıktan sonra ölçülen görünen alanı günlüğe yazar.
  *
  * Uygulama paketine (www/, npm run ios:sync, TestFlight) GİRMEZ:
  * araclar/simulator.sh derlemeden hemen önce ios/App/App/public içine, yerel.js'ten
@@ -50,10 +53,15 @@ window.SM_OTOMATIK = true;
     for (let k = hedef; k !== bas; k = once.get(k)) yol.unshift(k);
     return yol;
   };
-  // Oyuncunun yaptığı gibi harf harf yazıp gönderir
+  // Telefonun klavyesi gibi yazar: harfler metin alanına küçük harfle girer
+  // (uygulama.js Türkçe kuralla büyütür), gönder tuşu Enter'dır
   const yaz = (kelime) => {
-    for (const h of kelime) oyun.pressKey(h);
-    oyun.pressKey("ENTER");
+    const giris = document.getElementById("giris");
+    for (const h of kelime.toLocaleLowerCase("tr-TR")) {
+      giris.value += h;
+      giris.dispatchEvent(new InputEvent("input", { bubbles: true, data: h, inputType: "insertText" }));
+    }
+    giris.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
   };
   const bekleKosul = async (kosul, ne) => {
     for (let i = 0; !kosul(); i++) {
@@ -61,16 +69,13 @@ window.SM_OTOMATIK = true;
       await uyu(100);
     }
   };
+  const ekran = () => document.body.dataset.ekran;
+  const kutu = (id) => document.getElementById(id).getBoundingClientRect();
 
   try {
     await bekleKosul(() => window.oyun?.db && window.oyun.startWord, "oyunun yüklenmesi");
     // words.json yüklenemezse app.js küçük bir yedek sözlüğe düşer; bu bir hatadır
     if (oyun.db === WordLadder.MOCK_DB) throw new Error("words.json yüklenmedi (mock sözlük)");
-    const [bas, hedef] = oyun.dailyPuzzle();
-    if (oyun.mode !== "daily" || oyun.startWord !== bas || oyun.targetWord !== hedef) {
-      throw new Error("günün bulmacası açık değil");
-    }
-    if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
     // Yerel eklentiler köprüye kayıtlı olmalı: yalnızca uygulamada denetlenir (tarayıcıda köprü yok).
     // Reklam ve satın alma bu derlemede kapalıdır ama eklentilerin bağlandığı burada görülür.
     if (window.Capacitor?.isNativePlatform?.()) {
@@ -78,8 +83,35 @@ window.SM_OTOMATIK = true;
         if (!Capacitor.Plugins[ad]) throw new Error("yerel eklenti köprüde kayıtlı değil: " + ad);
       }
     }
+
+    // Açılış ekranından sonra ana ekran gelir; günün bulmacası kartta yazar
+    await bekleKosul(() => ekran() === "ana", "ana ekran");
+    const [bas, hedef] = oyun.dailyPuzzle();
+    if (document.getElementById("gunlukBulmaca").textContent !== `${bas} → ${hedef}`) {
+      throw new Error("ana ekranda günün bulmacası yazmıyor");
+    }
+    const vv = window.visualViewport;
+    const tamBoy = vv.height;
     await uyu(1000);                       // ilk boyama ve yazı tipi
-    await asama("acilis");
+    await asama("ana");
+
+    document.getElementById("btnGunluk").click();
+    await bekleKosul(() => ekran() === "oyun", "oyun ekranı");
+    if (oyun.mode !== "daily" || oyun.startWord !== bas || oyun.targetWord !== hedef) {
+      throw new Error("günün bulmacası açık değil");
+    }
+    if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
+    await uyu(2500);                       // telefonun klavyesi açılır (bağlı klavye varsa açılmaz)
+    // Klavye açıksa kabuk görünen alana sığmalı; giriş satırı ve harf şeridi klavyenin üstünde kalmalı
+    const klavye = vv.height < tamBoy - 100;
+    isaret(`bilgi klavye=${klavye} gorunen=${Math.round(vv.height)} tam=${Math.round(tamBoy)} ust=${Math.round(vv.offsetTop)} ` +
+           `kayma=${Math.round(scrollY)} kabuk=${Math.round(kutu("oyun").height)} odak=${document.activeElement.id || "-"}`);
+    if (klavye) {
+      const alt = vv.offsetTop + vv.height + 1;
+      if (kutu("inputRow").top < vv.offsetTop || kutu("inputRow").bottom > alt) throw new Error("klavye açıkken giriş satırı görünmüyor");
+      if (kutu("harfler").bottom > alt) throw new Error("klavye açıkken harf şeridi klavyenin altında kalıyor");
+    }
+    await asama("oyun");
 
     const yol = enKisaYol(oyun.startWord, oyun.targetWord, oyun.db[String(oyun.len)].words);
     const ilk = Math.min(2, yol.length - 1);
@@ -94,7 +126,8 @@ window.SM_OTOMATIK = true;
     await asama("cozum");
 
     oyun.hideModal();
-    document.getElementById("nasil-oynanir").scrollIntoView({ block: "start" });
+    document.getElementById("btnHelp").click();
+    if (!document.body.classList.contains("yardim")) throw new Error("yardım penceresi açılmadı");
     await uyu(1000);
     await asama("nasil");
   } catch (e) {
