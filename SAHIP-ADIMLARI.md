@@ -157,17 +157,17 @@ Gönderimi yalnızca siz yaparsınız. App Store Connect'te doldurulacaklar ve
 kararlar (alan adları Apple'ın İngilizce arayüzündeki gibidir; yerleri
 değişmiş olabilir):
 
-- **Privacy Policy URL** (zorunlu, herkese açık web sayfası). Sitedeki
-  `gizlilik.html` reklam ve çerezleri anlatır; uygulama için ayrı bir bölüm ya
-  da sayfa gerekir. Bu adres site deposundaki alp-efes/sozcuk-merdiveni#9'a
-  bağlı. Uygulamanın içindeki metin: `web/gizlilik.html` — taslaktır,
-  onaylamanız gerekir. **Gönderimden önce veri sorumlusunun adı** (sizin adınız
-  ya da şirketiniz; #9) yazılmalı; metin şimdilik "uygulamanın geliştiricisi"
-  diyor. E-postaların saklama süresi ("yazışma bitince en geç 1 yıl"),
-  yürürlük tarihi, hukuki sebep (taslakta KVKK m.5/2-f, meşru menfaat) ve
-  alıcılar (Cloudflare yönlendirmesi ve e-posta hizmet sağlayıcınız; ikisi de
-  yurt dışında olabilir) da sizin onayınızı bekliyor. AB'de yayına karar
-  verirseniz (aşağıda DSA) metne GDPR m.13'ün istediği bilgiler de eklenmeli.
+- **Privacy Policy URL** (zorunlu, herkese açık web sayfası):
+  `https://xn--szckyolu-n4a6d.com/gizlilik`. Sitedeki sayfa web analitiğini
+  (izinle) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
+  Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
+  yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
+  Uygulamanın içindeki metin `web/gizlilik.html`'dir. E-postaların saklama
+  süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
+  (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare yönlendirmesi ve
+  e-posta hizmet sağlayıcınız; ikisi de yurt dışında olabilir) sizin
+  onayınızı bekliyor. AB'de yayına karar verirseniz (aşağıdaki DSA) metin
+  gözden geçirilmeli.
 - **App Privacy (gizlilik etiketi):** uygulama bugünkü haliyle veri toplamıyor
   → "Data Not Collected". Reklam ya da analitik eklenirse bu beyan değişir.
 - **Support URL:** `https://xn--szckyolu-n4a6d.com/` (sitenin ana sayfası;
@@ -184,15 +184,17 @@ değişmiş olabilir):
   okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
   uygulamada yok.
-- **AB Dijital Hizmetler Yasası (DSA) "trader" beyanı:** AB'deki App Store'da
-  yayın için hesap düzeyinde sorulur (App Store Connect → *Business*;
-  menü yeri doğrulanmadı). Karar sizin:
-  - *Trader* olduğunuzu beyan ederseniz adresiniz, telefonunuz ve e-postanız
-    Apple'ca doğrulanır ve AB'deki ürün sayfasında herkese görünür.
-  - Diğer yol: AB'de yayınlamamak. *Pricing and Availability* altında
-    yalnızca Türkiye'yi seçin.
-  - "Trader değilim" beyanı da vardır; ileride reklam gibi ticari bir amaç
-    varsa uygun olmayabilir. Bu hukuki bir değerlendirmedir.
+- **Kullanılabilirlik (Pricing and Availability):** ilk sürümde **AB ülkeleri
+  hariç bütün ülkeler** seçilir. Neden: AB'deki App Store'da yayın için hesap
+  düzeyinde **DSA "trader" beyanı** gerekir (App Store Connect → *Business*;
+  menü yeri doğrulanmadı); *trader* beyanında adres, telefon ve e-postanız
+  Apple'ca doğrulanır ve AB ürün sayfasında herkese görünür. AB, sonradan
+  açabileceğiniz bir kapıdır: açarken beyanı yapmanız ve gizlilik metnini
+  gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
+  beyanı uygun olmayabilir (hukuki değerlendirme).
+- **Reklam:** 1.0 reklamsız çıkar. AdMob ileride, AdMob hesabınızı
+  açtıktan sonraki bir sürümde gelecek; o zaman AEA için Google onaylı bir CMP
+  gerekir, gizlilik etiketi ve sayfası güncellenir.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
   diye macOS'ta üretmek gerekiyor (`tools/magaza_gorsel.js`).

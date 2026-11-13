@@ -52,6 +52,8 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
   }
   const index = oku(KOK, "www", "index.html");
   assert.doesNotMatch(index, /ad-container|adsbygoogle|firebase|<!--/);
+  // Uygulama hiçbir şey toplamaz: analitik izin bildirimi ve onu açan bağlantı da yok
+  assert.doesNotMatch(index, /izin|cerez-tercihi|Çerez/i, "uygulamada analitik izin arayüzü kalmış");
   assert.ok(index.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), "CSP yok");
   assert.doesNotMatch(CSP, /unsafe-inline|unsafe-eval|\*|https?:/, "CSP gevşetilmiş");
   for (const ad of ["gizlilik.html", "lisanslar.html"]) {
@@ -87,6 +89,8 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["iframe", siteIndex.replace("</body>", '<iframe src="x.html"></iframe></body>')],
     ["analitik betiği yok", siteIndex.replace(/<script type="module">[\s\S]*?<\/script>/, "")],
     ["reklam alanı sayısı değişti", siteIndex.replace('id="adBottom"', 'id="adBottom" data-x="1"></div><div class="ad-container"')],
+    ["analitik izin bildirimi yok", siteIndex.replace('<div class="izin" id="izin"', '<div class="x" id="izin"')],
+    ["çerez tercihleri bağlantısı yok", siteIndex.replace('<a href="#cerez-tercihi">Çerez Tercihleri</a>', "")],
     ["app.js betiği yok", siteIndex.replace('<script src="app.js"></script>', "")],
     ["gizlilik bağlantısı yok", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', "")],
   ];
