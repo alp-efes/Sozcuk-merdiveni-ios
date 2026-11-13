@@ -215,8 +215,8 @@ değişmiş olabilir):
 
 ## 9. Gelir: AdMob reklamı ve Plus (sahip kararı, 13 Kasım 2026)
 
-Uygulama reklam gösterir (ödüllü: ipucu/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
-satar (reklamsız, sınırsız ipucu/tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
+Uygulama reklam gösterir (ödüllü: ipucu/geri al/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
+satar (reklamsız; sınırsız ipucu, geri al ve günlük tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
 gerçek para için aşağıdakiler gerekir. **9.1 ve 9.2 yapıldı** (13 Kasım 2026): `gelir.json` gerçek
 AdMob kimliklerini taşır; PR denetimi (`test.yml`) ve TestFlight iş akışı bunu her seferinde
 denetler. **Engeller** her adımın yanında yazılı.
@@ -296,9 +296,9 @@ Uygulama → *Monetization* → *In-App Purchases* → **+**:
 | Kullanılabilirlik | Uygulamayla aynı ülkeler (AB hariç) |
 | Aile Paylaşımı | Kapalı (öneri) |
 | Görünen ad (Türkçe) | `Sözcük Merdiveni Plus` |
-| Açıklama (Türkçe) | `Reklamları kaldırır, sınırsız ipucu ve tekrar` |
+| Açıklama (Türkçe) | `Reklamları kaldırır; sınırsız ipucu, geri al ve tekrar` |
 | İnceleme ekran görüntüsü | Oyundaki Plus kutusunun ekran görüntüsü (zorunlu; TestFlight/simülatörden) |
-| İnceleme notu | "Plus, reklamları kaldıran ve ipucu/tekrarı sınırsızlaştıran tek seferlik satın alımdır. Satın alma Apple hesabıyla, geri yükleme oyundaki 'satın alımı geri yükle' düğmesiyle yapılır." |
+| İnceleme notu | "Plus, reklamları kaldıran ve ipucu, geri al ve tekrarı sınırsızlaştıran tek seferlik satın alımdır. Satın alma Apple hesabıyla, geri yükleme oyundaki 'satın alımı geri yükle' düğmesiyle yapılır." |
 
 Ürünü **sürümle birlikte incelemeye gönderin** (ilk IAP uygulamanın sürümüne eklenir).
 TestFlight'ta denemek için *Users and Access* → *Sandbox* altında bir **Sandbox test hesabı**

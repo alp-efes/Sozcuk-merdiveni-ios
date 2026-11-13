@@ -7,8 +7,8 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
 - Oyun dosyaları **uygulamanın içine paketlenir**; uzak adres yüklenmez, çevrimdışı çalışır.
 - Web görünümü ağ isteği yapmaz: sitedeki reklam ve analitik paketlenirken çıkarılır, CSP sıkıdır.
   Ağa yalnızca yerel Google AdMob SDK'sı (reklam) ve Apple StoreKit (Plus) çıkar.
-- Gelir: ödüllü reklam (ipucu/tekrar), çözüm sonrası geçiş reklamı ve tek seferlik **Plus**
-  satın alması (reklamsız, sınırsız ipucu/tekrar). Tek izin istemi App Tracking Transparency.
+- Gelir: ödüllü reklam (ipucu/geri al/tekrar), çözüm sonrası geçiş reklamı ve tek seferlik **Plus**
+  satın alması (reklamsız; sınırsız ipucu, geri al ve günlük tekrar). Tek izin istemi App Tracking Transparency.
 - Yerel özellikler: titreşim (geçersiz hamle, kabul, çözüm), iOS paylaşım sayfası, reklam, Plus.
 - Arayüz siteden farklıdır: açılış ekranı, ana ekran (Günün Bulmacası / Serbest Oyun),
   sitenin ekran klavyesi yerine telefonun klavyesi ve Türkçe harf şeridi. Site aynı kalır.

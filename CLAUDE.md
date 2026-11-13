@@ -77,9 +77,11 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
 dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
-`win`, `showModal`, `showOffer`, `showPes`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+`win`, `showModal`, `showOffer`, `showPes`, `showYenile`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
+- **Yenile düğmesi başlığın sol ucunda** (ana ekran düğmesinin yanında): sitedeki yerinde geri al'ın
+  tam üstüne düşüyor, ikisi karışıyordu (sahip notu, 13 Kasım 2026). İlerleme varken onay ister (site).
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
