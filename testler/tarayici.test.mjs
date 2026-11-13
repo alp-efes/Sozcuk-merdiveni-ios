@@ -13,7 +13,7 @@ import { chromium } from "playwright";
 const WWW = resolve(dirname(fileURLToPath(import.meta.url)), "..", "www");
 const OTOMATIK = resolve(dirname(fileURLToPath(import.meta.url)), "..", "araclar", "otomatik-oyna.js");
 const TUR = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".woff2": "font/woff2" };
-const SITE_ADRESI = "https://xn--szckyolu-n4a6d.com/";
+const SITE_ADRESI = "https://sözcükyolu.com/";
 const TELEFON = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
 
 let sunucu, tarayici, ADRES;
@@ -168,6 +168,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.ok(text.includes(`${d.bas} → ${d.hedef}`), text);
   assert.ok(text.endsWith("\n" + SITE_ADRESI), `paylaşılan adres site olmalı:\n${text}`);
   assert.ok(!text.includes("127.0.0.1"), "paylaşım metninde yerel adres kaldı");
+  assert.ok(!text.includes("xn--"), `paylaşım metninde punycode var:\n${text}`);
 
   // Kayıt cihazda kalır, yeniden açılınca çözüm durur
   await sayfa.reload();
