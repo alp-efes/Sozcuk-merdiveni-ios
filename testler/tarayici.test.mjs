@@ -201,6 +201,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   // Sayfadan dönüş uygulama açılışı değildir: açılış ekranı bekletilmez (uygulama.js referrer'a bakar)
   assert.ok(await sayfa.evaluate(() => document.referrer.endsWith("lisanslar.html")), "dönüşte referrer boş: açılış ekranı yine bekletir");
   // Bloklar da yeniden düşmez: baştan yerinde
+  // Bloklar da yeniden düşmez: baştan yerinde
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")].map((g) => getComputedStyle(g).animationName)),
                    ["none", "none", "none"], "sayfa dönüşünde açılış animasyonu oynamamalı");
   await anaEkran(sayfa);
@@ -761,9 +762,27 @@ test("uygulama arayüzü: açılışta bloklar alttan üste birer birer düşer;
   // Sözlük hazırken bile ana ekran son blok oturmadan gelmez; toplam açılış 3 sn'nin altında
   await anaEkran(sayfa);
   const { ana, bitis } = await sayfa.evaluate(() => ({ ana: window.__anaMs,
+    // Yalnızca blok animasyonları: ana ekran açılınca .acilis'in solma geçişi de listeye girer
     bitis: Math.max(...document.getElementById("acilis").getAnimations({ subtree: true })
+      .filter((a) => ["acilisDus", "acilisOtur"].includes(a.animationName))
       .map((a) => a.startTime + a.effect.getComputedTiming().endTime)) }));
-  assert.ok(bitis >= 1000 && bitis <= 1600, `animasyon ~1–1,4 sn sürmeli (${Math.round(bitis)} ms)`);
+  // Sahip geri bildirimi (#14): sekmeli oturuş, üç çarpma arka arkaya; toplam ~1,6 sn'yi geçmez
+  assert.ok(bitis >= 1450 && bitis <= 1650, `animasyon ~1,5–1,6 sn sürmeli (${Math.round(bitis)} ms)`);
+  // Ritim: her blok öncekinin sekmesi bittikten hemen sonra çarpar; basamak o anda iner
+  const ritim = await sayfa.evaluate(() => {
+    const son = (a) => a.startTime + a.effect.getComputedTiming().endTime;
+    const anim = (g, ad) => g.getAnimations().find((a) => a.animationName === ad);
+    return [1, 2, 3].map((n) => {
+      const g = document.querySelector(`#acilis .i-dus-${n}`);
+      const bas = document.querySelector(`#acilis .i-basamak-${n}`).getAnimations()[0];
+      return { carpma: son(anim(g, "acilisDus")), otur: son(anim(g, "acilisOtur")), basamak: bas.startTime + bas.effect.getTiming().delay };
+    });
+  });
+  for (let n = 0; n < 3; n++) {
+    assert.ok(Math.abs(ritim[n].basamak - ritim[n].carpma) < 5, "basamak çarpma anında inmeli");
+    if (n) assert.ok(ritim[n].carpma >= ritim[n - 1].otur && ritim[n].carpma - ritim[n - 1].otur <= 120,
+      `blok ${n + 1} öncekinin oturmasından hemen sonra çarpmalı (${JSON.stringify(ritim)})`);
+  }
   assert.ok(ana >= bitis, `ana ekran animasyon bitmeden açıldı (${Math.round(ana)} < ${Math.round(bitis)})`);
   assert.ok(ana < 3000, `açılış 3 sn'den uzun sürdü (${Math.round(ana)} ms)`);
   assert.deepEqual(kayit.hatalar, []);
@@ -784,6 +803,8 @@ test("uygulama arayüzü: hareketi azalt açıkken bloklar baştan yerinde, anim
   const { baglam, sayfa, kayit } = await acilisSayfasi({ secenek: { reducedMotion: "reduce" } });
   const b = await bloklar(sayfa);
   assert.deepEqual(b.map((x) => x.animasyon), ["none", "none", "none"]);
+  assert.equal(await sayfa.evaluate(() => document.getElementById("acilis").getAnimations({ subtree: true })
+    .filter((a) => a.animationName !== "acilisAd").length), 0, "hareketi azaltta blok ya da basamak animasyonu oynamamalı");
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#acilis .i-dus")]
     .map((g) => [getComputedStyle(g).opacity, getComputedStyle(g).transform])), Array(3).fill(["1", "none"]), "bloklar yerinde olmalı");
   await anaEkran(sayfa);

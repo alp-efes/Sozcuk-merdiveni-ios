@@ -61,35 +61,51 @@ body { -webkit-touch-callout: none; }
 body[data-ekran] .acilis { opacity: 0; visibility: hidden; pointer-events: none; }
 
 /* Bloklar boş merdivene alttan üste birer birer düşer (sahip isteği, 13 Kasım 2026):
-   önce kiremit, sonra yeşil, sonra krem. Her biri yukarıdan hızlanarak iner (acilisDus),
-   basamağa çarpınca hafif ezilip sekerek oturur (acilisOtur). Toplam ~1,15 sn; ana ekran
-   animasyon bitince gelir (uygulama.js). acilisDus bitişi = blok oturdu: yerel.js orada
-   hafif dokunuş verir. İşaret kutusunun üstünden düşebilsinler diye taşma görünür.
-   Uzunluklar SVG birimidir (viewBox 320). */
+   önce kiremit, sonra yeşil, sonra krem; ritim "tık … tık … tık".
+   - acilisDus (280 ms): yerçekimi gibi hızlanarak iner, inerken dikey uzar (~%6).
+     Bitişi = ilk çarpma: yerel.js orada hafif dokunuş verir.
+   - acilisOtur (360 ms): çarpmada basılır (dikey −%8, yatay +%8), iki sönümlü sekme
+     (~12 ve ~4 birim: blok boyunun ~%14'ü ve ~%5'i), sonra oturur.
+   - acilisBasamak: çarpılan basamak 2 birim iner ve geri gelir.
+   Her blok öncekinin oturmasından hemen sonra çarpar (380 / 800 / 1220 ms); toplam
+   ~1,58 sn. Ana ekran animasyon bitince gelir (uygulama.js). Dönüş merkezi bloğun altı.
+   İşaret kutusunun üstünden düşebilsinler diye taşma görünür. Uzunluklar SVG birimidir
+   (viewBox 320; blok 84). */
 .acilis .isaret { overflow: visible; }
 .acilis .i-dus {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: acilisDus 260ms cubic-bezier(.55, 0, 1, .45) both, acilisOtur 180ms ease-out;
+  animation: acilisDus 280ms cubic-bezier(.5, 0, .9, .5) both, acilisOtur 360ms linear forwards;
 }
-.acilis .i-dus-1 { animation-delay: 120ms, 380ms; }
-.acilis .i-dus-2 { animation-delay: 420ms, 680ms; }
-.acilis .i-dus-3 { animation-delay: 720ms, 980ms; }
+.acilis .i-dus-1 { animation-delay: 100ms, 380ms; }
+.acilis .i-dus-2 { animation-delay: 520ms, 800ms; }
+.acilis .i-dus-3 { animation-delay: 940ms, 1220ms; }
 @keyframes acilisDus {
-  from { transform: translateY(-110px); opacity: 0; }
-  40%  { opacity: 1; }
-  to   { transform: none; opacity: 1; }
+  from { transform: translateY(-110px) scale(.97, 1.06); opacity: 0; }
+  30%  { opacity: 1; }
+  to   { transform: scale(.97, 1.06); opacity: 1; }
 }
 @keyframes acilisOtur {
-  from { transform: scale(1.06, .9); }
-  45%  { transform: translateY(-6px); }
+  0%   { transform: scale(1.08, .92); animation-timing-function: ease-out; }
+  14%  { transform: translateY(-3px) scale(.98, 1.03); animation-timing-function: ease-out; }
+  34%  { transform: translateY(-12px); animation-timing-function: ease-in; }
+  52%  { transform: scale(1.04, .96); animation-timing-function: ease-out; }
+  66%  { transform: translateY(-4px); animation-timing-function: ease-in; }
+  80%  { transform: scale(1.015, .985); animation-timing-function: ease-out; }
   to   { transform: none; }
 }
-/* Hareketi azalt açıksa ve sayfa dönüşünde (uygulama.js: .hemen) bloklar baştan yerinde.
-   style.css'in genel kuralı yalnızca süreyi kısaltır, gecikmeyi değil: burada kapatılır. */
-.acilis.hemen .i-dus { animation: none; }
+.acilis [class*="i-basamak-"] { animation: acilisBasamak 160ms ease-out both; }
+.acilis .i-basamak-1 { animation-delay: 380ms; }
+.acilis .i-basamak-2 { animation-delay: 800ms; }
+.acilis .i-basamak-3 { animation-delay: 1220ms; }
+@keyframes acilisBasamak {
+  30% { transform: translateY(2px); }
+}
+/* Hareketi azalt açıksa ve gizlilik/lisans dönüşünde (uygulama.js: .hemen) bloklar baştan
+   yerinde. style.css'in genel kuralı yalnızca süreyi kısaltır, gecikmeyi değil: burada kapatılır. */
+.acilis.hemen .i-dus, .acilis.hemen [class*="i-basamak-"] { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .acilis .i-dus { animation: none; }
+  .acilis .i-dus, .acilis [class*="i-basamak-"] { animation: none; }
 }
 
 /* ---------- Ana ekran ---------- */

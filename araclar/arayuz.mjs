@@ -9,11 +9,11 @@ const ikon = (yol) => '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke=
   `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${yol}</svg>`;
 
 // Uygulama işareti: merdiven ve üç blok (yerel açılış görseliyle aynı çizim). Bloklar
-// gruplanır: açılış ekranında alttan üste (i-dus-1 → 3) basamağa düşerler (uygulama.css)
+// gruplanır: açılış ekranında alttan üste (i-dus-1 → 3) basamağa (i-basamak-1 → 3) düşerler (uygulama.css)
 const ISARET = `<svg class="isaret" viewBox="0 0 320 320" aria-hidden="true" focusable="false">
-      <rect class="i-cita" x="52" y="51" width="216" height="18" rx="5"/>
-      <rect class="i-cita" x="52" y="151" width="216" height="18" rx="5"/>
-      <rect class="i-cita" x="52" y="251" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-3" x="52" y="51" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-2" x="52" y="151" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-1" x="52" y="251" width="216" height="18" rx="5"/>
       <rect class="i-ray" x="40" y="0" width="22" height="320" rx="9"/>
       <rect class="i-cita" x="46" y="4" width="8" height="312" rx="4"/>
       <rect class="i-ray" x="258" y="0" width="22" height="320" rx="9"/>
