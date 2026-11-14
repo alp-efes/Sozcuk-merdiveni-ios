@@ -108,7 +108,7 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 - **Çözüm penceresi yalnızca oyun ekranında ve bitmiş oyunda açılır** (`showModal` sarılır):
   `app.js` pencereyi çözümden 650 ms sonra açar; o arada başka ekrana geçildiyse açılmaz.
 - **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
-  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca varsa). Alt bilgi
+  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca `plusSatinAl` veriyorsa). Alt bilgi
   (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 

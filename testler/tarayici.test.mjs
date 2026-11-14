@@ -313,6 +313,8 @@ const SAHTE_KOPRU = (ayar) => {
         // Gerçek eklenti gibi: showRewardVideoAd yalnızca ödülde çözülür, erken kapanışta asla
         showRewardVideoAd: cagri("showRewardVideoAd", () => new Promise((coz, red) => {
           if (window.__odul === "hata") return red(new Error("hazır değil"));
+          // Gerçek eklenti gibi: gösterim hatası olayla bildirilir, söz çözülmez
+          if (window.__odul === "olay") return setTimeout(() => window.__yay("onRewardedVideoAdFailedToShow", { code: 3 }), 20);
           setTimeout(() => {
             if (window.__odul === "odul") { window.__yay("onRewardedVideoAdReward", { type: "x", amount: 1 }); coz({ type: "x", amount: 1 }); }
             window.__yay("onRewardedVideoAdDismissed");
@@ -432,6 +434,15 @@ test("gelir kancası: REKLAM_YOKSA_ODUL açıkken yüklenemeyen ya da gösterile
   g = await gelirSayfasi();
   await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
   assert.equal(await g.sayfa.evaluate(() => { window.__odul = "erken"; return window.SozcukGelir.odulluReklam("ipucu"); }), false, "yarıda kapatıldı: ödül yok");
+  await g.baglam.close();
+  // Gösterim hatası olayla gelirse (söz reddi değil) de +1; bayrak kapalıyken yok
+  g = await gelirSayfasi();
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => { window.__odul = "olay"; return window.SozcukGelir.odulluReklam("ipucu"); }), true, "FailedToShow olayı: ödül verilmeli");
+  await g.baglam.close();
+  g = await gelirSayfasi({ odulYoksaYok: true });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => { window.__odul = "olay"; return window.SozcukGelir.odulluReklam("ipucu"); }), false, "bayrak kapalı: FailedToShow olayında ödül yok");
   await g.baglam.close();
   // Bayrak kapalıyken yüklenemeyen reklam ödül vermez
   g = await gelirSayfasi({ yuklemeHata: true, odulYoksaYok: true });
