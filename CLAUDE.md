@@ -38,6 +38,9 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
 - **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
+  İstisna (sahip isteği, 14 Kasım 2026): `magaza-kayit.yml` (mağaza metinleri; incelemeye göndermez) aynı
+  `testflight` ortamını kullanır; gizli bilgi taşınmadı, yeni ad eklenmedi. Yalnızca `workflow_dispatch` ve
+  yalnızca `main` (testle korunur); `pull_request` tetikleyicisi eklenmez.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
