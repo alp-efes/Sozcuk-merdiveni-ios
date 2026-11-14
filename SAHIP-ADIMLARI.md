@@ -140,11 +140,11 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
    - Sayfanın altındaki *Gizlilik Politikası*, *Lisanslar* ve e-posta
      bağlantısı çalışıyor mu?
    - Ana ekranda ad nasıl görünüyor?
-   - Reklam/Plus (9. bölüm yapıldıysa): açılışta izleme (ATT) penceresi çıkıyor mu; reddedince
+   - Reklam (9. bölüm yapıldıysa): açılışta izleme (ATT) penceresi çıkıyor mu; reddedince
      de reklam geliyor mu; ipucu/tekrar için ödüllü reklam açılıp kapanınca ödül veriyor mu
      (erken kapatınca vermemeli); çözümden sonra ikinci/üçüncü bulmacada geçiş reklamı
-     geliyor mu (ilkinde gelmemeli); Sandbox hesabıyla Plus satın alma ve geri yükleme;
-     Plus açıkken reklam ve ATT yok mu.
+     geliyor mu (ilkinde gelmemeli). Plus ilk sürümde yok (sonraki sürümde; o zaman
+     Sandbox hesabıyla satın alma ve geri yükleme de denenir); ekranda Plus'a değinen bir şey çıkmamalı.
 
 ## 8. Mağazaya göndermeden önce (bu iskelette yok)
 
@@ -157,7 +157,7 @@ değişmiş olabilir):
   yalnızca Cloudflare'in güvenlik çerezi var) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
   Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
   yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
-  Uygulamanın içindeki metin `web/gizlilik.html`'dir (AdMob, ATT/UMP, Plus ve saklanan kayıtlar
+  Uygulamanın içindeki metin `web/gizlilik.html`'dir (AdMob, ATT/UMP ve saklanan kayıtlar; Plus ilk sürümde yok, metinde geçmez
   eklendi; sitedeki sayfa da aynı dilde güncellenmeli, hukuk-uyum bakacak). E-postaların saklama
   süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
   (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare Email Routing, Cloudflare, Inc., ABD ve
@@ -178,8 +178,8 @@ değişmiş olabilir):
   tarayıcı yok → "Yok/Hayır". **Reklam artık var:** anketteki reklam/"Advertising"
   sorusuna **Evet** denir (soru metni ve etkisi **doğrulanmadı**; Apple'ın güncel anketi
   reklam için ayrı bir soru ya da yaş sınıfı etkisi getirmiş olabilir. Çıkan sınıf 4+
-  değilse 9+ kabul edilebilir; kararı siz verin). Oyun içi harcama (Plus) kumar sayılmaz:
-  "Loot boxes / simulated gambling" sorularına Hayır. Apple 2025'te anketi ve yaş
+  değilse 9+ kabul edilebilir; kararı siz verin). İlk sürümde uygulama içi satın alma/harcama YOK (In-App Purchases, harcama
+  sorularına Hayır); "Loot boxes / simulated gambling" sorularına da Hayır. Apple 2025'te anketi ve yaş
   sınıflarını yeniledi; güncel soru metinleri **doğrulanmadı**, soruları
   okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
@@ -192,8 +192,8 @@ değişmiş olabilir):
   açabileceğiniz bir kapıdır: açarken beyanı yapmanız ve gizlilik metnini
   gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
   beyanı uygun olmayabilir (hukuki değerlendirme).
-- **Reklam ve Plus:** sahip kararıyla (13 Kasım 2026) uygulama reklam (AdMob), tek seferlik
-  Plus ve ücretli ipucu/tekrar ile çıkar. Kurulum ve sıralama **9. bölümde**; TestFlight
+- **Reklam:** sahip kararıyla (14 Kasım 2026) ilk sürüm reklamla (AdMob) çıkar; ipucu/geri al hakkı
+  ve günlük tekrar ödüllü reklamla verilir. Plus sonraki sürümde. Kurulum ve sıralama **9. bölümde**; TestFlight
   derlemesinden önce yapılması gerekenler orada işaretli.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
@@ -204,7 +204,7 @@ değişmiş olabilir):
   çevrimdışı çalışır ve yerel titreşim/paylaşım kullanır; bu riski azaltır ama
   kaldırmaz. Reddedilirse seçenekler takımla konuşulur (ör. widget, bildirim —
   bunlar izin ve onay ister).
-- **Cayma hakkı (Türkiye, mesafeli satış): avukat sorusu AÇIK.** Plus uygulama içinde satılır;
+- **Cayma hakkı (Türkiye, mesafeli satış): avukat sorusu AÇIK.** **İlk sürümde Plus yok (sonraki sürümde; o zaman açılacak).** Plus uygulama içinde satılacak;
   anında teslim edilen dijital içerikte cayma hakkının nasıl ele alınacağı ve satıcının kim
   göründüğü (Apple mı siz mi; Apple'ın komisyoncu rolü) avukata sorulacak. Site, satın alma
   kutusunda şimdilik tarafsız bir cümle kullanır: "Satın alma Apple üzerinden yapılır; iade ve
