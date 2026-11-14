@@ -1,0 +1,16 @@
+{
+  "locale": "tr",
+  "surum": {
+    "promotionalText": "Her gün herkese aynı 4 harfli bulmaca! Tek harf değiştirerek başlangıç kelimesinden hedefe ulaş, sonucunu paylaş. Serbest oyunda 3, 4, 5 harf.",
+    "description": "Tek harf değiştir, kelimeden kelimeye ilerle, hedefe ulaş. Sözcük Merdiveni, Türkçe kelime dağarcığını eğlenceli bir bulmacayla sınar.\n\nNASIL OYNANIR\n• Sana bir başlangıç ve bir hedef kelime verilir.\n• Her adımda kelimenin yalnızca bir harfini değiştirirsin.\n• Her ara kelime geçerli bir Türkçe kelime olmalıdır.\n• Hedef kelimeye ulaşınca bulmaca biter.\n• Örnek: KAL → KOL → KOY → SOY\n\nÖZELLİKLER\n• Günün Bulmacası: Her gün herkese aynı 4 harfli bulmaca. Gece yarısı (TRT) yenilenir; sonucunu arkadaşlarınla paylaşabilirsin.\n• Serbest Oyun: 3, 4 ya da 5 harfli bulmacalar; kolay, orta ve zor seçenekleri.\n• Geniş sözlük: Yaklaşık 8.400 Türkçe kelime kabul edilir. Bulmaca uçları ise herkesin bildiği yaygın kelimelerden seçilir.\n• Geri al ve ipucu: Başta 5'er hakkın var. Bittiğinde ödüllü reklam izleyerek +1 hak kazanabilirsin.\n• Sonucu göster: Takılırsan en kısa yolu görebilirsin.\n• Kolay yazım: Telefonunun klavyesiyle oynarsın; Ç, Ğ, I, İ, Ö, Ş, Ü harfleri için ayrı bir harf şeridi vardır.\n• Çevrimdışı çalışır, internet gerekmez.\n\nUygulama reklam içerir.",
+    "keywords": "kelime oyunu,bulmaca,harf,zeka,beyin,günlük,Türkçe,dağarcık,tek harf,sözlük,bilmece,çevrimdışı",
+    "supportUrl": "https://xn--szckyolu-n4a6d.com/",
+    "marketingUrl": "https://xn--szckyolu-n4a6d.com/"
+  },
+  "bilgi": {
+    "subtitle": "Her adımda tek harf değiştir"
+  },
+  "inceleme": {
+    "notes": "Reklam hesabımız onay aşamasındadır; ödüllü reklam yüklenemezse oyuncu yine de +1 hak alır. Uygulama içi satın alma yoktur. Giriş/hesap gerekmez."
+  }
+}
