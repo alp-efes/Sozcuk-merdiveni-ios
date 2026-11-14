@@ -194,7 +194,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/setTimeout\(\(\) => this\.showModal\(\), 650\);/, "win(): pencere prototipteki showModal ile gecikmeli açılır"],
     [/^  freePool\(\) \{/m, "freePool(): serbest bulmaca seçime uyuyor mu"],
     [/^  renderPlus\(\) \{/m, "renderPlus(): ana ekrandaki Plus kartı"],
-    [/this\.el\.plusBox\.classList\.toggle\("hidden", !G\);/, "Plus kutusu yalnızca kanca varsa görünür"],
+    [/this\.el\.plusBox\.classList\.toggle\("hidden", !this\.plusAcik\(\)\);/, "Plus kutusu yalnızca kanca Plus satıyorsa görünür"],
     [/showInterstitialAd\(\(\) => this\.newGame\("free"\)\);/, "btnNewGame: uygulamada günlükten serbeste geçiş yönlendirilir"],
     [/if \(this\.over\) \{ this\.el\.btnNewGame\.click\(\); return; \}/, "bitmiş oyunda Enter btnNewGame'e basar"],
     [/^  dailyPuzzle\(\) \{/m, "dailyPuzzle()"],
@@ -362,7 +362,7 @@ test("simge ve açılış görseli doğru boyutta, alfasız ve kaynağıyla ayn�
 });
 
 test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca Secrets'tan", () => {
-  for (const ad of ["test.yml", "testflight.yml", "simulator.yml"]) {
+  for (const ad of ["test.yml", "testflight.yml", "simulator.yml", "magaza-kayit.yml"]) {
     const akis = oku(KOK, ".github/workflows", ad);
     const eylemler = akis.match(/uses:.*/g) || [];
     assert.ok(eylemler.length > 0, `${ad}: eylem yok`);
@@ -478,6 +478,10 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
   assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
   const gizlilik = oku(KOK, "web", "gizlilik.html");
+  // Plus kapalıyken (PLUS_ACIK = false) sm_plus yazılmaz, yalnızca silinir; gizlilik metni Plus'tan söz etmez.
+  // Plus açılırken bayrakla birlikte metne sm_plus ve satın alma bölümü geri konur.
+  const plusKapali = oku(KOK, "web", "yerel.js").includes("const PLUS_ACIK = false;");
+  if (plusKapali) { adlar.delete("sm_plus"); assert.doesNotMatch(gizlilik, /Plus|StoreKit|sm_plus/, "Plus kapalıyken gizlilik metni Plus'a değinmemeli"); }
   for (const ad of adlar) assert.ok(gizlilik.includes(ad), `gizlilik.html "${ad}" kaydını listelemiyor`);
   // "Reklam Tercihleri" bağlantısı alt bilgiyle birlikte ana ekranın altındadır (uygulama.js taşır)
   assert.match(gizlilik.replace(/\s+/g, " "), /ana ekranın altındaki "Reklam Tercihleri" bağlantısını/);

@@ -140,11 +140,11 @@ yeter, birleştirme gerekmez). Ortamın dal kuralı bunu engeller.
    - Sayfanın altındaki *Gizlilik Politikası*, *Lisanslar* ve e-posta
      bağlantısı çalışıyor mu?
    - Ana ekranda ad nasıl görünüyor?
-   - Reklam/Plus (9. bölüm yapıldıysa): açılışta izleme (ATT) penceresi çıkıyor mu; reddedince
+   - Reklam (9. bölüm yapıldıysa): açılışta izleme (ATT) penceresi çıkıyor mu; reddedince
      de reklam geliyor mu; ipucu/tekrar için ödüllü reklam açılıp kapanınca ödül veriyor mu
      (erken kapatınca vermemeli); çözümden sonra ikinci/üçüncü bulmacada geçiş reklamı
-     geliyor mu (ilkinde gelmemeli); Sandbox hesabıyla Plus satın alma ve geri yükleme;
-     Plus açıkken reklam ve ATT yok mu.
+     geliyor mu (ilkinde gelmemeli). Plus ilk sürümde yok (sonraki sürümde; o zaman
+     Sandbox hesabıyla satın alma ve geri yükleme de denenir); ekranda Plus'a değinen bir şey çıkmamalı.
 
 ## 8. Mağazaya göndermeden önce (bu iskelette yok)
 
@@ -157,7 +157,7 @@ değişmiş olabilir):
   yalnızca Cloudflare'in güvenlik çerezi var) ve "iOS uygulaması" bölümünü içerir; ayrı uygulama sayfası yoktur.
   Veri sorumlusu kişi adıyla değil "Sözcük Yolu (sözcükyolu.com)" olarak
   yazılıdır; veri sorumlusu adı artık gerekmez (alp-efes/sozcuk-merdiveni#9).
-  Uygulamanın içindeki metin `web/gizlilik.html`'dir (AdMob, ATT/UMP, Plus ve saklanan kayıtlar
+  Uygulamanın içindeki metin `web/gizlilik.html`'dir (AdMob, ATT/UMP ve saklanan kayıtlar; Plus ilk sürümde yok, metinde geçmez
   eklendi; sitedeki sayfa da aynı dilde güncellenmeli, hukuk-uyum bakacak). E-postaların saklama
   süresi ("yazışma bitince en geç 1 yıl"), yürürlük tarihi, hukuki sebep
   (KVKK m.5/2-f, meşru menfaat) ve alıcılar (Cloudflare Email Routing, Cloudflare, Inc., ABD ve
@@ -178,8 +178,8 @@ değişmiş olabilir):
   tarayıcı yok → "Yok/Hayır". **Reklam artık var:** anketteki reklam/"Advertising"
   sorusuna **Evet** denir (soru metni ve etkisi **doğrulanmadı**; Apple'ın güncel anketi
   reklam için ayrı bir soru ya da yaş sınıfı etkisi getirmiş olabilir. Çıkan sınıf 4+
-  değilse 9+ kabul edilebilir; kararı siz verin). Oyun içi harcama (Plus) kumar sayılmaz:
-  "Loot boxes / simulated gambling" sorularına Hayır. Apple 2025'te anketi ve yaş
+  değilse 9+ kabul edilebilir; kararı siz verin). İlk sürümde uygulama içi satın alma/harcama YOK (In-App Purchases, harcama
+  sorularına Hayır); "Loot boxes / simulated gambling" sorularına da Hayır. Apple 2025'te anketi ve yaş
   sınıflarını yeniledi; güncel soru metinleri **doğrulanmadı**, soruları
   okuyarak yanıtlayın. **Kids kategorisini seçmeyin:** o kategori dışarıya
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
@@ -192,8 +192,8 @@ değişmiş olabilir):
   açabileceğiniz bir kapıdır: açarken beyanı yapmanız ve gizlilik metnini
   gözden geçirmeniz gerekir. Reklam gibi ticari bir amaç varsa "trader değilim"
   beyanı uygun olmayabilir (hukuki değerlendirme).
-- **Reklam ve Plus:** sahip kararıyla (13 Kasım 2026) uygulama reklam (AdMob), tek seferlik
-  Plus ve ücretli ipucu/tekrar ile çıkar. Kurulum ve sıralama **9. bölümde**; TestFlight
+- **Reklam:** sahip kararıyla (14 Kasım 2026) ilk sürüm reklamla (AdMob) çıkar; ipucu/geri al hakkı
+  ve günlük tekrar ödüllü reklamla verilir. Plus sonraki sürümde. Kurulum ve sıralama **9. bölümde**; TestFlight
   derlemesinden önce yapılması gerekenler orada işaretli.
 - **Ekran görüntüleri:** site deposunda `tools/uygulama/magaza/` (tasarım
   takımı). Mağazaya gidecek sürümü, yazı tipleri iPhone'dakiyle aynı çıksın
@@ -204,7 +204,7 @@ değişmiş olabilir):
   çevrimdışı çalışır ve yerel titreşim/paylaşım kullanır; bu riski azaltır ama
   kaldırmaz. Reddedilirse seçenekler takımla konuşulur (ör. widget, bildirim —
   bunlar izin ve onay ister).
-- **Cayma hakkı (Türkiye, mesafeli satış): avukat sorusu AÇIK.** Plus uygulama içinde satılır;
+- **Cayma hakkı (Türkiye, mesafeli satış): avukat sorusu AÇIK.** **İlk sürümde Plus yok (sonraki sürümde; o zaman açılacak).** Plus uygulama içinde satılacak;
   anında teslim edilen dijital içerikte cayma hakkının nasıl ele alınacağı ve satıcının kim
   göründüğü (Apple mı siz mi; Apple'ın komisyoncu rolü) avukata sorulacak. Site, satın alma
   kutusunda şimdilik tarafsız bir cümle kullanır: "Satın alma Apple üzerinden yapılır; iade ve
@@ -214,6 +214,12 @@ değişmiş olabilir):
   şifreleme kullanmıyor, ek soru çıkmamalı.
 
 ## 9. Gelir: AdMob reklamı ve Plus (sahip kararı, 13 Kasım 2026)
+
+> **14 Kasım 2026 kararı: ilk App Store sürümü Plus olmadan çıkar.** `web/yerel.js` → `PLUS_ACIK = false`
+> Plus'ı arayüzden ve gizlilik metninden kaldırır; Plus sonraki sürümde, değişmiş kurallarla açılır.
+> Aşağıdaki Plus adımları (9.4, 9.5) o zamana kadar gerekmez. AdMob onaylanana dek reklam
+> gelmeyebilir: ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verilir (yarıda kapatılan reklam
+> vermez). AdMob onaylanınca `web/yerel.js` → `REKLAM_YOKSA_ODUL = false` yapılır (tek satır, yeni sürüm).
 
 Uygulama reklam gösterir (ödüllü: ipucu/geri al/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
 satar (reklamsız; sınırsız ipucu, geri al ve günlük tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
@@ -226,8 +232,8 @@ denetler. **Engeller** her adımın yanında yazılı.
 | 9.1 | AdMob hesabı + uygulama + iki reklam birimi | **TestFlight derlemesini** (iş akışı test kimliğiyle durur) ve her reklam gelirini |
 | 9.2 | Kimlikleri `gelir.json`'a yazdırma | 9.1 ile aynı |
 | 9.3 | AdMob'da Avrupa düzenlemeleri mesajını yayınlama | Birleşik Krallık/İsviçre'de reklam gösterimini |
-| 9.4 | Paid Applications Agreement (banka + vergi) | Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
-| 9.5 | App Store Connect'te Plus ürünü | Plus'ı denemeyi ve mağaza gönderimini |
+| 9.4 | Paid Applications Agreement (banka + vergi) | **İlk sürümde gerekmez** (Plus sonraki sürümde, 14 Kasım 2026 kararı). Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
+| 9.5 | App Store Connect'te Plus ürünü | **İlk sürümde gerekmez** (Plus sonraki sürümde). Plus'ı denemeyi ve mağaza gönderimini |
 | 9.6 | App Privacy etiketi | App Store gönderimini (iç TestFlight'ı değil) |
 | 9.7 | `app-ads.txt` (siteye) | AdMob'un reklam doluluğunu ve gelirini (yayından sonra, haftalar içinde) |
 | 9.8 | iPhone'unuzu AdMob test cihazı yapın | Canlı reklam birimlerinde geçersiz trafik (hesap cezası) riskini; **TestFlight denemesinden önce** |
