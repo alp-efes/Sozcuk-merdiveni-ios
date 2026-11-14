@@ -184,7 +184,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   const gizlilik = await sayfa.textContent("main");
   assert.match(gizlilik, /Google AdMob/);
   assert.match(gizlilik, /İzin vermezsen reklamlar yine görünür/);
-  assert.match(gizlilik, /Plus/);
+  assert.doesNotMatch(gizlilik, /Plus/, "ilk sürüm Plus'suz");
   assert.equal(await sayfa.evaluate(() => getComputedStyle(document.body).backgroundColor !== "rgba(0, 0, 0, 0)"), true,
                "gizlilik sayfasına stil uygulanmadı");
   await goruntu("5-gizlilik.png");
@@ -313,6 +313,8 @@ const SAHTE_KOPRU = (ayar) => {
         // Gerçek eklenti gibi: showRewardVideoAd yalnızca ödülde çözülür, erken kapanışta asla
         showRewardVideoAd: cagri("showRewardVideoAd", () => new Promise((coz, red) => {
           if (window.__odul === "hata") return red(new Error("hazır değil"));
+          // Gerçek eklenti gibi: gösterim hatası olayla bildirilir, söz çözülmez
+          if (window.__odul === "olay") return setTimeout(() => window.__yay("onRewardedVideoAdFailedToShow", { code: 3 }), 20);
           setTimeout(() => {
             if (window.__odul === "odul") { window.__yay("onRewardedVideoAdReward", { type: "x", amount: 1 }); coz({ type: "x", amount: 1 }); }
             window.__yay("onRewardedVideoAdDismissed");
@@ -347,6 +349,16 @@ const pencereKapat = (sayfa) => sayfa.tap("#btnCloseModal");
 async function gelirSayfasi(ayar = {}) {
   const baglam = await tarayici.newContext(TELEFON);
   await baglam.addInitScript(SAHTE_KOPRU, ayar);
+  // Bayraklar yerel.js'te sabittir: PLUS_ACIK yayında false (Plus testleri için burada açılır; kapalı hâl
+  // `plusKapali: true` ile), REKLAM_YOKSA_ODUL yayında true (`odulYoksaYok: true` ile kapatılır).
+  await baglam.route("**/yerel.js", async (r) => {
+    let kaynak = readFileSync(join(WWW, "yerel.js"), "utf8");
+    for (const [ad, eski, yeni] of [["PLUS_ACIK", false, !ayar.plusKapali], ["REKLAM_YOKSA_ODUL", true, !ayar.odulYoksaYok]]) {
+      assert.ok(kaynak.includes(`const ${ad} = ${eski};`), `yerel.js'te ${ad} bayrağı bulunamadı`);
+      kaynak = kaynak.replace(`const ${ad} = ${eski};`, `const ${ad} = ${yeni};`);
+    }
+    await r.fulfill({ contentType: "text/javascript", body: kaynak });
+  });
   if (ayar.eklentiYok) await baglam.addInitScript(() => { delete window.Capacitor.Plugins.SatinAlma; });
   const { sayfa, kayit } = await ac(baglam);
   const adlar = () => sayfa.evaluate(() => window.__cagri.map((c) => c[0]));
@@ -390,7 +402,7 @@ test("gelir kancası: ödüllü reklam yalnızca ödül kazanılırsa true döne
   const dene = (mod, neden) => sayfa.evaluate(([m, n]) => { window.__odul = m; return window.SozcukGelir.odulluReklam(n); }, [mod, neden]);
   assert.equal(await dene("odul", "ipucu"), true, "izlendi: ödül");
   assert.equal(await dene("erken", "tekrar"), false, "erken kapatıldı: ödül yok (eklentinin sözü hiç çözülmez)");
-  assert.equal(await dene("hata", "ipucu"), false, "gösterilemedi");
+  assert.equal(await dene("hata", "ipucu"), true, "gösterilemedi: reklam yoksa ödül (REKLAM_YOKSA_ODUL)");
   assert.equal(await say("showRewardVideoAd"), 3);
   assert.ok(await say("prepareRewardVideoAd") >= 4, "her gösterimden sonra bir sonraki önyüklenmeli");
   // Google reklamları ~1 saatte eskir: 55 dk sonra hazır sayılmaz, gösterimden önce yeniden yüklenir
@@ -402,13 +414,41 @@ test("gelir kancası: ödüllü reklam yalnızca ödül kazanılırsa true döne
   await baglam.close();
 });
 
-test("gelir kancası: reklam yüklenemezse ödüllü false, geçiş reklamı gösterilmez, oyun takılmaz", async () => {
-  const { baglam, sayfa, say, bekle } = await gelirSayfasi({ yuklemeHata: true });
+test("gelir kancası: reklam yüklenemezse ve REKLAM_YOKSA_ODUL kapalıysa ödüllü false, geçiş reklamı gösterilmez, oyun takılmaz", async () => {
+  const { baglam, sayfa, say, bekle } = await gelirSayfasi({ yuklemeHata: true, odulYoksaYok: true });
   await bekle(() => window.__cagri.some((c) => c[0] === "prepareInterstitial"));
   assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   await sayfa.evaluate(async () => { await window.SozcukGelir.gecisReklami("cozum"); await window.SozcukGelir.gecisReklami("cozum"); });
   assert.equal(await say("showRewardVideoAd") + await say("showInterstitial"), 0);
   await baglam.close();
+});
+
+test("gelir kancası: REKLAM_YOKSA_ODUL açıkken yüklenemeyen ya da gösterilemeyen ödüllü reklam +1 verir; yarıda kapatılan vermez", async () => {
+  // Yüklenemedi (AdMob henüz onaylı değil): oyuncu takılmasın, reklam gösterilmez
+  let g = await gelirSayfasi({ yuklemeHata: true });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true, "yüklenemedi: ödül verilmeli");
+  assert.equal(await g.say("showRewardVideoAd"), 0);
+  await g.baglam.close();
+  // Yüklendi ama yarıda kapatıldı: ödül yok
+  g = await gelirSayfasi();
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => { window.__odul = "erken"; return window.SozcukGelir.odulluReklam("ipucu"); }), false, "yarıda kapatıldı: ödül yok");
+  await g.baglam.close();
+  // Gösterim hatası olayla gelirse (söz reddi değil) de +1; bayrak kapalıyken yok
+  g = await gelirSayfasi();
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => { window.__odul = "olay"; return window.SozcukGelir.odulluReklam("ipucu"); }), true, "FailedToShow olayı: ödül verilmeli");
+  await g.baglam.close();
+  g = await gelirSayfasi({ odulYoksaYok: true });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => { window.__odul = "olay"; return window.SozcukGelir.odulluReklam("ipucu"); }), false, "bayrak kapalı: FailedToShow olayında ödül yok");
+  await g.baglam.close();
+  // Bayrak kapalıyken yüklenemeyen reklam ödül vermez
+  g = await gelirSayfasi({ yuklemeHata: true, odulYoksaYok: true });
+  await g.bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
+  assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false, "bayrak kapalı: ödül yok");
+  await g.baglam.close();
 });
 
 test("gelir kancası: UMP gerekiyorsa form gösterilir, reddedilirse reklam yok; tercih bağlantısı çıkar", async () => {
@@ -422,12 +462,12 @@ test("gelir kancası: UMP gerekiyorsa form gösterilir, reddedilirse reklam yok;
   await g.bekle(() => window.__cagri.some((c) => c[0] === "showPrivacyOptionsForm"));
   await g.baglam.close();
   // Onay verilmedi: reklam başlatılmaz, ödüllü false
-  g = await gelirSayfasi({ bilgi: gerekli, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
+  g = await gelirSayfasi({ odulYoksaYok: true, bilgi: gerekli, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   assert.deepEqual([await g.say("initialize"), await g.say("requestTrackingAuthorization")], [0, 0]);
   await g.baglam.close();
   // Form hatası: reklam yok, oyun etkilenmez
-  g = await gelirSayfasi({ bilgi: gerekli, formHata: true });
+  g = await gelirSayfasi({ odulYoksaYok: true, bilgi: gerekli, formHata: true });
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   assert.equal(await g.say("initialize"), 0);
   await g.baglam.close();
@@ -460,6 +500,25 @@ test("gelir kancası: ATT reddedilse de reklam çalışır (soru yeniden sorulma
   assert.equal(await say("requestTrackingAuthorization"), 0, "karar verilmişse yeniden sorulmaz");
   assert.equal(await say("initialize"), 1);
   assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true);
+  await baglam.close();
+});
+
+test("Plus kapalıyken (yayındaki hâl) Plus'tan hiç söz edilmez, StoreKit sorulmaz, reklam sürer", async () => {
+  const { baglam, sayfa, adlar, bekle } = await gelirSayfasi({ plusKapali: true, onbellekPlus: true, magazaPlus: true, haklar: { geriAl: 0, ipucu: 0, gun: "2000-01-01" } });
+  assert.deepEqual(await sayfa.evaluate(() => Object.keys(window.SozcukGelir).sort()), ["gecisReklami", "odulluReklam", "plusMu"]);
+  assert.equal(await sayfa.evaluate(() => window.SozcukGelir.plusMu()), false, "önbellekte Plus olsa da kapalıyken Plus yok");
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_plus")), null);
+  await bekle(() => window.__cagri.some((c) => c[0] === "initialize"));
+  const ad = await adlar();
+  for (const yok of ["durum", "fiyat", "satinAl", "geriYukle"]) assert.ok(!ad.includes(yok), `Plus kapalıyken ${yok} çağrılmamalı`);
+  assert.equal(await gorunur(sayfa, "#plusBox"), false, "ana ekranda Plus kartı görünmemeli");
+  // Hak bitince teklif: yalnızca reklam
+  await oyunaGir(sayfa, "free");
+  await sayfa.tap("#btnHint");
+  await sayfa.waitForSelector("#offer:not(.hidden)");
+  assert.equal(await gorunur(sayfa, "#btnOfferPlus"), false);
+  assert.doesNotMatch(await sayfa.textContent("#offerText"), /Plus/);
+  assert.doesNotMatch(await sayfa.textContent("#hakKurali"), /Plus/);
   await baglam.close();
 });
 
@@ -616,14 +675,14 @@ test("gelir kancası: çözüm sayısı ve son reklam zamanı sayfa yenilenince 
 });
 
 test("gelir kancası: izin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener; gerçek 'onay yok' saklanır", async () => {
-  let g = await gelirSayfasi({ bilgiHataSayisi: 1 });
+  let g = await gelirSayfasi({ bilgiHataSayisi: 1, odulYoksaYok: true });
   await g.bekle(() => window.__cagri.some((c) => c[0] === "requestConsentInfo"));
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), true, "ikinci denemede başarılı");
   assert.equal(await g.say("requestConsentInfo"), 2);
   assert.equal(await g.say("initialize"), 1);
   await g.baglam.close();
   const hayir = { status: "REQUIRED", isConsentFormAvailable: true, canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" };
-  g = await gelirSayfasi({ bilgi: hayir, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
+  g = await gelirSayfasi({ odulYoksaYok: true, bilgi: hayir, formSonrasi: { status: "REQUIRED", canRequestAds: false, privacyOptionsRequirementStatus: "REQUIRED" } });
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   assert.equal(await g.sayfa.evaluate(() => window.SozcukGelir.odulluReklam("ipucu")), false);
   assert.equal(await g.say("requestConsentInfo"), 1, "gerçek 'onay yok' oturum boyunca saklanır (tekrar sorulmaz)");

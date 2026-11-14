@@ -363,7 +363,7 @@
   });
   seritAyarla(oku("sm_serit") !== "0");
   // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
-  // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca gelir kancası varsa görünür).
+  // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca kanca `plusSatinAl` veriyorsa görünür).
   al("plusBox").classList.add("kart");
   al("ana").insertBefore(al("plusBox"), al("btnAnaYardim"));
   // Gizlilik ve lisans bağlantıları ana ekranın altında
