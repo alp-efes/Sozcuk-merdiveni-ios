@@ -51,11 +51,13 @@ test("gerçek kip: doğru PATCH/POST gövdeleri, iletişim bilgisi ve gönderim 
   assert.deepEqual(inc.attributes, { notes: kayit.inceleme.notes });
   assert.equal(inc.relationships.appStoreVersion.data.id, "V1");
   assert.equal(gor("PATCH", "/v1/appStoreVersions/V1/relationships/build").id, "B7");
+  assert.deepEqual(gor("PATCH", "/v1/appStoreVersions/V1").attributes, { copyright: "2026 Alp Efes" });
   assert.ok(!yazilan.some((i) => /appStoreVersionSubmissions|reviewSubmissions/.test(i.yol)), "incelemeye gönderilmemeli");
 });
 
-test("kayit.json: kişisel/iletişim alanı yok, sınırlar içinde", () => {
-  assert.doesNotMatch(JSON.stringify(kayit), /contact|phone|copyright|@/i);
+test("kayit.json: iletişim alanı yok, sınırlar içinde", () => {
+  assert.doesNotMatch(JSON.stringify(kayit), /contact|phone|@/i);
+  assert.equal(kayit.copyright, "2026 Alp Efes");
   assert.ok(kayit.bilgi.subtitle.length <= 30);
   assert.ok(kayit.surum.promotionalText.length <= 170);
   assert.ok(kayit.surum.keywords.length <= 100, "anahtar kelimeler 100 karakteri aşmamalı");

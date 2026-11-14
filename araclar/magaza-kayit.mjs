@@ -5,7 +5,7 @@
  *
  * Gizli bilgiler ortamdan: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (yalnızca
  * .github/workflows/magaza-kayit.yml, testflight ortamında). --kuru yalnızca okur.
- * Yapmaz: incelemeye gönderme, review iletişim bilgileri, copyright, App Privacy,
+ * Yapmaz: incelemeye gönderme, review iletişim bilgileri, App Privacy,
  * yaş sınıfı/kategori. Gönderimi sahip yapar.
  * Bağımlılıksız: JWT node:crypto ile, istekler fetch ile. */
 import { createHash, createPrivateKey, sign } from "node:crypto";
@@ -57,6 +57,8 @@ export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, 
   const surum = (await api("GET", `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`)).data.find(duzenlenebilir);
   if (!surum) throw new Error("Düzenlenebilir iOS sürümü (PREPARE_FOR_SUBMISSION) yok; App Store Connect'te yeni sürüm oluşturun.");
   log(`Sürüm ${surum.attributes.versionString} (${surum.id})`);
+
+  await yaz("PATCH", `/v1/appStoreVersions/${surum.id}`, { data: { type: "appStoreVersions", id: surum.id, attributes: { copyright: kayit.copyright } } });
 
   // Sürüm yerelleştirmesi (açıklama, anahtar kelimeler, adresler)
   const yer = (await api("GET", `/v1/appStoreVersions/${surum.id}/appStoreVersionLocalizations`)).data.find((d) => d.attributes.locale === locale);
