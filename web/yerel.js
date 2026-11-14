@@ -64,6 +64,12 @@
 
   const GECIS_ARALIK_MS = 3 * 60 * 1000;      // iki geçiş reklamı arası en az 3 dk
   const REKLAM_OMRU_MS = 55 * 60 * 1000;      // Google reklamları ~1 saatte eskir; 55 dk sonra yeniden yüklenir
+  // İlk App Store sürümü Plus'sız (sahip kararı, 14 Kasım 2026): false iken kanca plusSatinAl/plusGeriYukle/plusFiyat
+  // vermez, plusMu hep false'tur, StoreKit hiç sorulmaz. Plus sonraki sürümde true yapılır (testler bayrağı açıp da dener).
+  const PLUS_ACIK = false;
+  // GEÇİCİ: AdMob onaylanana dek reklam gelmeyebilir; ödüllü reklam yüklenemez ya da gösterilemezse oyuncu
+  // takılmasın diye +1 hak verilir. Yüklenip yarıda kapatılan reklam ödül vermez. AdMob onaylanınca false yapılacak.
+  const REKLAM_YOKSA_ODUL = true;
   const PLUS_ANAHTAR = "sm_plus";             // Plus'ın yerel önbelleği; açılışta StoreKit yeniden doğrular
   const GECIS_ANAHTAR = "sm_gecis";           // son reklam zamanı (oturum boyunca; sayfa değişince sıfırlanmasın)
   const COZUM_ANAHTAR = "sm_cozum";           // oturumdaki çözüm sayısı
@@ -77,7 +83,7 @@
   const bildir = () => window.dispatchEvent(new Event("sozcukgelir"));
 
   let plus = false;
-  try { plus = localStorage.getItem(PLUS_ANAHTAR) === "1"; } catch (_) { /* depolama yoksa Plus değil */ }
+  try { plus = PLUS_ACIK && localStorage.getItem(PLUS_ANAHTAR) === "1"; } catch (_) { /* depolama yoksa Plus değil */ }
   const plusYaz = (deger) => {
     const eski = plus;
     plus = !!deger;
@@ -85,7 +91,7 @@
     if (plus !== eski) bildir();
   };
   // Doğrulayacak eklenti yoksa önbelleğe güvenilmez (elle yazılmış sm_plus Plus yapmaz)
-  if (!SatinAlma) plusYaz(false);
+  if (!SatinAlma || !PLUS_ACIK) plusYaz(false);
 
   // Oturum belleği (sessionStorage): sayfa yenilenince ya da gizlilik sayfasına gidip dönünce de kalır
   const oturumOku = (anahtar) => { try { return Number(sessionStorage.getItem(anahtar)) || 0; } catch (_) { return 0; } };
@@ -103,8 +109,8 @@
   // önbellek kalır: çevrimdışı açılış Plus'ı silmez. 5 sn sonra beklemeyi bırakır (reklam akışı
   // takılmasın); cevap sonradan gelirse yine işlenir.
   const dogrula = () => SatinAlma.durum().then((r) => plusYaz(r.plus), () => {});
-  const dogrulama = REKLAMSIZ_DERLEME || !SatinAlma ? Promise.resolve() : Promise.race([dogrula(), uyu(5000)]);
-  if (SatinAlma && !REKLAMSIZ_DERLEME) {
+  const dogrulama = REKLAMSIZ_DERLEME || !SatinAlma || !PLUS_ACIK ? Promise.resolve() : Promise.race([dogrula(), uyu(5000)]);
+  if (SatinAlma && PLUS_ACIK && !REKLAMSIZ_DERLEME) {
     // Uygulama dışında biten işlem (ebeveyn onayı, başka cihaz, iade): yerel taraf bildirir
     SatinAlma.addListener("plus", (r) => plusYaz(r.plus)).catch(() => {});
     // Çevrimdışı açılırsa bir kez daha dene
@@ -185,7 +191,7 @@
   // kapanıştan az sonra gelirse diye ödüllüde kapanış 300 ms beklenir. 3 dk güvenlik süresi oyunu kilitlemez.
   let reklamAcik = false;   // tam ekran reklam şu an ekranda
   const goster = (tur) => new Promise((coz) => {
-    let kazandi = false, bitti = false;
+    let kazandi = false, bitti = false, gosterilemedi = false;
     reklamAcik = true;
     const tutamaclar = [];
     const dinle = (ad, f) => tutamaclar.push(AdMob.addListener(ad, f));
@@ -198,12 +204,12 @@
       tutamaclar.forEach((t) => t.then((h) => h.remove()).catch(() => {}));
       yuklu[tur] = 0;
       hazirla(tur);                  // bir sonrakini şimdiden yükle
-      coz(kazandi);
+      coz(kazandi || (tur === "odul" && gosterilemedi && REKLAM_YOKSA_ODUL));
     }
     dinle(OLAY[tur].kapandi, () => (tur === "odul" ? setTimeout(bit, 300) : bit()));
-    dinle(OLAY[tur].hata, bit);
+    dinle(OLAY[tur].hata, () => { gosterilemedi = true; bit(); });
     if (tur === "odul") dinle("onRewardedVideoAdReward", () => { kazandi = true; });
-    OLAY[tur].goster().then(() => { if (tur === "odul") kazandi = true; }, bit);
+    OLAY[tur].goster().then(() => { if (tur === "odul") kazandi = true; }, () => { gosterilemedi = true; bit(); });
   });
 
   // Çözüm penceresi (#modal) açılıp KAPANIR kapanmaz çözülür; yoklama yok, hemen. win() pencereyi
@@ -233,9 +239,9 @@
 
     async odulluReklam(_neden) {
       if (plus) return true;                                       // Plus: sınırsız ipucu/geri al/tekrar
-      if (!(await reklamIzni())) return false;
+      if (!(await reklamIzni())) return REKLAM_YOKSA_ODUL;
       // Yüklenmesi uzun sürüyorsa oyuncuyu bekletme; yükleme arkada sürer
-      if (!(await Promise.race([hazirla("odul"), uyu(8000).then(() => false)]))) return false;
+      if (!(await Promise.race([hazirla("odul"), uyu(8000).then(() => false)]))) return REKLAM_YOKSA_ODUL;
       // Arka arkaya reklam yok: ödüllü reklam "son gösterilen reklam" sayılır; çözüm penceresinden
       // bekleyen geçiş reklamı (örn. "reklam izle, tekrar dene" sonrası) bu yüzden düşer
       sonGecisYaz();
@@ -278,6 +284,7 @@
   const kanca = REKLAMSIZ_DERLEME
     ? { plusMu: () => false, plusFiyat: () => null, odulluReklam: async () => true, gecisReklami: async () => {}, plusSatinAl: async () => false, plusGeriYukle: async () => false }
     : reklamlar;
+  if (!PLUS_ACIK) for (const ad of ["plusFiyat", "plusSatinAl", "plusGeriYukle"]) delete kanca[ad];
   // Donuk ve değiştirilemez: sayfadaki başka bir betik kancayı (ör. plusMu'yu) değiştiremesin
   Object.defineProperty(window, "SozcukGelir", { value: Object.freeze(kanca), writable: false, configurable: false });
 })();

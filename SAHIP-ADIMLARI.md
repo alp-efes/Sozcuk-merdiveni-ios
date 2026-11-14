@@ -215,6 +215,12 @@ değişmiş olabilir):
 
 ## 9. Gelir: AdMob reklamı ve Plus (sahip kararı, 13 Kasım 2026)
 
+> **14 Kasım 2026 kararı: ilk App Store sürümü Plus olmadan çıkar.** `web/yerel.js` → `PLUS_ACIK = false`
+> Plus'ı arayüzden ve gizlilik metninden kaldırır; Plus sonraki sürümde, değişmiş kurallarla açılır.
+> Aşağıdaki Plus adımları (9.4, 9.5) o zamana kadar gerekmez. AdMob onaylanana dek reklam
+> gelmeyebilir: ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verilir (yarıda kapatılan reklam
+> vermez). AdMob onaylanınca `web/yerel.js` → `REKLAM_YOKSA_ODUL = false` yapılır (tek satır, yeni sürüm).
+
 Uygulama reklam gösterir (ödüllü: ipucu/geri al/tekrar; geçiş: çözümden sonra), tek seferlik **Plus**
 satar (reklamsız; sınırsız ipucu, geri al ve günlük tekrar). Kod hazır ve **Google'ın test kimlikleriyle** çalışıyor;
 gerçek para için aşağıdakiler gerekir. **9.1 ve 9.2 yapıldı** (13 Kasım 2026): `gelir.json` gerçek
@@ -226,8 +232,8 @@ denetler. **Engeller** her adımın yanında yazılı.
 | 9.1 | AdMob hesabı + uygulama + iki reklam birimi | **TestFlight derlemesini** (iş akışı test kimliğiyle durur) ve her reklam gelirini |
 | 9.2 | Kimlikleri `gelir.json`'a yazdırma | 9.1 ile aynı |
 | 9.3 | AdMob'da Avrupa düzenlemeleri mesajını yayınlama | Birleşik Krallık/İsviçre'de reklam gösterimini |
-| 9.4 | Paid Applications Agreement (banka + vergi) | Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
-| 9.5 | App Store Connect'te Plus ürünü | Plus'ı denemeyi ve mağaza gönderimini |
+| 9.4 | Paid Applications Agreement (banka + vergi) | **İlk sürümde gerekmez** (Plus sonraki sürümde, 14 Kasım 2026 kararı). Plus'ın TestFlight/Sandbox'ta yüklenmesini ve App Store yayınını |
+| 9.5 | App Store Connect'te Plus ürünü | **İlk sürümde gerekmez** (Plus sonraki sürümde). Plus'ı denemeyi ve mağaza gönderimini |
 | 9.6 | App Privacy etiketi | App Store gönderimini (iç TestFlight'ı değil) |
 | 9.7 | `app-ads.txt` (siteye) | AdMob'un reklam doluluğunu ve gelirini (yayından sonra, haftalar içinde) |
 | 9.8 | iPhone'unuzu AdMob test cihazı yapın | Canlı reklam birimlerinde geçersiz trafik (hesap cezası) riskini; **TestFlight denemesinden önce** |
