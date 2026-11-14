@@ -264,6 +264,27 @@ test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve a�
   await baglam.close();
 });
 
+// Mağaza modu (simulator.sh ... magaza): betik sayfadan önce yüklenir, saat sabitlenir. Telefonun
+// klavyesi yok; odaktaki #giris için görünen alanı kısaltmak onu taklit eder.
+test("mağaza modu: sıra ana, hamle, cozum, gunluk, nasil; klavye oyunda açık, ana ve nasilda kapalı", async () => {
+  const baglam = await tarayici.newContext(TELEFON);
+  await baglam.route("**/onay-*.txt", (r) => r.fulfill({ status: 200, body: "" }));
+  await baglam.addInitScript(() => {
+    Object.defineProperty(window.visualViewport, "height",
+      { get: () => innerHeight - (document.activeElement?.id === "giris" ? 300 : 0) });
+  });
+  await baglam.addInitScript({ content: "window.SM_MAGAZA = true;\n" + readFileSync(OTOMATIK, "utf8") });
+  const sayfa = await baglam.newPage();
+  const isaretler = [];
+  sayfa.on("console", (m) => { const e = m.text().match(/^SM-OTOMATIK: (.*)$/); if (e) isaretler.push(e[1]); });
+  const son = sayfa.waitForEvent("console", { predicate: (m) => /^SM-OTOMATIK: (nasil|hata)/.test(m.text()), timeout: 60000 });
+  await sayfa.goto(ADRES);
+  await son;
+  assert.deepEqual(isaretler.filter((i) => !i.startsWith("bilgi ")), ["ana", "hamle", "cozum", "gunluk", "nasil"]);
+  assert.match(await sayfa.evaluate(() => new Date(Date.now() + 3 * 3600e3).toISOString()), /^2026-11-14T/);   // ertesi gün
+  await baglam.close();
+});
+
 test("otomatik oynama betiği yedek sözlükle oynamaz, hata bildirir", async () => {
   const { baglam, isaretler } = await otomatikOyna({ sozlukYok: true });
   assert.deepEqual(isaretler, ["hata words.json yüklenmedi (mock sözlük)"]);
