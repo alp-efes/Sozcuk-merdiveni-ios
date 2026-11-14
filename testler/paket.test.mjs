@@ -362,7 +362,7 @@ test("simge ve açılış görseli doğru boyutta, alfasız ve kaynağıyla ayn�
 });
 
 test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca Secrets'tan", () => {
-  for (const ad of ["test.yml", "testflight.yml", "simulator.yml", "magaza-kayit.yml"]) {
+  for (const ad of ["test.yml", "testflight.yml", "simulator.yml", "magaza-kayit.yml", "test-grubu.yml"]) {
     const akis = oku(KOK, ".github/workflows", ad);
     const eylemler = akis.match(/uses:.*/g) || [];
     assert.ok(eylemler.length > 0, `${ad}: eylem yok`);

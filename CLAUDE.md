@@ -41,6 +41,8 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   İstisna (sahip isteği, 14 Kasım 2026): `magaza-kayit.yml` (mağaza metinleri; incelemeye göndermez) aynı
   `testflight` ortamını kullanır; gizli bilgi taşınmadı, yeni ad eklenmedi. Yalnızca `workflow_dispatch` ve
   yalnızca `main` (testle korunur); `pull_request` tetikleyicisi eklenmez.
+  İkinci elle çalışan iş (sahip isteği, 14 Kasım 2026): `test-grubu.yml` bir derlemeyi dış test grubu "1. Seviye Test"e ekler
+  (kullanıcı eklemez/silmez); aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.

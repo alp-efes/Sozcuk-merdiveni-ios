@@ -27,9 +27,9 @@ export function jwt({ keyId, issuerId, p8 }, simdi = Date.now()) {
   return `${veri}.${b64u(imza)}`;
 }
 
-export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, kuru = true, derleme, gorseller, log = console.log }) {
-  // Hata iletisi yalnızca Apple'ın başlık/ayrıntısını taşır; istek başlığı ya da anahtar asla
-  async function api(yontem, yol, govde) {
+// Hata iletisi yalnızca Apple'ın başlık/ayrıntısını taşır; istek başlığı ya da anahtar asla
+export function apiIstemci(f, token) {
+  return async function api(yontem, yol, govde) {
     const r = await f(API + yol, {
       method: yontem,
       headers: { authorization: `Bearer ${token}`, ...(govde && { "content-type": "application/json" }) },
@@ -42,7 +42,11 @@ export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, 
       e.durum = r.status; throw e;
     }
     return j;
-  }
+  };
+}
+
+export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, kuru = true, derleme, gorseller, log = console.log }) {
+  const api = apiIstemci(f, token);
   // Salt okunur her çağrı; yazma yalnızca kuru değilse, yoksa planlanan gövde yazılır
   const yaz = async (yontem, yol, govde) => {
     log(`${kuru ? "[kuru] " : ""}${yontem} ${yol}\n  ${JSON.stringify(govde?.data?.attributes ?? govde?.data ?? "")}`);
