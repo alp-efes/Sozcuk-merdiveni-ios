@@ -32,10 +32,13 @@ window.SM_OTOMATIK = true;
   const MAGAZA = window.SM_MAGAZA === true;
   const GUN = 86400000;
   let kayma = 0;
-  if (MAGAZA) {   // uygulama günü Date.now()'dan hesaplar; ilk okumadan önce sabitlenir
-    const simdi = Date.now.bind(Date);
-    kayma = Date.UTC(2026, 10, 13, 9) - simdi();
-    Date.now = () => simdi() + kayma;
+  if (MAGAZA) {   // gün Date.now()'dan, pencere tarihi new Date()'ten gelir; ilk okumadan önce sabitlenir
+    const Gercek = Date;
+    kayma = Date.UTC(2026, 10, 13, 9) - Gercek.now();
+    window.Date = class extends Gercek {
+      constructor(...a) { super(...(a.length ? a : [Gercek.now() + kayma])); }
+      static now() { return Gercek.now() + kayma; }
+    };
   }
   const uyu = (ms) => new Promise((coz) => setTimeout(coz, ms));
   const isaret = (asama) => console.log("SM-OTOMATIK: " + asama);
