@@ -62,12 +62,11 @@ jobs:
 
       # App Store görselleri: 6,9" iPhone'da gerçek klavyeyle ham ekranlar, sonra site deposundaki
       # bant şablonuyla çerçeve. Mağazaya gidecek görseller macOS yazı tipiyle buradan alınır.
-      # TODO: --ham modu site #25 ile main'e girince ref: main yapın.
       - name: Mağaza betiği (site deposu)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: alp-efes/sozcuk-merdiveni
-          ref: claude/magaza-gorselleri
+          ref: main
           path: site-magaza
           persist-credentials: false
 
