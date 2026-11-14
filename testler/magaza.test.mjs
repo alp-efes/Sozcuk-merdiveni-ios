@@ -2,11 +2,12 @@
  * planlanan PATCH gövdeleri kayit.json'dan çıkar; gerçek kipte PATCH'ler gönderilir. */
 import assert from "node:assert/strict";
 import { generateKeyPairSync, createPublicKey, verify } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { jwt, kayitCalistir } from "../araclar/magaza-kayit.mjs";
+import { gorselDosyalari, jwt, kayitCalistir } from "../araclar/magaza-kayit.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const kayit = JSON.parse(readFileSync(join(KOK, "magaza/kayit.json"), "utf8"));
@@ -86,4 +87,12 @@ test("magaza-kayit.yml: yalnızca elle, yalnızca main, testflight ortamı, PR t
   const betik = readFileSync(join(KOK, "araclar/magaza-kayit.mjs"), "utf8");
   assert.doesNotMatch(betik, /reviewSubmissions|appStoreVersionSubmissions|console\.log\([^)]*(P8|KEY)/);
   assert.ok(readdirSync(join(KOK, "araclar")).includes("magaza-kayit.mjs"));
+});
+
+test("görsel klasörü: yalnızca gerçek .png; sembolik bağ ve başka uzantı atlanır", () => {
+  const d = mkdtempSync(join(tmpdir(), "gorsel-"));
+  writeFileSync(join(d, "01.png"), "x");
+  writeFileSync(join(d, "not.txt"), "x");
+  symlinkSync("/etc/hostname", join(d, "02.png"));
+  assert.deepEqual(gorselDosyalari(d), ["01.png"]);
 });

@@ -9,7 +9,7 @@
  * yaş sınıfı/kategori. Gönderimi sahip yapar.
  * Bağımlılıksız: JWT node:crypto ile, istekler fetch ile. */
 import { createHash, createPrivateKey, sign } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -94,8 +94,12 @@ export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, 
   log(kuru ? "Kuru çalıştırma bitti; hiçbir şey değişmedi." : "Bitti. İncelemeye gönderme sahibe kalır.");
 }
 
+// Yalnızca gerçek .png dosyaları; sembolik bağ klasör dışındaki dosyayı sızdırabilir
+export const gorselDosyalari = (klasor) =>
+  readdirSync(klasor).filter((d) => d.endsWith(".png") && lstatSync(join(klasor, d)).isFile()).sort();
+
 async function gorselYukle({ api, yaz, kuru, log, yerId, klasor }) {
-  const dosyalar = readdirSync(klasor).filter((d) => d.endsWith(".png")).sort();
+  const dosyalar = gorselDosyalari(klasor);
   if (!dosyalar.length) throw new Error(`${klasor} içinde PNG yok`);
   const setler = (await api("GET", `/v1/appStoreVersionLocalizations/${yerId}/appScreenshotSets`).catch(() => ({ data: [] }))).data;
   let set = setler.find((s) => s.attributes.screenshotDisplayType === GORSEL_TURU);
