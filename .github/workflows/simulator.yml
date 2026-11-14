@@ -80,6 +80,8 @@ jobs:
           UYGULAMA_WWW: ${{ github.workspace }}/www
         run: |
           npx playwright install chromium
+          # Site betiği CommonJS; çalışma alanındaki package.json "type": "module" ona da uygulanmasın
+          echo '{"type":"commonjs"}' > site-magaza/package.json
           node site-magaza/tools/magaza_gorsel.js --ham "$RUNNER_TEMP/magaza-ham"
 
       - name: Mağaza görsellerini iş akışı çıktısı olarak yükle
