@@ -22,9 +22,9 @@ function sahte() {
     if (yol.startsWith("/v1/apps?")) return yanit({ data: [{ id: "A1" }] });
     if (yol.includes("/appStoreVersions?")) return yanit({ data: [
       { id: "V0", attributes: { appStoreState: "READY_FOR_SALE", versionString: "0.9" } },
-      { id: "V1", attributes: { appStoreState: "PREPARE_FOR_SUBMISSION", versionString: "1.0" } }] });
+      { id: "V1", attributes: { appVersionState: "PREPARE_FOR_SUBMISSION", appStoreState: "READY_FOR_SALE", versionString: "1.0" } }] });
     if (yol.endsWith("/appStoreVersionLocalizations")) return yanit({ data: [{ id: "L1", attributes: { locale: "tr" } }] });
-    if (yol.endsWith("/appInfos")) return yanit({ data: [{ id: "I1", attributes: { appStoreState: "PREPARE_FOR_SUBMISSION" } }] });
+    if (yol.endsWith("/appInfos")) return yanit({ data: [{ id: "I0", attributes: { state: "READY_FOR_DISTRIBUTION" } }, { id: "I1", attributes: { state: "PREPARE_FOR_SUBMISSION" } }] });
     if (yol.endsWith("/appInfoLocalizations")) return yanit({ data: [{ id: "IL1", attributes: { locale: "tr" } }] });
     if (yol.endsWith("/appStoreReviewDetail")) return yanit({ errors: [] }, 404);
     if (yol.startsWith("/v1/builds?")) return yanit({ data: [{ id: "B7" }] });

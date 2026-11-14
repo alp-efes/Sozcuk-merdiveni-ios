@@ -53,7 +53,9 @@ export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, 
   const { locale } = kayit;
   const app = (await api("GET", `/v1/apps?filter[bundleId]=${encodeURIComponent(bundleId)}`)).data[0];
   if (!app) throw new Error(`Uygulama bulunamadı: ${bundleId}`);
-  const duzenlenebilir = (d) => d.attributes.appStoreState === "PREPARE_FOR_SUBMISSION";
+  // Apple alanı appStoreState'ten appVersionState'e taşıyor; ikisi de okunur
+  const DUZENLENEBILIR = ["PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED"];
+  const duzenlenebilir = ({ attributes: a }) => DUZENLENEBILIR.includes(a.appVersionState ?? a.appStoreState);
   const surum = (await api("GET", `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`)).data.find(duzenlenebilir);
   if (!surum) throw new Error("Düzenlenebilir iOS sürümü (PREPARE_FOR_SUBMISSION) yok; App Store Connect'te yeni sürüm oluşturun.");
   log(`Sürüm ${surum.attributes.versionString} (${surum.id})`);
@@ -68,7 +70,8 @@ export async function kayitCalistir({ fetch: f = fetch, token, kayit, bundleId, 
 
   // Alt başlık uygulama bilgisi düzeyindedir
   const bilgiler = (await api("GET", `/v1/apps/${app.id}/appInfos`)).data;
-  const bilgi = bilgiler.find(duzenlenebilir) || bilgiler[0];
+  const bilgi = bilgiler.find(({ attributes: a }) => (a.state ?? a.appStoreState) !== "READY_FOR_DISTRIBUTION");
+  if (!bilgi) throw new Error("Düzenlenebilir appInfo yok (hepsi READY_FOR_DISTRIBUTION).");
   const bYer = (await api("GET", `/v1/appInfos/${bilgi.id}/appInfoLocalizations`)).data.find((d) => d.attributes.locale === locale);
   if (bYer) await yaz("PATCH", `/v1/appInfoLocalizations/${bYer.id}`, { data: { type: "appInfoLocalizations", id: bYer.id, attributes: kayit.bilgi } });
   else await yaz("POST", "/v1/appInfoLocalizations", { data: { type: "appInfoLocalizations", attributes: { locale, ...kayit.bilgi },
@@ -101,7 +104,8 @@ export const gorselDosyalari = (klasor) =>
 async function gorselYukle({ api, yaz, kuru, log, yerId, klasor }) {
   const dosyalar = gorselDosyalari(klasor);
   if (!dosyalar.length) throw new Error(`${klasor} içinde PNG yok`);
-  const setler = (await api("GET", `/v1/appStoreVersionLocalizations/${yerId}/appScreenshotSets`).catch(() => ({ data: [] }))).data;
+  // "KURU" sahte kimliktir (kuru kipte yerelleştirme oluşmadı); gerçek hata durdurur
+  const setler = yerId === "KURU" ? [] : (await api("GET", `/v1/appStoreVersionLocalizations/${yerId}/appScreenshotSets`)).data;
   let set = setler.find((s) => s.attributes.screenshotDisplayType === GORSEL_TURU);
   if (!set) set = (await yaz("POST", "/v1/appScreenshotSets", { data: { type: "appScreenshotSets", attributes: { screenshotDisplayType: GORSEL_TURU },
     relationships: { appStoreVersionLocalization: { data: { type: "appStoreVersionLocalizations", id: yerId } } } } })).data;
