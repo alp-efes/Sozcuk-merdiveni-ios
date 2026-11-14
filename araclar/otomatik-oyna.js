@@ -17,12 +17,26 @@ window.SM_OTOMATIK = true;
  * klavyesinin yazdığı metin alanına yazar. "SM-OTOMATIK: bilgi …" satırı,
  * klavye açıldıktan sonra ölçülen görünen alanı günlüğe yazar.
  *
+ * Mağaza modu (araclar/simulator.sh <klasör> magaza): simulator.sh dosyanın başına
+ * `window.SM_MAGAZA = true;` yazar. Saat 13 Kasım 2026 12:00'ye (TRT) sabitlenir; sıra
+ * ana, hamle, cozum, gunluk (ertesi günün bulmacası, ipucu açık), nasil. Klavye oyun
+ * ekranlarında (hamle, gunluk) açık, ana ve nasil ekranında kapalı olmalıdır; değilse hata.
+ * Çözülünce uygulama klavyeyi kendisi kapatır (uygulama.js win): cozum klavyesizdir.
+ *
  * Uygulama paketine (www/, npm run ios:sync, TestFlight) GİRMEZ:
  * araclar/simulator.sh derlemeden hemen önce ios/App/App/public içine, yerel.js'ten
  * önce yüklenecek biçimde ekler;
  * her `cap sync` o klasörü www/'den yeniden yazar.
  * ========================================================= */
 (async () => {
+  const MAGAZA = window.SM_MAGAZA === true;
+  const GUN = 86400000;
+  let kayma = 0;
+  if (MAGAZA) {   // uygulama günü Date.now()'dan hesaplar; ilk okumadan önce sabitlenir
+    const simdi = Date.now.bind(Date);
+    kayma = Date.UTC(2026, 10, 13, 9) - simdi();
+    Date.now = () => simdi() + kayma;
+  }
   const uyu = (ms) => new Promise((coz) => setTimeout(coz, ms));
   const isaret = (asama) => console.log("SM-OTOMATIK: " + asama);
 
@@ -92,7 +106,12 @@ window.SM_OTOMATIK = true;
     }
     const vv = window.visualViewport;
     const tamBoy = vv.height;
+    const klavyeAcik = () => vv.height < tamBoy - 100;
+    const klavyeBekle = (acik, ne) => {
+      if (MAGAZA && klavyeAcik() !== acik) throw new Error(`${ne}: klavye ${acik ? "açık olmalı" : "kapalı olmalı"}`);
+    };
     await uyu(1000);                       // ilk boyama ve yazı tipi
+    klavyeBekle(false, "ana ekran");
     await asama("ana");
 
     document.getElementById("btnGunluk").click();
@@ -103,7 +122,7 @@ window.SM_OTOMATIK = true;
     if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
     await uyu(2500);                       // telefonun klavyesi açılır (bağlı klavye varsa açılmaz)
     // Klavye açıksa kabuk görünen alana sığmalı; giriş satırı ve harf şeridi klavyenin üstünde kalmalı
-    const klavye = vv.height < tamBoy - 100;
+    const klavye = klavyeAcik();
     isaret(`bilgi klavye=${klavye} gorunen=${Math.round(vv.height)} tam=${Math.round(tamBoy)} ust=${Math.round(vv.offsetTop)} ` +
            `kayma=${Math.round(scrollY)} kabuk=${Math.round(kutu("oyun").height)} odak=${document.activeElement.id || "-"}`);
     if (klavye) {
@@ -111,13 +130,14 @@ window.SM_OTOMATIK = true;
       if (kutu("inputRow").top < vv.offsetTop || kutu("inputRow").bottom > alt) throw new Error("klavye açıkken giriş satırı görünmüyor");
       if (kutu("harfler").bottom > alt) throw new Error("klavye açıkken harf şeridi klavyenin altında kalıyor");
     }
-    await asama("oyun");
+    if (!MAGAZA) await asama("oyun");
 
     const yol = enKisaYol(oyun.startWord, oyun.targetWord, oyun.db[String(oyun.len)].words);
     const ilk = Math.min(2, yol.length - 1);
     for (const kelime of yol.slice(0, ilk)) yaz(kelime);
     if (oyun.chain.length !== ilk + 1) throw new Error("hamleler kabul edilmedi");
     await uyu(1000);
+    klavyeBekle(true, "hamle");
     await asama("hamle");
 
     for (const kelime of yol.slice(ilk)) yaz(kelime);
@@ -126,9 +146,27 @@ window.SM_OTOMATIK = true;
     await asama("cozum");
 
     oyun.hideModal();
-    document.getElementById("btnHelp").click();
+    if (MAGAZA) {
+      // Ertesi gün: TRT gece yarısı geçti, yeni günlük bulmaca gelir; ipucuyla başlanır
+      document.getElementById("btnAna").click();
+      await bekleKosul(() => ekran() === "ana", "ana ekrana dönüş");
+      kayma += GUN;
+      await uyu(500);
+      document.getElementById("btnGunluk").click();
+      await bekleKosul(() => ekran() === "oyun" && oyun.mode === "daily" && oyun.startWord !== bas && !oyun.over, "ertesi günün bulmacası");
+      document.getElementById("btnHint").click();
+      await uyu(2500);
+      klavyeBekle(true, "günlük");
+      await asama("gunluk");
+      document.getElementById("btnAna").click();
+      await bekleKosul(() => ekran() === "ana", "ana ekrana dönüş");
+      document.getElementById("btnAnaYardim").click();
+    } else {
+      document.getElementById("btnHelp").click();
+    }
     if (!document.body.classList.contains("yardim")) throw new Error("yardım penceresi açılmadı");
     await uyu(1000);
+    klavyeBekle(false, "nasıl oynanır");
     await asama("nasil");
   } catch (e) {
     isaret("hata " + e.message);

@@ -60,6 +60,41 @@ jobs:
       - name: Simülatörde derle, oyna, ekran görüntüsü al
         run: bash araclar/simulator.sh "$RUNNER_TEMP/ekran"
 
+      # App Store görselleri: 6,9" iPhone'da gerçek klavyeyle ham ekranlar, sonra site deposundaki
+      # bant şablonuyla çerçeve. Mağazaya gidecek görseller macOS yazı tipiyle buradan alınır.
+      # TODO: --ham modu site #25 ile main'e girince ref: main yapın.
+      - name: Mağaza betiği (site deposu)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: alp-efes/sozcuk-merdiveni
+          ref: claude/magaza-gorselleri
+          path: site-magaza
+          persist-credentials: false
+
+      - name: Mağaza için ham ekranlar (klavye açık)
+        run: bash araclar/simulator.sh "$RUNNER_TEMP/magaza-ham" magaza
+
+      - name: Mağaza görsellerini çerçevele
+        env:
+          NODE_PATH: ${{ github.workspace }}/node_modules
+          UYGULAMA_WWW: ${{ github.workspace }}/www
+        run: |
+          npx playwright install chromium
+          node site-magaza/tools/magaza_gorsel.js --ham "$RUNNER_TEMP/magaza-ham"
+
+      - name: Mağaza görsellerini iş akışı çıktısı olarak yükle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: magaza-gorselleri
+          path: site-magaza/tools/uygulama/magaza
+
+      - name: Mağaza ham ekranlarını yükle
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: magaza-ham
+          path: ${{ runner.temp }}/magaza-ham
+
       - name: Ekran görüntülerini iş akışı çıktısı olarak yükle
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
