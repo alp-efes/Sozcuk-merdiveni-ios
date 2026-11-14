@@ -412,6 +412,12 @@ test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere g
   assert.deepEqual(Object.keys(is).filter((ad) => /contents: write/.test(is[ad].metin)), ["yayinla"]);
   assert.match(is.yayinla.metin, /^    if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m);
   assert.doesNotMatch(is.ekran.metin, /permissions:|github\.token|GH_TOKEN/);
+  // Mağaza görselleri normal akışı ve yayinla'yı kırmaz; site ikinci kez çekilmez
+  const magaza = is.ekran.metin.split(/\n      - name: /).find((b) => b.includes("id: magaza"));
+  assert.match(magaza, /continue-on-error: true/);
+  assert.ok(is.ekran.metin.indexOf("id: magaza") > is.ekran.metin.indexOf('bash araclar/simulator.sh "$RUNNER_TEMP/ekran"'), "mağaza normal adımdan sonra");
+  assert.match(is.ekran.metin, /if: steps\.magaza\.outcome == 'failure'\n\s+run: echo "::warning::Mağaza görselleri üretilemedi/);
+  assert.doesNotMatch(is.ekran.metin, /site-magaza/);
 });
 
 test("gelir.json: kimlikler biçimli; TestFlight denetimi test kimliğini yakalar", () => {

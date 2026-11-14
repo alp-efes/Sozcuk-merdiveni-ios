@@ -62,32 +62,30 @@ jobs:
 
       # App Store görselleri: 6,9" iPhone'da gerçek klavyeyle ham ekranlar, sonra site deposundaki
       # bant şablonuyla çerçeve. Mağazaya gidecek görseller macOS yazı tipiyle buradan alınır.
-      - name: Mağaza betiği (site deposu)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: alp-efes/sozcuk-merdiveni
-          ref: main
-          path: site-magaza
-          persist-credentials: false
-
-      - name: Mağaza için ham ekranlar (klavye açık)
-        run: bash araclar/simulator.sh "$RUNNER_TEMP/magaza-ham" magaza
-
-      - name: Mağaza görsellerini çerçevele
+      # Kırılırsa iş kırmızı olmaz: normal ekran görüntüleri ve yayinla ona bağlı değil
+      - name: Mağaza görselleri (ham ekranlar, klavye açık; sonra bantla)
+        id: magaza
+        continue-on-error: true
         env:
           NODE_PATH: ${{ github.workspace }}/node_modules
           UYGULAMA_WWW: ${{ github.workspace }}/www
         run: |
+          bash araclar/simulator.sh "$RUNNER_TEMP/magaza-ham" magaza
           npx playwright install chromium
           # Site betiği CommonJS; çalışma alanındaki package.json "type": "module" ona da uygulanmasın
-          echo '{"type":"commonjs"}' > site-magaza/package.json
-          node site-magaza/tools/magaza_gorsel.js --ham "$RUNNER_TEMP/magaza-ham"
+          echo '{"type":"commonjs"}' > "$SITE_DEPOSU/package.json"
+          node "$SITE_DEPOSU/tools/magaza_gorsel.js" --ham "$RUNNER_TEMP/magaza-ham"
+
+      - name: Mağaza görselleri üretilemedi uyarısı
+        if: steps.magaza.outcome == 'failure'
+        run: echo "::warning::Mağaza görselleri üretilemedi (magaza-ham yapıtına ve adımın günlüğüne bakın)"
 
       - name: Mağaza görsellerini iş akışı çıktısı olarak yükle
+        if: steps.magaza.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: magaza-gorselleri
-          path: site-magaza/tools/uygulama/magaza
+          path: ${{ github.workspace }}/site/tools/uygulama/magaza
 
       - name: Mağaza ham ekranlarını yükle
         if: always()
