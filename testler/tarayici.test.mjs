@@ -671,7 +671,7 @@ test("gelir kancası: ödüllü reklam, bekleyen geçiş reklamını ve hemen ar
   await cozGercek(sayfa);                                                // 2. çözüm: reklam pencere kapanınca gelecekti
   await pencereAcik(sayfa);
   assert.equal(await sayfa.evaluate(() => window.SozcukGelir.odulluReklam("tekrar")), true);
-  await sayfa.evaluate(() => oyun.beginRetry());                         // "reklam izle, tekrar dene": pencere kapanır, tekrar başlar
+  await sayfa.evaluate(() => oyun.hideModal());                          // ödüllü reklamın ardından pencere kapanır
   await sayfa.waitForTimeout(600);
   assert.equal(await say("showRewardVideoAd"), 1);
   assert.equal(await say("showInterstitial"), 0, "ödüllü reklamın hemen ardından geçiş reklamı gösterildi");
@@ -987,7 +987,7 @@ test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altt
   assert.deepEqual(d.baslik, ["btnMenu", "modAdi", "btnShowResult"], "yardım menüde; sağ üstte en kısa yolu göster");
   assert.ok(d.eylemUst >= d.klavyeAlt - 1 && d.eylemAlt <= 844, "eylem sırası klavyenin altında, ekranın içinde olmalı");
   assert.ok(d.gonder.height >= 52 && d.gonder.width >= 160, `Gönder büyük olmalı (${d.gonder.width}×${d.gonder.height})`);
-  assert.ok(d.eylemAlt - d.gonder.bottom >= 12, `Gönder'in altında en az 12 px boşluk olmalı (${d.eylemAlt - d.gonder.bottom})`);
+  assert.ok(d.eylemAlt - d.gonder.bottom >= 28, `Gönder'in altında en az 28 px boşluk olmalı (${d.eylemAlt - d.gonder.bottom})`);
   assert.ok(d.geri.right <= d.gonder.left && d.ipucu.left >= d.gonder.right, "Geri al solda, İpucu sağda");
   for (const b of [d.geri, d.ipucu]) assert.ok(b.width >= 44 && b.height >= 44 && Math.abs(b.width - b.height) < 1);
   assert.deepEqual(d.yuvarlak, ["50%", "50%"]);
@@ -1001,6 +1001,16 @@ test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altt
   await sayfa.tap("#btnUndo");
   assert.equal((await durum(sayfa)).zincir.length, 1);
   assert.equal(await sayfa.textContent("#btnUndo .hak"), "4");
+  // Üç yer her durumda sabit: oyun sürerken ve bitince Gönder ortada, İpucu yerini korur
+  const yerler = () => sayfa.evaluate(() => ["btnUndo", "btnGonder", "btnHint"].map((id) => {
+    const r = document.getElementById(id).getBoundingClientRect(); return Math.round(r.left + r.width / 2); }));
+  const surerken = await yerler();
+  assert.ok(Math.abs(surerken[1] - 195) <= 3, `Gönder ortada olmalı (${surerken[1]})`);
+  for (const k of enKisaYol(ilk, await sayfa.evaluate(() => oyun.targetWord))) await yaz(sayfa, k);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  await sayfa.tap("#btnCloseModal");
+  assert.deepEqual(await yerler(), surerken, "bitmiş oyunda eylem sırası kaymamalı");
+  assert.equal(await sayfa.evaluate(() => getComputedStyle(document.getElementById("btnHint")).visibility), "hidden");
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
@@ -1508,54 +1518,41 @@ test("uygulama arayüzü: seçilen zorlukta bulmaca yoksa app.js'in verdiği bul
   await baglam.close();
 });
 
-test("uygulama arayüzü: günlük tekrar sürerken mod değiştirmek tekrarı ve ilk sonucu korur", async () => {
+test("uygulama arayüzü: günlükte tekrar yok — pencerede ve durum satırında Tekrar dene çıkmaz, eski deneme kaydıyla açılış bozulmaz", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_zorluk: "zor" } });
   await oyunaGir(sayfa);
-  const yol = await gunluguCoz(sayfa, { fazla: 2 });           // en azın 2 üstünde: tekrar hakkı var
+  const yol = await gunluguCoz(sayfa, { fazla: 2 });           // sitede bu "Tekrar dene" hakkı verirdi
   await sayfa.waitForSelector("#modal:not(.hidden)");
-  await sayfa.tap("#btnRetry");                               // web'de (kanca yok) tekrar serbesttir
-  let d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.zincir.length], ["daily", false, 1], "tekrar başlamalı");
-  await yaz(sayfa, yol[0]);
-  const deneme = (await durum(sayfa)).zincir;
-  assert.equal(deneme.length, 2);
-  const ilkSonuc = () => sayfa.evaluate(() => { const k = oyun.dailyRecord(); return [k.steps, k.deneme]; });
-  assert.deepEqual(await ilkSonuc(), [yol.length + 2, deneme]);
+  assert.equal(await gorunur(sayfa, "#btnRetry"), false, "çözüm penceresinde Tekrar dene olmamalı");
+  await sayfa.tap("#btnCloseModal");
+  assert.ok(await gorunur(sayfa, "#btnDailyShare"), "Paylaş durum satırında kalmalı");
+  assert.equal(await gorunur(sayfa, "#btnDailyRetry"), false, "durum satırında Tekrar dene olmamalı");
+  const gun = () => sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())));
+  const ilk = await gun();
+  assert.equal(ilk.steps, yol.length + 2);
+  await sayfa.evaluate(() => oyun.beginRetry());               // doğrudan çağrı da günlüğü açmaz
+  assert.deepEqual([(await durum(sayfa)).bitti, await gun()], [true, ilk]);
 
-  await anaya(sayfa);
-  assert.equal(await sayfa.textContent("#gunlukDurum"), `Tekrar deniyorsun · 1 adım · en az ${yol.length}`);
-  assert.equal(await sayfa.textContent("#btnGunluk"), "Devam et");
-  assert.equal(await gorunur(sayfa, "#gunlukSonraki"), false);
-  // Serbest oyunda hamle yapılır, günlüğe dönülür: tekrar kaldığı yerden sürer
-  await sayfa.tap("#btnSerbest");
-  d = await durum(sayfa);
-  assert.equal(d.mod, "free");
-  await yaz(sayfa, enKisaYol(d.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
-  const serbest = (await durum(sayfa)).zincir;
-  await anaya(sayfa);
-  assert.equal(await sayfa.textContent("#btnGunluk"), "Devam et");
-  await sayfa.tap("#btnGunluk");
-  d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.zincir], ["daily", false, deneme], "süren tekrar mod değişiminde kayboldu");
-  assert.deepEqual(await ilkSonuc(), [yol.length + 2, deneme], "ilk sonuç ya da tekrar kaydı bozuldu");
-  // Yeniden açılışta da sürer; serbest oyun da yerinde
+  // Eski sürümde başlamış tekrar: günün kaydında `deneme`, sm_state'te süren günlük
+  const bas = await sayfa.evaluate(() => oyun.startWord);
+  await sayfa.evaluate(([b, y]) => {
+    const k = JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey()));
+    localStorage.setItem("sm_gunluk_" + oyun.todayKey(), JSON.stringify({ ...k, deneme: [b, y] }));
+    const st = JSON.parse(localStorage.getItem("sm_state"));
+    const durumu = JSON.stringify({ ...st, chain: [b, y], over: false });
+    localStorage.setItem("sm_state", durumu);
+    localStorage.setItem("sm_mod_daily", durumu);
+  }, [bas, yol[0]]);
   await sayfa.reload();
   await sayfa.waitForFunction(() => window.oyun?.db && window.oyun.startWord);
   await anaEkran(sayfa);
-  assert.equal(await sayfa.textContent("#gunlukDurum"), `Tekrar deniyorsun · 1 adım · en az ${yol.length}`);
+  assert.equal(await sayfa.textContent("#gunlukDurum"), `Çözüldü · ${ilk.steps} adım · en az ${yol.length}`);
+  assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
   await sayfa.tap("#btnGunluk");
-  assert.deepEqual((await durum(sayfa)).zincir, deneme);
-  await anaya(sayfa);
-  await sayfa.tap("#btnSerbest");
-  assert.deepEqual((await durum(sayfa)).zincir, serbest);
-  // Tekrar en kısa yoldan biter: ilk sonuç kayıtta kalır, en iyi ana ekranda yazar
-  await anaya(sayfa);
-  await sayfa.tap("#btnGunluk");
-  for (const kelime of yol.slice(1)) await yaz(sayfa, kelime);
-  await sayfa.waitForSelector("#modal:not(.hidden)");
-  await sayfa.tap("#btnCloseModal");
-  await anaya(sayfa);
-  assert.equal(await sayfa.textContent("#gunlukDurum"), `Çözüldü · ${yol.length + 2} adım · en iyi ${yol.length} · en az ${yol.length}`);
+  const d = await durum(sayfa);
+  assert.deepEqual([d.mod, d.bitti, d.zincir], ["daily", true, ilk.chain], "günlük ilk çözümüyle bitmiş açılmalı");
+  assert.deepEqual(await gun(), ilk, "deneme temizlenmeli; ilk çözüm alanları değişmemeli");
+  assert.equal(await gorunur(sayfa, "#btnDailyRetry"), false);
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
@@ -1596,30 +1593,6 @@ test("uygulama arayüzü: Plus (satın al, geri yükle, cayma notu) ana ekrandan
   // Reklam tercihleri bağlantısının yeri gizlilik metnindeki tarifle aynı: ana ekranın altı
   assert.ok(await sayfa.evaluate(() => document.getElementById("ana").contains(document.querySelector(".site-footer"))));
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
-  await baglam.close();
-});
-
-test("uygulama arayüzü: çözülmüş günlükte tekrar Sonucu göster ile bitince ilk çözüm kaydı ve kart korunur", async () => {
-  const { baglam, sayfa } = await arayuzSayfasi();
-  await oyunaGir(sayfa, "daily");
-  const [bas, hedef, en] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord, oyun.optimal]);
-  // En azın üstünde çöz: tekrar teklif edilir
-  await gezin(sayfa, en + 1);
-  for (const k of enKisaYol(await sayfa.evaluate(() => oyun.currentWord), hedef)) await yaz(sayfa, k);
-  await sayfa.waitForSelector("#modal:not(.hidden)");
-  const ilk = await sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())));
-  assert.ok(ilk.steps > en, "ilk çözüm en azın üstünde olmalı");
-  await sayfa.tap("#btnRetry");
-  await gezin(sayfa, en + 1);
-  await sayfa.tap("#btnShowResult");
-  await sayfa.tap("#btnPesEvet");
-  const k = await sayfa.evaluate(() => ({ kayit: JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())),
-    shown: oyun.shown, paylas: !document.getElementById("dailySolved").classList.contains("hidden") }));
-  assert.deepEqual([k.kayit.steps, k.kayit.deneme, k.kayit.gosterildi, k.shown, k.paylas], [ilk.steps, undefined, undefined, true, true],
-    `ilk çözüm kaydı değişti ya da Paylaş görünmüyor: ${JSON.stringify(k)}`);
-  await sayfa.evaluate(() => document.getElementById("btnAna").click());
-  assert.ok((await sayfa.textContent("#gunlukDurum")).startsWith(`Çözüldü · ${ilk.steps} adım`), "kart ilk çözümü göstermeli");
-  assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
   await baglam.close();
 });
 

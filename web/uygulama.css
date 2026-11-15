@@ -248,8 +248,8 @@ body:not([data-ekran="ana"]) .ana { display: none; }
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
-  /* altta 16 px: Gönder ana ekran çubuğuna yapışmasın (sahip kararı, 15 Kasım 2026) */
-  padding: var(--space-1) var(--space-4) var(--space-4);
+  /* altta 28 px: Gönder ana ekran çubuğuna yapışmasın (sahip kararı, 15 Kasım 2026) */
+  padding: var(--space-1) var(--space-4) calc(var(--space-6) + var(--space-1));
   background: var(--surface-2);
   flex-shrink: 0;
 }
@@ -261,6 +261,8 @@ body:not([data-ekran="ana"]) .ana { display: none; }
   height: var(--btn-height);
   border-radius: 50%;
 }
+/* Bitmiş oyunda app.js İpucu'yu gizler (.hidden): yeri kalır, Gönder ortadan kaymaz */
+.eylemler .hint-btn.hidden { display: grid; visibility: hidden; }
 .eylemler .hint-btn::before { display: none; }      /* dokunma alanı zaten 52 px */
 .eylemler .hint-btn .icon { width: 24px; height: 24px; }
 .eylemler .hak { top: -2px; right: -2px; }

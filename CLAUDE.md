@@ -81,8 +81,8 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 **Uygulama arayüzü siteden farklıdır (sahip kararı, 13 Kasım 2026); site aynı kalır.**
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
-dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `buildKeyboard`, `renderStatus`, `askShowResult`,
-`win`, `showModal`, `showYenile`, `saveState`, `updateTabs`, `tickCountdown`), `canShowResult`'u ve `WordLadder.LAYOUT`'u değiştirir ve Capacitor
+dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `buildKeyboard`, `renderStatus`, `askShowResult`, `beginRetry`, `dailyRecord`, `restoreState`,
+`win`, `showModal`, `showYenile`, `saveState`, `updateTabs`, `tickCountdown`), `canShowResult`'u, `canRetry`'yi ve `WordLadder.LAYOUT`'u değiştirir ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
 - **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notları, 15 Kasım 2026: yenile
@@ -108,6 +108,11 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   sayısı en azı aşıyorsa görünür; basınca sitenin `shortestPath()`'iyle bir en kısa yol pencerede yazılır
   (`#enKisaYol`). Yalnızca gösterim: kayıt, seri, paylaşım değişmez; pencere kapanmaz (geçiş reklamı
   pencerenin kapanmasına bağlıdır).
+- **Günlükte tekrar yok** (sahip kararı, 15 Kasım 2026; site aynı kalır). `canRetry` hep `false`: çözüm
+  penceresinde ve durum satırında "Tekrar dene" çıkmaz, ödüllü reklamlı tekrar (`odulluReklam("tekrar")`)
+  tetiklenmez; `beginRetry` günlükte bir şey yapmaz. Eski sürümde başlamış tekrar (`sm_gunluk_*` → `deneme`)
+  okunurken temizlenir, sm_state'teki süren tekrar yerine günlük ilk çözümüyle bitmiş açılır; ilk çözüm,
+  en iyi, seri ve paylaşım değişmez. Serbestteki menü "Yeniden dene" aynen durur.
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
@@ -146,7 +151,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 **İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
-ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
+ipucu/geri al için bu donuk kancayı çağırır (sitedeki günlük tekrar ödüllü reklamı uygulamada yok:
+günlükte tekrar hakkı kaldırıldı, 15 Kasım 2026): `plusMu()` (düz boolean, söz değil),
 `odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
 Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
 → vitrin (App Store ülkesi, en çok 2 sn) → ATT (yalnızca karar verilmemişse ve vitrin GBR değilse;
@@ -154,7 +160,7 @@ GBR'de ATT sorulmaz ve `tagForUnderAgeOfConsent` verilir) → AdMob başlat → 
 Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
 kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
 hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
-onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun"/"Tekrar dene" ile
+onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun" ile
 kapanıp yeni bulmaca çekildiyse ya da oyuncu yazmaya başladıysa o çözümde reklam yoktur. Son reklam
 zamanı ve çözüm sayısı `sessionStorage` (`sm_gecis`, `sm_cozum`) tutulur. Reklamlar 55 dk sonra eskir ve
 yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener. Kimlikler `gelir.json` → `web-esitle.mjs`

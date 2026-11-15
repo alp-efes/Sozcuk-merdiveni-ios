@@ -188,6 +188,12 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/this\.el\.pesText\.textContent = /, "askShowResult(): onay metni pesText'e yazılır (uygulama günlükte değiştirir)"],
     [/^  showResult\(\) \{\s+this\.showPes\(false\);\s+if \(!this\.canShowResult\(\)\) return;/m, "showResult(): canShowResult'a bakar"],
     [/this\.el\.btnShowResult\.classList\.toggle\("hidden", !this\.canShowResult\(\)\);/, "btnShowResult görünürlüğü canShowResult'tan (.hidden)"],
+    [/^  canRetry\(\) \{/m, "canRetry(): uygulamada günlükte tekrar yok"],
+    [/this\.el\.btnRetry\.classList\.toggle\("hidden", !this\.canRetry\(\)\);/, "btnRetry görünürlüğü canRetry'den"],
+    [/this\.el\.btnDailyRetry\.classList\.toggle\("hidden", !this\.canRetry\(\)\);/, "btnDailyRetry görünürlüğü canRetry'den"],
+    [/^  async retry\(\) \{\s+if \(this\.busy \|\| !this\.canRetry\(\)\) return;/m, "retry(): canRetry false iken reklam istemez"],
+    [/^  beginRetry\(\) \{/m, "beginRetry(): günlükte çağrılmaz"],
+    [/const d = cozuldu\.deneme;/, "newGame: günün kaydındaki deneme (uygulama temizler)"],
     [/^  shortestPath\(\) \{/m, "shortestPath(): çözüm penceresinde en kısa yol"],
     [/this\.lastResult = this\.computeResult\(\);/, "lastResult: penceredeki adım sayısı"],
     [/^  showYenile\(open\) \{/m, "showYenile(): menüdeki Yeniden dene onayı"],
@@ -230,7 +236,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   ]) assert.match(siteApp, desen, ad);
   // Sarılan her metot uygulama.js'te gerçekten sarılıyor
   const uygulama = oku(KOK, "web", "uygulama.js");
-  for (const ad of ["init", "buildKeyboard", "renderStatus", "canShowResult", "askShowResult", "win", "showModal", "showYenile", "saveState", "updateTabs", "tickCountdown"]) {
+  for (const ad of ["init", "buildKeyboard", "renderStatus", "canShowResult", "askShowResult", "canRetry", "beginRetry", "dailyRecord", "restoreState", "win", "showModal", "showYenile", "saveState", "updateTabs", "tickCountdown"]) {
     assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
   }
   // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar; bağlı klavyede app.js çevirir)

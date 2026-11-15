@@ -109,6 +109,29 @@
   // iOS, sayfada dokunma dinleyicisi yoksa düğmelerin basılı görünümünü (:active) göstermez
   document.addEventListener("touchstart", () => {}, { passive: true });
 
+  /* ---------- Günlükte tekrar yok (sahip kararı, 15 Kasım 2026; site aynı kalır) ----------
+     "Tekrar dene" (çözüm penceresi, durum satırı) ve ödüllü reklamlı tekrar hiç açılmaz. Eski sürümde
+     başlamış bir tekrar (`sm_gunluk_*` içinde `deneme`) okunurken temizlenir: günlük ilk çözümüyle bitmiş
+     açılır; ilk çözüm, en iyi, seri ve paylaşım alanlarına dokunulmaz. */
+  P.canRetry = () => false;
+  const asilBeginRetry = P.beginRetry;
+  P.beginRetry = function (...arg) { if (this.mode !== "daily") return asilBeginRetry.apply(this, arg); };
+  const asilDailyRecord = P.dailyRecord;
+  P.dailyRecord = function (...arg) {
+    const k = asilDailyRecord.apply(this, arg);
+    if (!k || !("deneme" in k)) return k;
+    const { deneme, ...temiz } = k;
+    this.saveDailyRecord(temiz);
+    return temiz;
+  };
+  // sm_state süren bir tekrarı tutuyorsa günlük, günün kaydından (çözülmüş) yeniden kurulur
+  const asilRestoreState = P.restoreState;
+  P.restoreState = function (...arg) {
+    const s = asilRestoreState.apply(this, arg);
+    if (s && this.mode === "daily" && !this.over && this.dailyRecord()) this.newGame("daily");
+    return s;
+  };
+
   /* ---------- Her modun oyunu ayrı saklanır ---------- */
 
   // app.js tek bir canlı oyun tutar (sm_state). Ana ekranla iki mod arasında gidip
@@ -149,14 +172,12 @@
     anaGun = oyun.dayNumber();
     const [bas, hedef, enAz = 0] = oyun.dailyPuzzle();
     const kayit = oyun.dailyRecord();
-    const tekrar = Array.isArray(kayit?.deneme);
-    const adim = tekrar ? kayit.deneme.length - 1
-      : suruyor("daily") ? oyun.chain.length - 1 : (kayitli("daily")?.s.chain.length || 1) - 1;
+    const adim = suruyor("daily") ? oyun.chain.length - 1 : (kayitli("daily")?.s.chain.length || 1) - 1;
     const enAzYazi = enAz ? ` · en az ${enAz}` : "";
     al("gunlukTarih").textContent = new Intl.DateTimeFormat("tr-TR",
       { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Istanbul" }).format(new Date());
     al("gunlukBulmaca").textContent = `${bas} → ${hedef}`;
-    const cozuldu = !!kayit && !tekrar;
+    const cozuldu = !!kayit;
     // "Sonucu göster" ile bitirilmiş (çözüm kaydı yok): ayrı metin, ayrı eylem
     const gosterildi = !kayit && oyun.dailyShown();
     if (gosterildi) {
@@ -165,11 +186,10 @@
       const enIyi = kayit.enIyi || kayit.steps;
       al("gunlukDurum").textContent = `Çözüldü · ${kayit.steps} adım` + (enIyi < kayit.steps ? ` · en iyi ${enIyi}` : "") + enAzYazi;
     } else {
-      al("gunlukDurum").textContent = tekrar ? `Tekrar deniyorsun · ${adim} adım` + enAzYazi
-        : adim > 0 ? `${adim} adım attın` + enAzYazi
+      al("gunlukDurum").textContent = adim > 0 ? `${adim} adım attın` + enAzYazi
         : "Herkese aynı bulmaca" + (enAz ? ` · en az ${enAz} adım` : "");
     }
-    al("btnGunluk").textContent = cozuldu || gosterildi ? "Sonucu gör" : tekrar || adim > 0 ? "Devam et" : "Oyna";
+    al("btnGunluk").textContent = cozuldu || gosterildi ? "Sonucu gör" : adim > 0 ? "Devam et" : "Oyna";
     al("gunlukSonraki").hidden = !(cozuldu || gosterildi);
 
     const s = suruyor("free") ? { start: oyun.startWord, target: oyun.targetWord, chain: oyun.chain } : kayitli("free")?.s;
@@ -198,7 +218,7 @@
   // Ana ekrandan oyuna: o modda kalınan oyun sürer, yoksa yenisi açılır
   const oyna = (mod) => {
     if (!suruyor(mod)) {
-      // Çözülmüş ya da tekrarı süren günlüğü newGame günün kaydından kurar
+      // Çözülmüş günlüğü newGame günün kaydından kurar
       const k = mod === "daily" && oyun.dailyRecord() ? null : kayitli(mod);
       if (k) yaz("sm_state", k.ham);
       if (!k || !oyun.restoreState() || oyun.mode !== mod) oyun.newGame(mod);
