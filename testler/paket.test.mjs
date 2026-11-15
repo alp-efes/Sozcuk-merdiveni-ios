@@ -43,7 +43,7 @@ test("site CSS'inin yüklediği her dosya pakete kopyalanır", () => {
 const METIN_ADRESLERI = new Set([
   "https://sözcükyolu.com/", "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
   "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
-  "https://github.com/undercasetype/Fraunces", "http://scripts.sil.org/OFL",
+  "https://github.com/noirblancrouge/YoungSerif", "https://scripts.sil.org/OFL",
 ]);
 // Uygulamanın kendi sayfaları: yalnızca paketteki stil dosyası ve yazı tipleri yüklenir
 const SAYFA_CSP = "default-src 'none'; style-src 'self' capacitor://localhost; font-src 'self' capacitor://localhost; base-uri 'none'; form-action 'none'";
@@ -98,10 +98,10 @@ test("lisanslar sayfası pakete giren yazılımların lisanslarını aynen içer
     "Apache Cordova Copyright 2012 The Apache Software Foundation",
     "Apache License Version 2.0, January 2004", "END OF TERMS AND CONDITIONS",
   ]) assert.ok(sayfa.includes(parca), `lisanslar.html: "${parca}" yok`);
-  // Fraunces yazı tipi (SIL OFL 1.1): telif satırı ve lisans metni sitedeki dosyayla aynı
+  // Young Serif yazı tipi (SIL OFL 1.1): telif satırı ve lisans metni sitedeki dosyayla aynı
   const ofl = oku(SITE, "fonts", "OFL.txt").replace(/\s+/g, " ").trim();
-  assert.ok(ofl.startsWith("Copyright 2020 The Fraunces Project Authors"), "OFL.txt beklenen telif satırıyla başlamıyor");
-  assert.ok(sayfa.includes(ofl), "Fraunces lisansı (fonts/OFL.txt) lisanslar.html'de aynen yok");
+  assert.ok(ofl.startsWith("Copyright 2023 The Young Serif Project Authors"), "OFL.txt beklenen telif satırıyla başlamıyor");
+  assert.ok(sayfa.includes(ofl), "Young Serif lisansı (fonts/OFL.txt) lisanslar.html'de aynen yok");
 });
 
 test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () => {
