@@ -1882,6 +1882,28 @@ test("uygulama arayüzü: menüdeki \"Yeniden dene\" aynı bulmacayı baştan a�
   await baglam.close();
 });
 
+test("uygulama arayüzü: \"Yeniden dene\" açık ipucunu temizler, hakları değiştirmez", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa, "free");
+  await birAdim(sayfa);
+  const haklarOnce = await sayfa.evaluate(() => localStorage.getItem("sm_haklar"));
+  await sayfa.tap("#btnHint");
+  await sayfa.waitForFunction(() => oyun.hint !== null);
+  const haklarIpucu = await sayfa.evaluate(() => localStorage.getItem("sm_haklar"));
+  assert.notEqual(haklarIpucu, haklarOnce, "ipucu bir hak harcamalı (testin ön koşulu)");
+  assert.notEqual(await sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_state")).ipucu), null, "ipucu kayda yazılmalı (ön koşul)");
+  await sayfa.tap("#btnMenu");
+  await sayfa.tap("#menuYeniden");
+  await sayfa.waitForSelector("#yenile:not(.hidden)");
+  await sayfa.tap("#btnYenileEvet");
+  assert.deepEqual(await sayfa.evaluate(() => ({ hint: oyun.hint, ipucu: JSON.parse(localStorage.getItem("sm_state")).ipucu,
+    haklar: localStorage.getItem("sm_haklar"), serbest: JSON.parse(localStorage.getItem("sm_mod_free")).chain.length,
+    cerceve: document.querySelectorAll(".tile.hint").length })),
+  { hint: null, ipucu: null, haklar: haklarIpucu, serbest: 1, cerceve: 0 }, "ipucu temizlenmeli, haklar değişmemeli, serbest kayıt baştan olmalı");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
 test("uygulama arayüzü: günlükte menüdeki \"Serbest oyun\" serbest moda geçer, kalınan serbest oyunu ve günlüğü silmez", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa, "free");
