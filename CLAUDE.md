@@ -135,7 +135,9 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   Türkçe harf şeridi ve `#btnSerit` kalktı: `sm_serit` yazılmaz, eski kayıt açılışta silinir.
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed; inset: 0`. Merdiven,
   klavye ve eylem sırası tek parçadır (375×667'den 430×932'ye test edilir); uzun merdiven
-  kendi içinde kayar. `@capacitor/keyboard` eklentisi YOK.
+  kendi içinde kayar. `.app .frame { height: 100% }`: sitede bitmiş merdivenin çerçevesi uzayıp
+  dış kap kaydığı için HEDEF klavyenin arkasında kalıyordu; artık bitince de yalnızca `.steps`
+  kayar, sona kaydırılmış açılır, HEDEF görünür. `@capacitor/keyboard` eklentisi YOK.
 - **Her modun oyunu ayrı saklanır:** `sm_mod_daily`, `sm_mod_free` (`sm_state`'in kopyaları);
   ana ekrandan öteki moda geçmek kalınan yeri silmez. Günlük çözüm penceresindeki "Serbest
   Oyun" ve bitmiş günlükte Enter de aynı yoldan gider (`#modal`'da yakalanır; `app.js` yeni

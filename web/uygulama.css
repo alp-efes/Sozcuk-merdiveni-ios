@@ -202,6 +202,10 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 }
 /* Ana ekran varken sekmeler ve oyun içi ayar satırı gereksiz: yer merdivene kalır */
 .mode-tabs, .app .free-settings { display: none; }
+/* Merdiven başlıkla klavye arasındaki alanla sınırlı: sitede bitmiş merdivenin çerçevesi içeriği kadar
+   uzar ve dış kap (.game) kayardı, HEDEF klavyenin arkasında kalıyordu. Çerçeve alanın boyuna sabitlenir;
+   uzun merdiveni yalnızca .steps kendi içinde kaydırır (app.js addRung sona kaydırır), HEDEF en altta görünür. */
+.app .frame { height: 100%; }
 
 /* Başlık: menü + mod adı + en kısa yolu göster. Ses düğmesi ana ekranda; sitenin yenile düğmesi
    gizli (geri okuna benziyordu; sahip notu, 15 Kasım 2026): yerine menüde "Yeni serbest oyun" */

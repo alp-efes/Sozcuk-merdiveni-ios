@@ -1039,7 +1039,7 @@ test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en
   }
 });
 
-test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven kendi içinde kayar", async () => {
+test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven sürerken ve bitince kendi içinde kayar", async () => {
   for (const [en, boy] of [[375, 667], [390, 844], [430, 932]]) {
     const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
     await oyunaGir(sayfa);
@@ -1068,7 +1068,25 @@ test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası 
     assert.ok(o.giris.ust >= o.merdiven.ust && o.giris.alt <= o.merdiven.alt, `${ad}: uzun merdivende giriş satırı görünmüyor`);
     assert.ok(o.son.ust >= o.merdiven.ust - 1 && o.son.alt <= o.giris.ust, `${ad}: uzun merdivende son kelime görünmüyor`);
     assert.ok(o.hedef.alt <= o.klavye.ust, `${ad}: hedef klavyenin üstünde kalmalı`);
+    assert.ok(await sayfa.evaluate(() => { const st = document.getElementById("steps"); return st.scrollHeight > st.clientHeight; }), `${ad}: uzun merdiven kendi içinde kaymalı`);
     if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}.png`) });
+
+    // Bitince: merdiven yine başlıkla klavye arasında; son adım ve HEDEF görünür, yukarı kaydırılabilir
+    for (const kelime of enKisaYol(bas0, await sayfa.evaluate(() => oyun.targetWord))) await yaz(sayfa, kelime);
+    await sayfa.waitForSelector("#modal:not(.hidden)");
+    await sayfa.tap("#btnCloseModal");
+    await sayfa.waitForTimeout(400);
+    o = await olc();
+    const bitti = await sayfa.evaluate(() => {
+      const st = document.getElementById("steps"), son = document.querySelector("#ladder .rung:last-child").getBoundingClientRect();
+      return { kayar: st.scrollHeight > st.clientHeight, sonda: st.scrollTop > 0, oyunKaydi: document.getElementById("game").scrollTop,
+        son: { ust: Math.round(son.top), alt: Math.round(son.bottom) } };
+    });
+    assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.tasma], [0, boy, false], `${ad}: bitince ekran kaymamalı`);
+    assert.ok(o.hedef.alt <= o.klavye.ust, `${ad}: bitince HEDEF klavyenin üstünde kalmalı (${o.hedef.alt} / ${o.klavye.ust})`);
+    assert.equal(bitti.oyunKaydi, 0, `${ad}: merdivenin dış kabı kaymamalı`);
+    assert.ok(bitti.kayar && bitti.sonda, `${ad}: bitince merdiven kendi içinde kayar ve sona kaydırılmış açılır`);
+    assert.ok(bitti.son.ust >= o.merdiven.ust - 1 && bitti.son.alt <= o.merdiven.alt + 1, `${ad}: bitince son adım görünmeli (${JSON.stringify(bitti.son)} / ${JSON.stringify(o.merdiven)})`);
     assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
     await baglam.close();
   }
