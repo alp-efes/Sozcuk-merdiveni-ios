@@ -81,8 +81,8 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 **Uygulama arayüzü siteden farklıdır (sahip kararı, 13 Kasım 2026); site aynı kalır.**
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
-dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `buildKeyboard`,
-`win`, `showModal`, `showYenile`, `saveState`, `updateTabs`, `tickCountdown`), `WordLadder.LAYOUT`'u değiştirir ve Capacitor
+dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `buildKeyboard`, `renderStatus`, `askShowResult`,
+`win`, `showModal`, `showYenile`, `saveState`, `updateTabs`, `tickCountdown`), `canShowResult`'u ve `WordLadder.LAYOUT`'u değiştirir ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
 - **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notları, 15 Kasım 2026: yenile
@@ -95,8 +95,19 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   "günlükte baştan başla olmasın" demişti; yeni isteği soruldu). Altta Nasıl oynanır? ve `role="switch"`
   ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar).
   Açılınca odak ilk tuşa gider; Escape ve dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak
-  menü düğmesine döner. Açıkken perdesi ekran tuşlarını örter, bağlı klavye de tahtaya yazmaz.
+  menü düğmesine döner, oyun ekranında orada bırakılmaz (bağlı klavyedeki Boşluk menüyü yeniden açardı; Tab başlıktan sürer). Açıkken perdesi ekran tuşlarını örter, bağlı klavye de tahtaya yazmaz.
   Gecikmeli çözüm penceresi açılırken açık menü kapanır.
+- **Başlık: ☰ solda, mod adı tam ortada, sağda "En kısa yolu göster"** (sahip kararları, 15 Kasım 2026).
+  Sitenin yardım düğmesi (`#btnHelp`) uygulamada gizli; yardım menüde. Sitenin `#btnShowResult`'ı durum
+  satırından başlığa taşınır (yuvarlak `icon-btn`). Sitede yalnızca adım en azı geçince görünür; uygulamada
+  `canShowResult` oyun sürdükçe hep açık der, her basış sitenin onay penceresini açar (günlükte ilk çözüm
+  yoksa metin: "Bugünün bulmacası çözülmemiş sayılır"). Onayda sitenin yolu sürer (en kısa yol basılır,
+  `sm_gunluk_*` `{steps: 0, gosterildi: true}`). Bitmiş oyunda düğme `visibility: hidden`: yerini tutar,
+  mod adı kaymaz.
+- **Çözüm penceresinde "En kısa yolu gör"** (`#btnEnKisa`, `arayuz.mjs` → `EN_KISA`): pencerenin adım
+  sayısı en azı aşıyorsa görünür; basınca sitenin `shortestPath()`'iyle bir en kısa yol pencerede yazılır
+  (`#enKisaYol`). Yalnızca gösterim: kayıt, seri, paylaşım değişmez; pencere kapanmaz (geçiş reklamı
+  pencerenin kapanmasına bağlıdır).
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
@@ -110,9 +121,11 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   yerleri durur, devre dışıdır. I ve İ'nin `aria-label`'ı "Noktasız I" / "Noktalı İ". Klavyenin altında
   eylem sırası (`#eylemler`, `arayuz.mjs` → `EYLEMLER`): ortada büyük Gönder (`#btnGonder`, `.btn-primary`,
   52 px), solda Geri al, sağda İpucu (sitenin `#btnUndo`/`#btnHint`'i durum satırından taşınır, yuvarlak,
-  hak rozetleri yerinde). Sonucu göster durum satırında kalır. Sayfada metin alanı yoktur (test kırılır):
+  hak rozetleri yerinde); altında 16 px boşluk (ana ekran çubuğuna yapışmasın). Bitmiş oyunda Gönder devre
+  dışıdır (`renderStatus` sarılır). Sayfada metin alanı yoktur (test kırılır):
   iOS klavyesini açacak odak olmaz. Bağlı klavye (iPad, Bluetooth) `app.js`'in keydown yolundan yazar
-  (şapkalı harf orada süzülür). Harf ve Sil tuşu hafif dokunuş verir (`yerel.js`, `sm_titresim`'e uyar).
+  (şapkalı harf orada süzülür). Harf ve Sil tuşu hafif dokunuş verir (`yerel.js`, `sm_titresim`'e uyar);
+  basış bir şey yapmayacaksa (oyun bitmiş, satır dolu, boşken Sil) titremez.
   Tasarım dili sitenin: tuş kapağı `.cap`, renkler belirteçlerden; harf boyama yok.
   Türkçe harf şeridi ve `#btnSerit` kalktı: `sm_serit` yazılmaz, eski kayıt açılışta silinir.
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed; inset: 0`. Merdiven,
@@ -212,7 +225,7 @@ değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adre
 `ios/App/App/public`'e eklenir; her `cap sync` o klasörü yeniden yazıp siler
 (TestFlight arşivden önce eşitler). Yerelde `simulator.sh`'tan sonra `cap sync`
 yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Betik oyuncunun yolundan gider
-(ana ekranda "Oyna", ekran klavyesinin tuşları ve `#btnGonder`, `#btnHelp`); site `index.html`'de
+(ana ekranda "Oyna", ekran klavyesinin tuşları ve `#btnGonder`, menüden "Nasıl oynanır?"); site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da bu ögeler değişirse iş akışı kırılır,
 tarayıcı testi de. Oyun ekranını ölçer (`SM-OTOMATIK: bilgi …`, iş günlüğünde görünür):
 telefonun klavyesi hiçbir ekranda açılmamalı, eylem sırası ekrana sığmalı.

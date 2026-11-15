@@ -96,6 +96,11 @@ export const EYLEMLER = `<div class="eylemler" id="eylemler" role="group" aria-l
     <button class="btn-primary gonder" id="btnGonder" type="button">Gönder</button>
   </div>`;
 
+// Çözüm penceresinde, en kısa yoldan uzun çözülünce: basınca bir en kısa yol kelime kelime yazılır
+// (yalnızca gösterim; kayıt değişmez). Görünürlüğü ve yolu uygulama.js verir.
+export const EN_KISA = `<button class="btn-secondary" id="btnEnKisa" type="button" hidden>En kısa yolu gör</button>
+      <p class="en-kisa-yol" id="enKisaYol" aria-live="polite" hidden></p>`;
+
 // "Nasıl oynanır?" uygulamada pencere olarak açılır: kapatma düğmesi ve klavye açıklaması
 export const YARDIM_KAPAT = `<button class="modal-close" id="btnYardimKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>`;
 export const YARDIM_KLAVYE = `<p>Kelimeyi alttaki klavyeyle yaz, <strong>Gönder</strong>'e bas.
@@ -104,5 +109,5 @@ export const YARDIM_KLAVYE = `<p>Kelimeyi alttaki klavyeyle yaz, <strong>Gönder
 // uygulama.js'in bağlandığı site ögeleri: her biri index.html'de tam bir kez bulunmalı
 export const SITE_OGELERI = [
   'id="btnHelp" href="#nasil-oynanir"', '<a class="btn-primary" href="#oyun">', 'id="btnMute"', 'id="btnRestart"',
-  'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnHint"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
+  'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnHint"', 'id="btnShowResult"', 'id="modalGrid"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
 ];

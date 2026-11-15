@@ -125,6 +125,7 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     // Uygulama arayüzünün eklendiği ve bağlandığı yerler
     ["başlık yok", siteIndex.replace('<header class="header">', '<header class="ust">')],
     ["İpucu düğmesi yok", siteIndex.replace('id="btnHint"', 'id="btnIpucu"')],
+    ["çözüm ızgarası yok", siteIndex.replace('id="modalGrid"', 'id="sonucIzgara"')],
     ["ekran klavyesi yok", siteIndex.replace(/<footer class="keyboard"[^>]*><\/footer>/, "")],
     ["nasıl oynanır bölümü değişmiş", siteIndex.replace('<section class="info page" id="nasil-oynanir">', '<section class="info page" id="yardim">')],
     ["örnek açıklaması yok", siteIndex.replace('<p class="legend">', '<p class="aciklama">')],
@@ -180,6 +181,15 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/btn\.dataset\.key = k;/, "tuşun data-key'i (Q, W, X devre dışı bırakılır)"],
     [/this\.el\.keyboard\.addEventListener\("click", \(e\) => \{\s+const btn = e\.target\.closest\("\.key"\);\s+if \(!btn\) return;\s+btn\.blur\(\);[^\n]*\s+this\.pressKey\(btn\.dataset\.key\);/, "ekran tuşu pressKey'e gider"],
     [/^  win\(\) \{/m, "win(): gecikmeli çözüm penceresi"],
+    [/^  renderStatus\(\) \{/m, "renderStatus(): bitmiş oyunda Gönder devre dışı"],
+    [/^  win\(\) \{\s+this\.over = true;[\s\S]{0,200}this\.renderStatus\(\);/m, "win(): renderStatus'u bitmiş durumla çağırır"],
+    [/^  canShowResult\(\) \{/m, "canShowResult(): uygulamada adım koşulu yok"],
+    [/^  askShowResult\(\) \{\s+if \(!this\.canShowResult\(\)/m, "askShowResult(): onay penceresi, canShowResult'a bakar"],
+    [/this\.el\.pesText\.textContent = /, "askShowResult(): onay metni pesText'e yazılır (uygulama günlükte değiştirir)"],
+    [/^  showResult\(\) \{\s+this\.showPes\(false\);\s+if \(!this\.canShowResult\(\)\) return;/m, "showResult(): canShowResult'a bakar"],
+    [/this\.el\.btnShowResult\.classList\.toggle\("hidden", !this\.canShowResult\(\)\);/, "btnShowResult görünürlüğü canShowResult'tan (.hidden)"],
+    [/^  shortestPath\(\) \{/m, "shortestPath(): çözüm penceresinde en kısa yol"],
+    [/this\.lastResult = this\.computeResult\(\);/, "lastResult: penceredeki adım sayısı"],
     [/^  showYenile\(open\) \{/m, "showYenile(): menüdeki Yeniden dene onayı"],
     [/this\.el\.btnRestart\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+this\.askRestart\(\);/, "btnRestart → askRestart: menüdeki Yeni serbest oyun ona basar"],
     [/this\.el\.btnMute\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+muteGame\(!AudioFX\.isMuted\(\)\);/, "btnMute: menüdeki Ses ona basar, durumu eşzamanlı okur"],
@@ -220,7 +230,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   ]) assert.match(siteApp, desen, ad);
   // Sarılan her metot uygulama.js'te gerçekten sarılıyor
   const uygulama = oku(KOK, "web", "uygulama.js");
-  for (const ad of ["init", "buildKeyboard", "win", "showModal", "showYenile", "saveState", "updateTabs", "tickCountdown"]) {
+  for (const ad of ["init", "buildKeyboard", "renderStatus", "canShowResult", "askShowResult", "win", "showModal", "showYenile", "saveState", "updateTabs", "tickCountdown"]) {
     assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
   }
   // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar; bağlı klavyede app.js çevirir)

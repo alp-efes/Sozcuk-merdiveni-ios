@@ -22,7 +22,7 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANA_EKRAN, BASLIK, EYLEMLER, MENU, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
+import { ANA_EKRAN, BASLIK, EN_KISA, EYLEMLER, MENU, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Site deposu: SITE_DEPOSU ortam değişkeni, yoksa yandaki klasör
@@ -109,6 +109,7 @@ export function donustur(html) {
   ekle(/<body>\n/g, `\n  ${ANA_EKRAN}\n\n  ${MENU}\n`, "body");
   ekle(/<header class="header">\n/g, `    ${BASLIK}\n`, "başlık");
   ekle(/<footer class="keyboard" id="keyboard"[^>]*><\/footer>\n/g, `  ${EYLEMLER}\n`, "ekran klavyesi");
+  ekle(/<div class="result-grid" id="modalGrid"[^>]*><\/div>\n/g, `      ${EN_KISA}\n`, "çözüm ızgarası");
   ekle(/<section class="info page" id="nasil-oynanir">\n/g, `  ${YARDIM_KAPAT}\n`, "nasıl oynanır bölümü");
   ekle(/<p class="legend">.*<\/p>\n/g, `  ${YARDIM_KLAVYE}\n`, "örnek açıklaması");
   // uygulama.js'in bağlandığı site ögeleri: biri kalkar ya da çoğalırsa uygulama sessizce bozulmasın

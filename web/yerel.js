@@ -41,9 +41,13 @@
   sar("win", "notification", { type: "SUCCESS" });     // bulmaca çözüldü
   // Kabul edilen kelime: hafif dokunuş (yazarken gözler klavyededir, onay parmakta hissedilir)
   sar("accept", "impact", { style: "LIGHT" });
-  // Ekran klavyesinin harf ve Sil tuşları: basınca hafif dokunuş (Gönder'in sonucu accept/reject'te titrer)
+  // Ekran klavyesinin harf ve Sil tuşları: basınca hafif dokunuş (Gönder'in sonucu accept/reject'te titrer).
+  // Basış bir şey yapmayacaksa (oyun bitmiş, satır dolu, boşken Sil) titremez. Bu dinleyici app.js'inkinden
+  // önce bağlanır (app.js tuşları init'te bağlar): tampon basıştan önceki hâlindedir.
   document.getElementById("keyboard")?.addEventListener("click", (e) => {
-    if (e.target.closest(".key")) titret("impact", { style: "LIGHT" });
+    const tus = e.target.closest(".key")?.dataset.key, o = window.oyun;
+    if (!tus || !o || o.over) return;
+    if (tus === "BACK" ? o.buffer.length > 0 : o.buffer.length < o.len) titret("impact", { style: "LIGHT" });
   });
   // Açılış ekranında her blok basamağa oturunca hafif dokunuş (uygulama.css → acilisDus)
   document.getElementById("acilis")?.addEventListener("animationend", (e) => {

@@ -59,9 +59,33 @@
     }
     return s;
   };
-  // Geri al ve İpucu (rozetleriyle) Gönder'in iki yanına; Sonucu göster durum satırında kalır
+  // Geri al ve İpucu (rozetleriyle) Gönder'in iki yanına
   al("eylemler").prepend(al("btnUndo"));
   al("eylemler").append(al("btnHint"));
+  // En kısa yolu göster başlığın sağ ucunda, yardımın yerinde (sahip kararları, 15 Kasım 2026; yardım menüde).
+  // Sitede yalnızca adım en azı geçince görünür; uygulamada oyun sürdükçe hep açıktır, her basışta onay
+  // sorar (app.js askShowResult → showResult). Oyun bitince (.hidden) gösterilecek yol kalmaz: düğme
+  // görünmez ama uygulama.css'te yerini tutar, mod adı ortada kalır.
+  P.canShowResult = function () { return !this.over && this.optimal > 0; };
+  const asilAskShowResult = P.askShowResult;
+  P.askShowResult = function (...arg) {
+    const s = asilAskShowResult.apply(this, arg);
+    // Günlükte ilk çözüm yoksa sonuç açıkça söylenir
+    if (this.mode === "daily" && !this.dailyRecord()) {
+      this.el.pesText.textContent = "Bir en kısa yol gösterilir. Bugünün bulmacası çözülmemiş sayılır, sonucu paylaşamazsın.";
+    }
+    return s;
+  };
+  const btnSonuc = al("btnShowResult");
+  btnSonuc.className = "icon-btn" + (btnSonuc.classList.contains("hidden") ? " hidden" : "");
+  btnSonuc.setAttribute("aria-label", "En kısa yolu göster");
+  al("btnHelp").after(btnSonuc);
+  // Bitmiş oyunda Gönder'in yapacağı bir şey yok: devre dışı (app.js her durum değişiminde renderStatus çağırır)
+  const asilRenderStatus = P.renderStatus;
+  P.renderStatus = function (...arg) {
+    al("btnGonder").disabled = this.over;
+    return asilRenderStatus.apply(this, arg);
+  };
   al("btnGonder").addEventListener("click", (e) => {
     e.currentTarget.blur();          // odakta kalırsa bağlı klavyedeki Enter/Space onu yeniden tetikler
     oyun?.pressKey("ENTER");
@@ -205,8 +229,20 @@
       if (!k || k.mod !== this.mode || k.bas !== this.startWord || k.hedef !== this.targetWord || k.uzunluk !== this.chain.length) return undefined;
     }
     menuAc(false);                         // çözüm penceresi açık menünün üstüne açılmaz
-    return asilShowModal.call(this, secenek, ...arg);
+    const s = asilShowModal.call(this, secenek, ...arg);
+    // En kısa yoldan uzun çözüldüyse "En kısa yolu gör" (pencere kapanmaz: geçiş reklamı kuralı aynı kalır)
+    const adim = this.lastResult ? this.lastResult.steps : this.chain.length - 1;
+    al("btnEnKisa").hidden = this.shown || !this.optimal || adim <= this.optimal;
+    al("enKisaYol").hidden = true;
+    return s;
   };
+  al("btnEnKisa").addEventListener("click", (e) => {
+    const yol = oyun?.shortestPath();
+    if (!yol) return;
+    al("enKisaYol").textContent = yol.join(" → ");
+    al("enKisaYol").hidden = false;
+    e.currentTarget.hidden = true;
+  });
 
   // Mod adı başlıkta yazar (sekmelerin yerine); app.js her mod değişiminde updateTabs çağırır
   const asilUpdateTabs = P.updateTabs;
@@ -229,8 +265,7 @@
   al("btnAna").addEventListener("click", anaAc);
   al("btnAnaYardim").addEventListener("click", () => yardimAc(true));
   al("btnYardimKapat").addEventListener("click", () => yardimAc(false));
-  // Sitedeki bağlantılar sayfayı kaydırır; uygulamada sayfa kaymaz, yardım açılıp kapanır
-  al("btnHelp").addEventListener("click", (e) => { e.preventDefault(); yardimAc(true); });
+  // Sitedeki "Anladım" bağlantısı sayfayı kaydırır; uygulamada yardım kapanır (başlıktaki yardım gizli, yardım menüde)
   document.querySelector('#nasil-oynanir a[href="#oyun"]').addEventListener("click", (e) => { e.preventDefault(); yardimAc(false); });
 
   // Serbest oyun ayarları ana ekranda: seçim kaydedilir, bulmaca "Oyna" ile gelir
@@ -282,8 +317,12 @@
       anahtarlar();
       al("btnAna").focus({ preventScroll: true });
     } else {
-      // Odak başka yere (ör. yardımın kapat düğmesi) geçmediyse menü düğmesine döner
-      if (menu.contains(document.activeElement) || document.activeElement === govde) btnMenu.focus({ preventScroll: true });
+      // Odak başka yere (ör. yardımın kapat düğmesi) geçmediyse ☰'e döner. Oyunda orada bırakılmaz (bağlı
+      // klavyedeki Boşluk menüyü yeniden açıyordu): ☰'e verilip bırakılır, Tab başlıktan sürer
+      if (menu.contains(document.activeElement) || document.activeElement === govde) {
+        btnMenu.focus({ preventScroll: true });
+        if (ekran === "oyun") btnMenu.blur();
+      }
     }
   }
   btnMenu.addEventListener("click", () => menuAc(true));

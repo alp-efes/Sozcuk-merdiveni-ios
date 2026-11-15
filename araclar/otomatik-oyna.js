@@ -162,7 +162,8 @@ window.SM_OTOMATIK = true;
       await bekleKosul(() => ekran() === "ana", "ana ekrana dönüş");
       document.getElementById("btnAnaYardim").click();
     } else {
-      document.getElementById("btnHelp").click();
+      document.getElementById("btnMenu").click();         // yardım menüde (başlıkta yardım düğmesi yok)
+      document.getElementById("menuYardim").click();
     }
     if (!document.body.classList.contains("yardim")) throw new Error("yardım penceresi açılmadı");
     await uyu(1000);
