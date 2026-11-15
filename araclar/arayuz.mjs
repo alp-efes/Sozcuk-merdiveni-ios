@@ -98,4 +98,5 @@ export const YARDIM_KLAVYE = `<p>Kelimeyi telefonunun klavyesiyle yaz, klavyenin
 export const SITE_OGELERI = [
   'id="btnHelp" href="#nasil-oynanir"', '<a class="btn-primary" href="#oyun">', 'id="btnMute"', 'id="btnRestart"',
   'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
+  'id="hintMenu"', 'id="btnHintHarf"', 'id="btnHintAnlam"',   // ipucu türü seçimi (site)
 ];

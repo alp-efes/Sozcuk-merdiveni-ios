@@ -158,6 +158,7 @@ window.SM_OTOMATIK = true;
       document.getElementById("btnGunluk").click();
       await bekleKosul(() => ekran() === "oyun" && oyun.mode === "daily" && oyun.startWord !== bas && !oyun.over, "ertesi günün bulmacası");
       document.getElementById("btnHint").click();
+      document.getElementById("btnHintHarf").click();     // ipucu türü seçimi: harf
       await uyu(2500);
       klavyeBekle(true, "günlük");
       await asama("gunluk");

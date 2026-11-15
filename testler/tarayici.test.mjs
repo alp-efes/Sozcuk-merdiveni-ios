@@ -66,6 +66,13 @@ function enKisaYol(bas, hedef) {
 // Açılış ekranı geçer, ana ekran gelir
 const anaEkran = (sayfa) => sayfa.waitForSelector('body[data-ekran="ana"] #btnGunluk');
 // Ana ekrandan oyuna: telefonun klavyesini açan metin alanı odaklanır
+// İpucu düğmesi tür seçimi açar (hak ve yol varsa); "Harf göster" seçilir
+async function ipucuAc(sayfa) {
+  await sayfa.tap("#btnHint");
+  await sayfa.waitForSelector("#hintMenu:not(.hidden)");
+  await sayfa.tap("#btnHintHarf");
+}
+
 async function oyunaGir(sayfa, mod = "daily") {
   await anaEkran(sayfa);
   await sayfa.tap(mod === "daily" ? "#btnGunluk" : "#btnSerbest");
@@ -951,7 +958,7 @@ test("uygulama arayüzü: telefonun klavyesiyle yazma — Türkçe büyük harf,
   // Tahtaya, ipucuna dokunmak da klavyeyi açık tutar
   await sayfa.tap("#inputRow");
   assert.equal((await durum(sayfa)).odak, "giris");
-  await sayfa.tap("#btnHint");
+  await ipucuAc(sayfa);
   assert.equal((await durum(sayfa)).odak, "giris");
   // Eksik kelime gönderilmez
   await sayfa.keyboard.type("a");
@@ -1213,7 +1220,7 @@ test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf
   const { baglam, sayfa, bekle } = await gelirSayfasi({ haklar: { geriAl: 5, ipucu: 1, gun: "" } });
   await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
   await oyunaGir(sayfa);
-  await sayfa.tap("#btnHint");                            // son ipucu hakkı
+  await ipucuAc(sayfa);                            // son ipucu hakkı
   const g = await durum(sayfa);
   await yaz(sayfa, enKisaYol(g.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
   await sayfa.tap("#btnHint");                            // hak bitti: teklif penceresi
@@ -1745,7 +1752,7 @@ test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden aç
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
   await birAdim(sayfa);
-  await sayfa.tap("#btnHint");
+  await ipucuAc(sayfa);
   const ipucu = await sayfa.evaluate(() => JSON.stringify(oyun.hint));
   assert.notEqual(ipucu, "null");
   const ac = () => sayfa.evaluate(() => ({ h: JSON.stringify(oyun.hint), cerceve: document.querySelectorAll(".tile.hint").length, hak: JSON.parse(localStorage.getItem("sm_haklar")).ipucu }));
