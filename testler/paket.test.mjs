@@ -168,6 +168,7 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   // Site analitiği kaldırıldı; app.js'te trackEvent çağrısı kalmamalı
   assert.doesNotMatch(siteApp, /trackEvent/, "app.js'te trackEvent kalmış");
   assert.ok(siteApp.includes('fetch("words.json"'), "words.json göreli yoldan okunmalı");
+  assert.ok(siteApp.includes('fetch("ipuclari.json"'), "ipuclari.json göreli yoldan okunmalı (pakete kopyalanır)");
   assert.ok(siteIndex.includes('href="gizlilik.html"'), "gizlilik bağlantısı (uygulamada kendi metnine gider)");
 });
 

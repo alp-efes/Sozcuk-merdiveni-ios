@@ -25,7 +25,7 @@
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile")];
+  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile"), al("hintMenu")];
   // Açılış ekranı uygulama açılırken en az ACILIS_MS görünür (sayfa açılışından; yukarıda)
   const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
@@ -92,6 +92,14 @@
   const asilShowOffer = P.showOffer;
   P.showOffer = function (ac, ...arg) {
     const s = asilShowOffer.call(this, ac, ...arg);
+    if (ac) giris.blur(); else odakla();
+    return s;
+  };
+
+  // İpucu türü seçimi: açıkken klavye kapanır, kapanınca geri gelir
+  const asilShowHintMenu = P.showHintMenu;
+  P.showHintMenu = function (ac, ...arg) {
+    const s = asilShowHintMenu.call(this, ac, ...arg);
     if (ac) giris.blur(); else odakla();
     return s;
   };
