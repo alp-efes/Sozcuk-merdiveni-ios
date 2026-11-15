@@ -242,6 +242,8 @@
     al("enKisaYol").textContent = yol.join(" → ");
     al("enKisaYol").hidden = false;
     e.currentTarget.hidden = true;
+    // Gizlenen düğmeden odak body'ye düşmesin; ekran okuyucu yolu okusun
+    al("enKisaYol").focus({ preventScroll: true });
   });
 
   // Mod adı başlıkta yazar (sekmelerin yerine); app.js her mod değişiminde updateTabs çağırır

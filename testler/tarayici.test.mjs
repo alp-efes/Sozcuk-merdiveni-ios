@@ -1358,6 +1358,7 @@ test("uygulama arayüzü: çözüm penceresinde en kısa yol yalnızca fazla ad�
   const bas = await sayfa.evaluate(() => oyun.startWord);
   assert.equal(await sayfa.textContent("#enKisaYol"), [bas, ...yol].join(" → "), "bir en kısa yol kelime kelime yazılmalı");
   assert.ok(await gorunur(sayfa, "#enKisaYol"));
+  assert.equal(await sayfa.evaluate(() => document.activeElement.id), "enKisaYol", "odak yol metnine geçmeli (VoiceOver okusun)");
   assert.equal(await gorunur(sayfa, "#btnEnKisa"), false);
   assert.ok(await sayfa.evaluate(() => !document.getElementById("modal").classList.contains("hidden")), "pencere kapanmamalı (geçiş reklamı kapanışa bağlı)");
   assert.deepEqual(await kayitOku(), once, "günlük kaydı ve oyun durumu değişmemeli");

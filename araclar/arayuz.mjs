@@ -99,7 +99,7 @@ export const EYLEMLER = `<div class="eylemler" id="eylemler" role="group" aria-l
 // Çözüm penceresinde, en kısa yoldan uzun çözülünce: basınca bir en kısa yol kelime kelime yazılır
 // (yalnızca gösterim; kayıt değişmez). Görünürlüğü ve yolu uygulama.js verir.
 export const EN_KISA = `<button class="btn-secondary" id="btnEnKisa" type="button" hidden>En kısa yolu gör</button>
-      <p class="en-kisa-yol" id="enKisaYol" aria-live="polite" hidden></p>`;
+      <p class="en-kisa-yol" id="enKisaYol" tabindex="-1" hidden></p>`;
 
 // "Nasıl oynanır?" uygulamada pencere olarak açılır: kapatma düğmesi ve klavye açıklaması
 export const YARDIM_KAPAT = `<button class="modal-close" id="btnYardimKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>`;

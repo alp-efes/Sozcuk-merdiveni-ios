@@ -276,4 +276,5 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
    `touch-action: manipulation`); (b) basılı görünüm ve tuş başına hafif titreşimin yorucu
    olmaması; (c) iPhone SE'de (375×667, güvenli alan düşülünce daha kısa) merdivenin yeterli
    yer bulması; (d) ana ekran çubuğu ile Gönder'in arasında yeterli boşluk; (e) VoiceOver'da
-   "Noktasız I" / "Noktalı İ" ve devre dışı Q, W, X'in okunuşu.
+   "Noktasız I" / "Noktalı İ" ve devre dışı Q, W, X'in okunuşu; (g) menü kapanınca `blur()` sonrası
+   bağlı klavyede Tab sırası WKWebView'de Chromium'daki gibi mi (iPad/TestFlight'ta bakılacak).
