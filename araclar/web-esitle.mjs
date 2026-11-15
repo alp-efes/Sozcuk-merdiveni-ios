@@ -22,7 +22,7 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANA_EKRAN, BASLIK, GIRIS, HARFLER, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
+import { ANA_EKRAN, BASLIK, GIRIS, HARFLER, MENU, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Site deposu: SITE_DEPOSU ortam değişkeni, yoksa yandaki klasör
@@ -106,7 +106,7 @@ export function donustur(html) {
   // şeridi, yardım penceresi. Her ekleme noktası tam bir kez bulunmalı; site yapısı değişirse durur.
   const ekle = (desen, parca, ad) => degistir(desen, (bulunan) => bulunan + parca, ad, 1);
   ekle(/<link rel="stylesheet" href="style\.css">/g, '\n  <link rel="stylesheet" href="uygulama.css">', "style.css bağlantısı");
-  ekle(/<body>\n/g, `\n  ${ANA_EKRAN}\n`, "body");
+  ekle(/<body>\n/g, `\n  ${ANA_EKRAN}\n\n  ${MENU}\n`, "body");
   ekle(/<div class="app" id="oyun">\n/g, `  ${GIRIS}\n`, "oyun kabuğu");
   ekle(/<header class="header">\n/g, `    ${BASLIK}\n`, "başlık");
   ekle(/<footer class="keyboard" id="keyboard"[^>]*><\/footer>\n/g, `  ${HARFLER}\n`, "ekran klavyesi");

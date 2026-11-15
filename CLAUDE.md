@@ -85,12 +85,17 @@ dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`,
 `win`, `showModal`, `showOffer`, `showPes`, `showYenile`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
-- **Yenile düğmesi başlığın sol ucunda** (ana ekran düğmesinin yanında): sitedeki yerinde geri al'ın
-  tam üstüne düşüyor, ikisi karışıyordu (sahip notu, 13 Kasım 2026). İlerleme varken onay ister (site).
+- **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notu, 15 Kasım 2026: yenile
+  düğmesi geri okuna benziyordu). Sitenin `#btnRestart`'ı gizlidir. Menü alttan açılan sayfadır (`#menu`):
+  Ana menü (`#btnAna`), Yeni serbest oyun (yalnızca serbestte; `#btnRestart`'a basar, ilerleme varken
+  onay ister; günlükte "Baştan başla" yok, sahip kararı), Nasıl oynanır?, ve `role="switch"` ayarlar:
+  Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Türkçe harf şeridi (`#btnSerit`'e
+  basar), Ses (`#btnMute`'a basar). Açılınca klavye kapanır, odak ilk satıra gider; Escape ve dışarı
+  dokunuş kapatır, kapanınca odak düğmeye, oyundaysa `#giris`'e döner.
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
-  Serbest Oyun (zorluk/uzunluk burada seçilir). Oyun başlığında geri düğmesi ve mod adı;
+  Serbest Oyun (zorluk/uzunluk burada seçilir). Oyun başlığında menü düğmesi ve mod adı;
   sitenin sekmeleri, ayar satırı, durum satırındaki geri sayım ve ses düğmesi oyun ekranında
   yoktur (ses düğmesi ana ekrana taşınır, tercih `sm_ses`'te hatırlanır).
 - **Telefonun klavyesi.** Sitenin ekran klavyesi gizlidir. Görünmez `#giris` metin alanı
@@ -99,7 +104,7 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   (â → A, î → İ, û → U) ve `TR_LETTER` ile süzülür; bileşim (IME) bitince eşitlenir. Alan
   ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
   Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için). Oyuncu
-  şeridi ana ekrandaki düğmeyle (`#btnSerit`, ses düğmesinin yanında) kapatabilir: varsayılan
+  şeridi menüden ya da ana ekrandaki düğmeyle (`#btnSerit`, ses düğmesinin yanında) kapatabilir: varsayılan
   açık, tercih `sm_serit`; kapalıyken `body.serit-yok` şeridi hiç göstermez, yerini merdiven alır.
 - **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
   `visualViewport.height`'tir (`--vvh`, `--vv-top`). iOS boyut olayını klavye animasyonu

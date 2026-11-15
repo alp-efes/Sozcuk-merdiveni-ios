@@ -73,9 +73,27 @@ export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
     <button class="ana-nasil" id="btnAnaYardim" type="button">Nasıl oynanır?</button>
   </section>`;
 
-// Oyun başlığı: ana ekrana dönüş + mod adı (sitedeki sekmelerin yerine)
-export const BASLIK = `<button class="icon-btn" id="btnAna" type="button" aria-label="Ana ekran">${ikon('<path d="m15 5-7 7 7 7"/>')}</button>
+// Oyun başlığı: menü + mod adı (sitedeki sekmelerin yerine). Sitenin yenile düğmesi uygulamada gizlidir;
+// yerine menüdeki "Yeni serbest oyun" vardır (sahip notu, 15 Kasım 2026)
+export const BASLIK = `<button class="icon-btn" id="btnMenu" type="button" aria-label="Menü" aria-expanded="false" aria-controls="menu">${ikon('<path d="M4 7h16M4 12h16M4 17h16"/>')}</button>
     <h2 class="mod-adi" id="modAdi"></h2>`;
+
+// Oyun menüsü: alttan açılan sayfa. Üstte eylemler, altta açık/kapalı ayarlar (role="switch").
+// "Yeni serbest oyun" yalnızca serbest oyunda görünür; günlükte "Baştan başla" yoktur (sahip kararı).
+const menuOge = (id, yol, ad, anahtar = false) => `<button class="menu-oge" id="${id}" type="button"` +
+  `${anahtar ? ' role="switch" aria-checked="true"' : ""}>${ikon(yol)}<span>${ad}</span>` +
+  `${anahtar ? '<span class="anahtar" aria-hidden="true"></span>' : ""}</button>`;
+export const MENU = `<div class="modal-overlay menu-perde hidden" id="menu" role="dialog" aria-modal="true" aria-label="Menü" aria-hidden="true">
+    <div class="menu">
+      ${menuOge("btnAna", '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>', "Ana menü")}
+      ${menuOge("menuYeni", '<path d="M12 5v14M5 12h14"/>', "Yeni serbest oyun")}
+      ${menuOge("menuYardim", '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.8"/><path d="M12 17h.01"/>', "Nasıl oynanır?")}
+      <hr class="menu-ayrac">
+      ${menuOge("menuTitresim", '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 9v6M21 9v6"/>', "Titreşim", true)}
+      ${menuOge("menuSerit", '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>', "Türkçe harf şeridi", true)}
+      ${menuOge("menuSes", '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', "Ses", true)}
+    </div>
+  </div>`;
 
 // Telefonun klavyesini açan metin alanı; yazılan harfler merdivendeki kutularda görünür.
 // Büyük harfe uygulama.js çevirir (Türkçe kural: i → İ, ı → I), bu yüzden autocapitalize kapalı.
@@ -92,7 +110,7 @@ ${[["Ç"], ["Ğ"], ["I", "Noktasız I"], ["İ", "Noktalı İ"], ["Ö"], ["Ş"], 
 export const YARDIM_KAPAT = `<button class="modal-close" id="btnYardimKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>`;
 export const YARDIM_KLAVYE = `<p>Kelimeyi telefonunun klavyesiyle yaz, klavyenin sağ altındaki tuşla gönder.
   Klavyende Türkçe harf yoksa merdivenin altındaki <strong>Ç Ğ I İ Ö Ş Ü</strong> şeridini kullan;
-  şeridi ana ekrandan kapatabilirsin.</p>`;
+  şeridi menüden kapatabilirsin.</p>`;
 
 // uygulama.js'in bağlandığı site ögeleri: her biri index.html'de tam bir kez bulunmalı
 export const SITE_OGELERI = [

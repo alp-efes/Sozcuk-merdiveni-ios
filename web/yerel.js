@@ -23,8 +23,11 @@
   // ayrı bir `url` alanı yoktur; olsaydı o makine alanı olarak punycode kalırdı.
   const SITE = "https://sözcükyolu.com/";
 
+  // Oyuncu menüden kapattıysa (uygulama.js → sm_titresim) titreşim yok; kayıt okunamazsa açık sayılır
+  const titresimKapali = () => { try { return localStorage.getItem("sm_titresim") === "0"; } catch (_) { return false; } };
   // Titreşim başarısız olursa (eski cihaz, eklenti yok) oyun etkilenmesin
   const titret = (yontem, secenek) => {
+    if (titresimKapali()) return;
     try { eklenti.Haptics?.[yontem](secenek).catch(() => {}); } catch (_) { /* yok say */ }
   };
 
