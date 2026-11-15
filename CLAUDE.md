@@ -188,7 +188,7 @@ benzersiz olmalı; bozuk dosyayı ancak Xcode fark eder.
 kelimesine içerir: pakete giren bağımlılıkların `node_modules/<paket>/LICENSE`
 dosyaları (MIT), Zemberek-NLP'nin `LICENSE` dosyası, Apache Cordova'nın
 `NOTICE` dosyası (`@capacitor/ios` Cordova kodu içerir), apache.org'daki
-Apache 2.0 metni ve Fraunces yazı tipinin sitedeki `fonts/OFL.txt` dosyası
+Apache 2.0 metni ve Young Serif yazı tipinin sitedeki `fonts/OFL.txt` dosyası
 (SIL OFL 1.1). Bağımlılık güncellenip lisansı değişirse test kırılır;
 metni `node_modules`'ten (yazı tipi için siteden) aynen kopyalayın.
 
