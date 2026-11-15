@@ -85,13 +85,18 @@ dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`,
 `win`, `showModal`, `showOffer`, `showPes`, `showYenile`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
-- **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notu, 15 Kasım 2026: yenile
-  düğmesi geri okuna benziyordu). Sitenin `#btnRestart`'ı gizlidir. Menü alttan açılan sayfadır (`#menu`):
-  Ana menü (`#btnAna`), Yeni serbest oyun (yalnızca serbestte; `#btnRestart`'a basar, ilerleme varken
-  onay ister; günlükte "Baştan başla" yok, sahip kararı), Nasıl oynanır?, ve `role="switch"` ayarlar:
-  Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Türkçe harf şeridi (`#btnSerit`'e
-  basar), Ses (`#btnMute`'a basar). Açılınca klavye kapanır, odak ilk satıra gider; Escape ve dışarı
-  dokunuş kapatır, kapanınca odak düğmeye, oyundaysa `#giris`'e döner.
+- **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notları, 15 Kasım 2026: yenile
+  düğmesi geri okuna benziyordu; menü ortada yüzen kart, eylemler büyük tuş). Sitenin `#btnRestart`'ı gizlidir.
+  Menü (`#menu`) sitenin pencereleri gibi ekranın ortasında açılır. Üstte büyük tuşlar: Ana menüye dön
+  (`#btnAna`); Serbest oyun (serbestte `#btnRestart`'a basar: yeni bulmaca, ilerleme varken onay; günlükte
+  ana ekrandaki Serbest Oyun kartının yolu, kalınan serbest oyun sürer); Yeniden dene (aynı bulmaca baştan,
+  ilerleme varken sitenin yenile penceresi kendi metniyle onay ister; app.js'te serbest için bu yol yok,
+  zinciri `uygulama.js` sıfırlar). Yeniden dene günlükte gizli: `YENIDEN_DENE_GUNLUKTE = false` (sahip
+  "günlükte baştan başla olmasın" demişti; yeni isteği soruldu). Altta Nasıl oynanır? ve `role="switch"`
+  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Türkçe harf şeridi
+  (`#btnSerit`'e basar), Ses (`#btnMute`'a basar). Açılınca klavye kapanır, odak ilk tuşa gider; Escape ve
+  dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak düğmeye, oyundaysa `#giris`'e döner.
+  Gecikmeli çözüm penceresi açılırken açık menü kapanır.
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,

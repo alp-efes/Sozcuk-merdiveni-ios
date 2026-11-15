@@ -71,7 +71,7 @@ async function oyunaGir(sayfa, mod = "daily") {
   await sayfa.tap(mod === "daily" ? "#btnGunluk" : "#btnSerbest");
   await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun" && (oyun.over || document.activeElement.id === "giris"));
 }
-// Oyundan ana ekrana: başlıktaki menü → "Ana menü"
+// Oyundan ana ekrana: başlıktaki menü → "Ana menüye dön"
 async function anaya(sayfa) {
   await sayfa.tap("#btnMenu");
   await sayfa.tap("#btnAna");
@@ -1046,7 +1046,7 @@ test("uygulama arayüzü: ana ekran ⇄ oyun; her modun oyunu ayrı saklanır, y
   const gunluk = (await durum(sayfa)).zincir;
   assert.equal(gunluk.length, 2);
 
-  // Ana ekrana dönüş: başlıktaki menü → "Ana menü"
+  // Ana ekrana dönüş: başlıktaki menü → "Ana menüye dön"
   assert.equal(await sayfa.getAttribute("#btnMenu", "aria-label"), "Menü");
   await anaya(sayfa);
   assert.equal((await durum(sayfa)).ekran, "ana");
@@ -1711,7 +1711,7 @@ test("uygulama arayüzü: sayılı haklar — rozet, 0 hakta geri al için ödü
   await p.baglam.close();
 });
 
-test("uygulama arayüzü: yenile düğmesi başlıkta yok; menüdeki \"Yeni serbest oyun\" ilerleme varken onay ister, onay açıkken klavye kapanır", async () => {
+test("uygulama arayüzü: yenile düğmesi başlıkta yok; serbestte menüdeki \"Serbest oyun\" yeni bulmaca açar, ilerleme varken onay ister, onay açıkken klavye kapanır", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa, "free");
   // Sahip notu (15 Kasım 2026): yenile düğmesi geri okuna benziyordu; başlıkta yalnızca menü, mod adı ve yardım
@@ -1719,7 +1719,7 @@ test("uygulama arayüzü: yenile düğmesi başlıkta yok; menüdeki \"Yeni serb
   const [mn, m] = [await kutu(sayfa, "#btnMenu"), await kutu(sayfa, "#modAdi")];
   assert.ok(mn.sol < 30 && mn.sag <= m.sol, `menü düğmesi başlığın sol ucunda, mod adından önce olmalı (${JSON.stringify({ mn, m })})`);
   assert.deepEqual(await kucukHedefler(sayfa, "#oyun .icon-btn"), []);
-  const yeni = async () => { await sayfa.tap("#btnMenu"); await sayfa.tap("#menuYeni"); };
+  const yeni = async () => { await sayfa.tap("#btnMenu"); await sayfa.tap("#menuSerbest"); };
   const ilk = await sayfa.evaluate(() => oyun.startWord + oyun.targetWord);
   await yeni();                                            // ilerleme yok: onaysız
   assert.equal(await gorunur(sayfa, "#yenile"), false);
@@ -1748,7 +1748,7 @@ test("uygulama arayüzü: yenile düğmesi başlıkta yok; menüdeki \"Yeni serb
   await baglam.close();
 });
 
-test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş); odak ve klavye; günlükte \"Yeni serbest oyun\" yok", async () => {
+test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş); odak ve klavye; günlükte \"Yeniden dene\" yok", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
   const m = () => sayfa.evaluate(() => ({ acik: !document.getElementById("menu").classList.contains("hidden"),
@@ -1760,13 +1760,23 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   await sayfa.tap("#btnMenu");
   assert.deepEqual(await m(), { acik: true, genis: "true", odak: "btnAna", gizli: "false" }, "açılınca odak ilk öğede, klavye kapalı");
   // Günlükte "Baştan başla" yok (sahip kararı): yeni oyun satırı hiç görünmez
-  assert.equal(await gorunur(sayfa, "#menuYeni"), false, "günlükte Yeni serbest oyun görünmemeli");
-  const ogeler = () => sayfa.evaluate(() => [...document.querySelectorAll("#menu .menu-oge")].filter((e) => !e.hidden).map((e) => e.textContent.trim()));
-  assert.deepEqual(await ogeler(), ["Ana menü", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  assert.equal(await gorunur(sayfa, "#menuYeniden"), false, "günlükte Yeniden dene görünmemeli (sahibin cevabı bekleniyor)");
+  const ogeler = () => sayfa.evaluate(() => [...document.querySelectorAll("#menu button")].filter((e) => !e.hidden).map((e) => e.textContent.trim()));
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  // Eylemler büyük tuş (en az 52 px, sitenin birincil/ikincil tuşları), ayarlar küçük satır
+  assert.deepEqual(await sayfa.evaluate(() => ["btnAna", "menuSerbest"].map((id) => [document.getElementById(id).className,
+    Math.round(document.getElementById(id).getBoundingClientRect().height) >= 52])), [["btn-primary", true], ["btn-secondary", true]]);
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll('#menu [role="switch"]')].map((e) => [e.id, e.getAttribute("aria-checked")])),
     [["menuTitresim", "true"], ["menuSerit", "true"], ["menuSes", "true"]]);
   assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), [], "menü satırları en az 44 px");
   assert.ok(await tasmaYok(sayfa));
+  // Odak tuzağı: Tab ve Shift+Tab menünün görünen satırları arasında döner
+  const odaklar = [];
+  for (let i = 0; i < 6; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
+  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSerit", "menuSes", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
+  await sayfa.keyboard.press("Shift+Tab");
+  assert.equal((await m()).odak, "menuSes", "ilk satırda Shift+Tab sona gitmeli");
+  await sayfa.keyboard.press("Tab");
   // Menü açıkken yazılan harf tahtaya gitmez
   await sayfa.keyboard.type("ab");
   assert.equal((await durum(sayfa)).tampon, "");
@@ -1777,20 +1787,122 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   await sayfa.tap("#btnMenu");
   await sayfa.mouse.click(195, 100);
   assert.deepEqual(await m(), { acik: false, genis: "false", odak: "giris", gizli: "true" }, "dışarı dokunuş kapatır");
-  // Nasıl oynanır? menüden açılır
+  // Nasıl oynanır? menüden açılır; odak kapat düğmesine gider, #giris arada odak almaz (iOS'ta klavye kıpırdardı)
+  await sayfa.evaluate(() => { window.__girisOdak = 0; document.getElementById("giris").addEventListener("focus", () => window.__girisOdak++); });
   await sayfa.tap("#btnMenu");
   await sayfa.tap("#menuYardim");
   assert.ok(await sayfa.evaluate(() => document.body.classList.contains("yardim")));
+  assert.equal((await m()).odak, "btnYardimKapat");
+  assert.equal(await sayfa.evaluate(() => window.__girisOdak), 0, "yardım açılırken klavye bir an açılmamalı");
   await sayfa.tap("#btnYardimKapat");
-  // Ana menü: ana ekran
+  // Ana menü: ana ekran; #giris arada odak almaz
+  await sayfa.evaluate(() => { window.__girisOdak = 0; });
   await anaya(sayfa);
+  assert.equal(await sayfa.evaluate(() => window.__girisOdak), 0, "ana ekrana dönerken klavye bir an açılmamalı");
   assert.equal((await durum(sayfa)).ekran, "ana");
   assert.equal((await m()).acik, false);
   // Serbestte yeni oyun satırı görünür
   await sayfa.tap("#btnSerbest");
   await sayfa.waitForFunction(() => document.activeElement.id === "giris");
   await sayfa.tap("#btnMenu");
-  assert.deepEqual(await ogeler(), ["Ana menü", "Yeni serbest oyun", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'de taşmaz", async () => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport } });
+    await oyunaGir(sayfa, "free");
+    await sayfa.tap("#btnMenu");
+    await sayfa.waitForTimeout(300);                     // açılış geçişi biter
+    const k = await kutu(sayfa, "#menu .menu");
+    const ad = `${viewport.width}×${viewport.height}`;
+    assert.ok(Math.abs((k.sol + k.sag) / 2 - viewport.width / 2) < 1, `${ad}: kart yatayda ortada olmalı`);
+    assert.ok(Math.abs((k.ust + k.alt) / 2 - viewport.height / 2) < 2, `${ad}: kart dikeyde ortada olmalı (${k.ust}–${k.alt})`);
+    assert.ok(k.en <= 340 && k.sol >= 16 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart kenarlardan en az 16 px içeride (${JSON.stringify(k)})`);
+    assert.equal(await sayfa.evaluate(() => { const e = document.querySelector("#menu .menu"); return e.scrollHeight <= e.clientHeight; }), true, `${ad}: kartın içi kaymamalı`);
+    assert.ok(await tasmaYok(sayfa), `${ad}: taşma`);
+    assert.deepEqual(kayit.hatalar, []);
+    await baglam.close();
+  }
+});
+
+test("uygulama arayüzü: çözümden hemen sonra açılan menü, gecikmeli çözüm penceresiyle kapanır (üst üste binmez)", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  const yol = enKisaYol((await durum(sayfa)).zincir[0], await sayfa.evaluate(() => oyun.targetWord));
+  for (const k of yol.slice(0, -1)) await yaz(sayfa, k);
+  await yaz(sayfa, yol.at(-1));
+  await sayfa.tap("#btnMenu");                           // çözüm penceresi 650 ms sonra açılır
+  assert.equal(await sayfa.getAttribute("#btnMenu", "aria-expanded"), "true");
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  assert.deepEqual(await sayfa.evaluate(() => [document.getElementById("menu").classList.contains("hidden"),
+    document.getElementById("btnMenu").getAttribute("aria-expanded")]), [true, "false"], "çözüm penceresi açılınca menü kapanmalı");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: menüdeki \"Yeniden dene\" aynı bulmacayı baştan açar; ilerleme varken onay ister", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa, "free");
+  const bulmaca = () => sayfa.evaluate(() => [oyun.startWord, oyun.targetWord, oyun.chain.length, oyun.over]);
+  const [bas, hedef] = await bulmaca();
+  const yeniden = async () => { await sayfa.tap("#btnMenu"); await sayfa.tap("#menuYeniden"); };
+  await yeniden();                                         // ilerleme yok: onaysız, aynı bulmaca
+  assert.equal(await gorunur(sayfa, "#yenile"), false);
+  assert.deepEqual(await bulmaca(), [bas, hedef, 1, false]);
+  await birAdim(sayfa);
+  await yeniden();
+  await sayfa.waitForSelector("#yenile:not(.hidden)");
+  assert.equal(await sayfa.textContent("#yenileTitle"), "Baştan başlansın mı?");
+  assert.equal(await sayfa.textContent("#btnYenileEvet"), "Baştan başla");
+  await sayfa.tap("#btnYenileVazgec");
+  assert.deepEqual(await bulmaca(), [bas, hedef, 2, false], "vazgeçince ilerleme kalmalı");
+  // Vazgeçtikten sonra "Serbest oyun" yine yeni bulmaca açar (onay app.js'e döner)
+  await sayfa.tap("#btnMenu");
+  await sayfa.tap("#menuSerbest");
+  await sayfa.waitForSelector("#yenile:not(.hidden)");
+  assert.equal(await sayfa.textContent("#yenileTitle"), "Yeni bulmaca açılsın mı?");
+  await sayfa.tap("#btnYenileVazgec");
+  await yeniden();
+  await sayfa.waitForSelector("#yenile:not(.hidden)");
+  await sayfa.tap("#btnYenileEvet");
+  const d = await durum(sayfa);
+  assert.deepEqual([...(await bulmaca()), d.odak, await sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_state")).chain.length)],
+    [bas, hedef, 1, false, "giris", 1], "aynı bulmaca baştan açılmalı, kaydedilmeli, klavye açık kalmalı");
+  // Çözülmüş serbest bulmaca da baştan açılır
+  for (const k of enKisaYol(bas, hedef)) await yaz(sayfa, k);
+  await sayfa.waitForSelector("#modal:not(.hidden)");
+  await sayfa.tap("#btnCloseModal");
+  await yeniden();
+  assert.deepEqual(await bulmaca(), [bas, hedef, 1, false], "çözülmüş bulmaca baştan açılmalı");
+  assert.equal(await sayfa.evaluate(() => document.getElementById("game").classList.contains("bitti")), false);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: günlükte menüdeki \"Serbest oyun\" serbest moda geçer, kalınan serbest oyunu ve günlüğü silmez", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa, "free");
+  await birAdim(sayfa);
+  const serbest = await sayfa.evaluate(() => oyun.chain.slice());
+  await anaya(sayfa);
+  await sayfa.tap("#btnGunluk");
+  await sayfa.waitForFunction(() => oyun.mode === "daily" && document.activeElement.id === "giris");
+  await birAdim(sayfa);
+  const gunluk = await sayfa.evaluate(() => oyun.chain.slice());
+  await sayfa.tap("#btnMenu");
+  await sayfa.tap("#menuSerbest");
+  await sayfa.waitForFunction(() => oyun.mode === "free");
+  let d = await durum(sayfa);
+  assert.deepEqual([d.zincir, d.ekran, d.odak, await gorunur(sayfa, "#yenile")], [serbest, "oyun", "giris", false], "kalınan serbest oyun sürmeli, onay sorulmamalı");
+  assert.equal(await sayfa.textContent("#modAdi"), "Serbest Oyun");
+  // Günlükte kalınan yer de silinmedi
+  await anaya(sayfa);
+  await sayfa.tap("#btnGunluk");
+  await sayfa.waitForFunction(() => oyun.mode === "daily");
+  assert.deepEqual((await durum(sayfa)).zincir, gunluk);
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
