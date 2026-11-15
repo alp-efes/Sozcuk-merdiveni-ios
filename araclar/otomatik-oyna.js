@@ -151,6 +151,7 @@ window.SM_OTOMATIK = true;
     oyun.hideModal();
     if (MAGAZA) {
       // Ertesi gün: TRT gece yarısı geçti, yeni günlük bulmaca gelir; ipucuyla başlanır
+      document.getElementById("btnMenu").click();         // oyuncunun yolu: menü → "Ana menü"
       document.getElementById("btnAna").click();
       await bekleKosul(() => ekran() === "ana", "ana ekrana dönüş");
       kayma += GUN;
@@ -161,6 +162,7 @@ window.SM_OTOMATIK = true;
       await uyu(2500);
       klavyeBekle(true, "günlük");
       await asama("gunluk");
+      document.getElementById("btnMenu").click();         // oyuncunun yolu: menü → "Ana menü"
       document.getElementById("btnAna").click();
       await bekleKosul(() => ekran() === "ana", "ana ekrana dönüş");
       document.getElementById("btnAnaYardim").click();

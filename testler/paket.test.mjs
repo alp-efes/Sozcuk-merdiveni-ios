@@ -179,6 +179,8 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/^  win\(\) \{/m, "win(): klavye kapanır"],
     [/^  showOffer\(open, tur = "ipucu"\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
     [/^  showYenile\(open\) \{/m, "showYenile(): yenile onayı açıkken klavye kapanır"],
+    [/this\.el\.btnRestart\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+this\.askRestart\(\);/, "btnRestart → askRestart: menüdeki Yeni serbest oyun ona basar"],
+    [/this\.el\.btnMute\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+muteGame\(!AudioFX\.isMuted\(\)\);/, "btnMute: menüdeki Ses ona basar, durumu eşzamanlı okur"],
     [/^  beginRetry\(\) \{/m, "beginRetry(): tekrar başlayınca klavye açılır"],
     [/^  showPes\(open\) \{/m, "showPes(): sonucu göster onayı açıkken klavye kapanır"],
     [/^  showResult\(\) \{/m, "showResult(): yol gösterilince klavye kapanır"],
@@ -478,7 +480,7 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
   const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
   for (const [, ad] of oku(KOK, "web", "uygulama.js").matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
-  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses", "sm_serit"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses", "sm_serit", "sm_titresim"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
   // Kayıt adları uygulama.js'te birleştirilerek üretilmez: yukarıdaki tarama her adı tam görmeli
   assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /["'`]sm_[a-z_]*["'`]\s*\+/, "sm_* adı birleştirilerek üretiliyor: gizlilik denetimi göremez");
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);

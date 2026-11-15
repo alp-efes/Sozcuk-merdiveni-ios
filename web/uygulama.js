@@ -9,6 +9,7 @@
  *   - sitenin ekran klavyesi yerine telefonun klavyesi + Türkçe harf şeridi
  *   - oyun ekranı kaymaz; klavye açılınca görünen alana sığar
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
+ *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/şerit/ses
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -25,11 +26,13 @@
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile")];
+  const menu = al("menu");
+  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile"), menu];
   // Açılış ekranı uygulama açılırken en az ACILIS_MS görünür (sayfa açılışından; yukarıda)
   const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
   let ekran = "acilis";
+  let yenidenOnay = false;   // açık yenile onayı menüdeki "Yeniden dene" için (aşağıda, Menü)
 
   const oku = (anahtar) => { try { return localStorage.getItem(anahtar); } catch (_) { return null; } };
   const yaz = (anahtar, deger) => { try { localStorage.setItem(anahtar, deger); } catch (_) { /* kayıt tutulamadı */ } };
@@ -77,6 +80,7 @@
   // Yenile onayı (ilerleme varken): açıkken klavye kapanır, kapanınca geri gelir
   const asilShowYenile = P.showYenile;
   P.showYenile = function (ac, ...arg) {
+    if (!ac) yenidenOnay = false;           // onay kapandı: bir sonraki açılış app.js'in (menü)
     const s = asilShowYenile.call(this, ac, ...arg);
     if (ac) giris.blur(); else odakla();
     return s;
@@ -256,7 +260,8 @@
   };
 
   const anaAc = () => {
-    ekranAc("ana");
+    ekranAc("ana");                                  // önce: menü kapanırken klavye bir an açılmasın
+    menuAc(false);
     giris.blur();
     oyun.hideModal();
     oyun.showOffer(false);
@@ -300,6 +305,7 @@
       kazanilan = null;
       if (!k || k.mod !== this.mode || k.bas !== this.startWord || k.hedef !== this.targetWord || k.uzunluk !== this.chain.length) return undefined;
     }
+    menuAc(false);                         // çözüm penceresi açık menünün üstüne açılmaz
     return asilShowModal.call(this, secenek, ...arg);
   };
 
@@ -307,7 +313,6 @@
   const asilUpdateTabs = P.updateTabs;
   P.updateTabs = function (...arg) {
     al("modAdi").textContent = this.mode === "daily" ? "Günün Bulmacası" : "Serbest Oyun";
-    al("btnRestart").setAttribute("aria-label", this.mode === "daily" ? "Baştan başla" : "Yeni bulmaca");
     return asilUpdateTabs.apply(this, arg);
   };
 
@@ -339,9 +344,6 @@
     anaCiz();
   });
 
-  // Yenile düğmesi geri al'ın tam üstünde duruyordu ve ikisi karışıyordu: başlığın sol ucuna,
-  // ana ekran düğmesinin yanına taşınır (geri al ve ipucu durum satırının sağ ucunda kalır)
-  al("btnAna").after(al("btnRestart"));
   // Ses düğmesi ana ekrana taşınır (oyun başlığında mod adına yer açılır); seçim hatırlanır
   al("anaUst").append(al("btnMute"));
   // (app.js'in kendi dinleyicisi sesi bu dinleyiciden sonra değiştirir: durum bir tur sonra okunur)
@@ -369,9 +371,92 @@
   // Gizlilik ve lisans bağlantıları ana ekranın altında
   al("ana").append(document.querySelector(".site-footer"));
 
-  // Ana ekran ya da yardım açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
+  /* ---------- Menü: oyun başlığının sol ucunda; ekranın ortasında kart olarak açılır ----------
+     Sitenin yenile düğmesi uygulamada gizlidir (style: uygulama.css). "Serbest oyun" serbestte ona
+     basar (app.js askRestart: yeni bulmaca, ilerleme varsa onay), günlükte ana ekrandaki Serbest
+     Oyun kartının yolundan gider (kalınan serbest oyun sürer). "Yeniden dene" aynı bulmacayı
+     baştan açar. Ayarlar ana ekrandaki düğmelerle aynı kaydı kullanır (sm_serit, sm_ses);
+     sm_titresim'i yerel.js okur. */
+  // Günlükte "Baştan başla" olmasın (sahip kararı); sahibin cevabı gelene dek Yeniden dene yalnızca serbestte
+  const YENIDEN_DENE_GUNLUKTE = false;
+  const btnMenu = al("btnMenu");
+  const menuAcik = () => !menu.classList.contains("hidden");
+  const anahtarlar = () => {
+    al("menuTitresim").setAttribute("aria-checked", String(oku("sm_titresim") !== "0"));
+    al("menuSerit").setAttribute("aria-checked", String(!govde.classList.contains("serit-yok")));
+    al("menuSes").setAttribute("aria-checked", String(!al("btnMute").classList.contains("muted")));
+  };
+  function menuAc(ac) {
+    if (ac === menuAcik()) return;
+    menu.classList.toggle("hidden", !ac);
+    menu.setAttribute("aria-hidden", String(!ac));
+    btnMenu.setAttribute("aria-expanded", String(ac));
+    if (ac) {
+      giris.blur();                                    // klavye kapanır, menü tam görünür
+      al("menuYeniden").hidden = oyun?.mode !== "free" && !YENIDEN_DENE_GUNLUKTE;
+      anahtarlar();
+      al("btnAna").focus({ preventScroll: true });
+    } else {
+      // Odak başka yere (ör. yardımın kapat düğmesi) geçmediyse menü düğmesine döner
+      if (menu.contains(document.activeElement) || document.activeElement === govde) btnMenu.focus({ preventScroll: true });
+      odakla();                                        // oyun ekranındaysa klavye geri gelir
+    }
+  }
+  btnMenu.addEventListener("click", () => menuAc(true));
+  menu.addEventListener("click", (e) => { if (e.target === menu) menuAc(false); });   // dışarı dokunuş
+  al("menuSerbest").addEventListener("click", () => {
+    if (oyun.mode === "free") { menuAc(false); al("btnRestart").click(); }
+    else { oyna("free"); menuAc(false); }              // önce oyun: odak bir kez, yeni tahtaya
+  });
+  // Yeniden dene: serbestte app.js'te "aynı bulmaca baştan" yolu yok (askRestart yeni bulmaca çeker);
+  // zincir başlangıca döner. Onay için sitenin yenile penceresi kendi metniyle kullanılır.
+  const yenidenBasla = () => {
+    Object.assign(oyun, { chain: [oyun.startWord], buffer: "", over: false, shown: false });
+    oyun.render();
+    oyun.saveState();
+    odakla();
+  };
+  al("menuYeniden").addEventListener("click", () => {
+    menuAc(false);
+    if (oyun.mode === "daily") return al("btnRestart").click();   // app.js: günlükte aynı bulmaca baştan
+    if (!oyun.canUndo()) return yenidenBasla();                   // silinecek adım yok
+    al("yenileTitle").textContent = "Baştan başlansın mı?";
+    al("yenileText").textContent = "Attığın adımlar silinir, aynı bulmaca baştan açılır.";
+    al("btnYenileEvet").textContent = "Baştan başla";
+    oyun.showYenile(true);
+    yenidenOnay = true;
+  });
+  // Onay "Yeniden dene" içinse app.js'in restart'ı (yeni bulmaca) çalışmaz
+  al("yenile").addEventListener("click", (e) => {
+    if (!yenidenOnay || !e.target.closest("#btnYenileEvet")) return;
+    e.stopPropagation();
+    oyun.showYenile(false);
+    yenidenBasla();
+  }, true);
+  al("menuYardim").addEventListener("click", () => { yardimAc(true); menuAc(false); });   // önce yardım: klavye kıpırdamaz
+  al("menuTitresim").addEventListener("click", () => {
+    const ac = oku("sm_titresim") === "0";
+    try { ac ? localStorage.removeItem("sm_titresim") : localStorage.setItem("sm_titresim", "0"); }
+    catch (_) { /* kayıt tutulamadı */ }
+    anahtarlar();
+  });
+  al("menuSerit").addEventListener("click", () => { al("btnSerit").click(); anahtarlar(); });
+  al("menuSes").addEventListener("click", () => { al("btnMute").click(); anahtarlar(); });
+
+  // Ana ekran, yardım ya da menü açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
   document.addEventListener("keydown", (e) => {
     if (yardimAcik()) { e.stopPropagation(); if (e.key === "Escape") yardimAc(false); }
+    else if (menuAcik()) {
+      e.stopPropagation();
+      if (e.key === "Escape") menuAc(false);
+      if (e.key === "Tab") {                       // odak menünün içinde döner (aria-modal)
+        const ogeler = [...menu.querySelectorAll("button:not([hidden])")];
+        const sira = ogeler.indexOf(document.activeElement);
+        const sonraki = e.shiftKey ? (sira <= 0 ? ogeler.length - 1 : sira - 1) : (sira + 1) % ogeler.length;
+        e.preventDefault();
+        ogeler[sonraki].focus();
+      }
+    }
     else if (ekran !== "oyun") e.stopPropagation();
   }, true);
 

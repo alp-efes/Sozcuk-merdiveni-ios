@@ -211,8 +211,9 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 /* Sitenin ekran klavyesi: uygulamada telefonun klavyesi kullanılır */
 .keyboard { display: none; }
 
-/* Başlık: geri + mod adı + yardım + yeni oyun (ses düğmesi ana ekranda) */
-.header .brand-game { display: none; }
+/* Başlık: menü + mod adı + yardım. Ses düğmesi ana ekranda; sitenin yenile düğmesi
+   gizli (geri okuna benziyordu; sahip notu, 15 Kasım 2026): yerine menüde "Yeni serbest oyun" */
+.header .brand-game, .header #btnRestart { display: none; }
 .mod-adi {
   flex: 1;
   min-width: 0;
@@ -319,3 +320,70 @@ body:not(.yardim) .info { display: none; }
   margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0 0;
   background: var(--bg);
 }
+
+/* ---------- Menü: ekranın ortasında yüzen kart (sitenin pencereleri gibi) ----------
+   Perde ve ortalama sitenin .modal-overlay'inden gelir; satırların kendisi 44 px dokunma
+   alanıdır, ayarlar sağda anahtar gösterir. Hareketi azaltta style.css geçişleri kısaltır. */
+/* Açılırken görünürlük hemen gelir (odak ilk satıra o anda verilir); kapanırken solma bitince gider */
+.menu-perde:not(.hidden) { transition: opacity var(--dur-base) var(--ease); }
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(340px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1.5px var(--border), 0 0 0 7px var(--card-ring), var(--shadow-md);
+  transition: transform var(--dur-base) var(--ease);
+}
+.menu-perde.hidden .menu { transform: translateY(var(--space-3)); }
+.menu-oge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: var(--space-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.menu [hidden] { display: none; }
+.menu .btn-secondary { margin-top: 0; }
+.menu-oge:active { background: var(--surface-2); }
+.menu-oge > span:first-of-type { flex: 1; }
+.menu-ayrac { border: 0; border-top: 1.5px solid var(--border); margin: var(--space-1) 0; }
+/* Anahtar: kapalıyken boş çerçeve, açıkken yeşil; yalnızca görünüm (durum aria-checked'tedir) */
+.anahtar {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border: 1.5px solid var(--text-dim);
+  border-radius: 13px;
+  background: var(--surface-2);
+  transition: background var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease);
+}
+.anahtar::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform var(--dur-base) var(--ease);
+}
+[aria-checked="true"] > .anahtar { background: var(--green); border-color: var(--green); }
+[aria-checked="true"] > .anahtar::after { background: var(--surface); transform: translateX(18px); }
