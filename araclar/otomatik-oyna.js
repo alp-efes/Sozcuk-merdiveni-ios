@@ -13,15 +13,13 @@ window.SM_OTOMATIK = true;
  * içine "onay-<aşama>.txt" dosyasını yazana dek o ekranda bekler. Böylece
  * çıktı ne kadar gecikirse geciksin her görüntü doğru aşamayı gösterir.
  * Aşamalar: ana, oyun, hamle, cozum, nasil (hata olursa "hata …").
- * Oyuncunun yolundan gider: ana ekranda "Oyna"ya basar, kelimeleri telefonun
- * klavyesinin yazdığı metin alanına yazar. "SM-OTOMATIK: bilgi …" satırı,
- * klavye açıldıktan sonra ölçülen görünen alanı günlüğe yazar.
+ * Oyuncunun yolundan gider: ana ekranda "Oyna"ya basar, kelimeleri oyunun ekran
+ * klavyesine basarak yazar ve Gönder'e basar. "SM-OTOMATIK: bilgi …" satırı oyun
+ * ekranının ölçülerini günlüğe yazar. Telefonun klavyesi hiçbir ekranda açılmamalıdır.
  *
  * Mağaza modu (araclar/simulator.sh <klasör> magaza): simulator.sh dosyanın başına
  * `window.SM_MAGAZA = true;` yazar. Saat 13 Kasım 2026 12:00'ye (TRT) sabitlenir; sıra
- * ana, hamle, cozum, gunluk (ertesi günün bulmacası, ipucu açık), nasil. Klavye oyun
- * ekranlarında (hamle, gunluk) açık, ana ve nasil ekranında kapalı olmalıdır; değilse hata.
- * Çözülünce uygulama klavyeyi kendisi kapatır (uygulama.js win): cozum klavyesizdir.
+ * ana, hamle, cozum, gunluk (ertesi günün bulmacası, ipucu açık), nasil.
  *
  * Uygulama paketine (www/, npm run ios:sync, TestFlight) GİRMEZ:
  * araclar/simulator.sh derlemeden hemen önce ios/App/App/public içine, yerel.js'ten
@@ -70,15 +68,14 @@ window.SM_OTOMATIK = true;
     for (let k = hedef; k !== bas; k = once.get(k)) yol.unshift(k);
     return yol;
   };
-  // Telefonun klavyesi gibi yazar: harfler metin alanına küçük harfle girer
-  // (uygulama.js Türkçe kuralla büyütür), gönder tuşu Enter'dır
+  // Oyuncu gibi ekran klavyesinin harf tuşlarına, sonra Gönder'e basar
   const yaz = (kelime) => {
-    const giris = document.getElementById("giris");
-    for (const h of kelime.toLocaleLowerCase("tr-TR")) {
-      giris.value += h;
-      giris.dispatchEvent(new InputEvent("input", { bubbles: true, data: h, inputType: "insertText" }));
+    for (const h of kelime) {
+      const tus = document.querySelector(`#keyboard .key[data-key="${h}"]`);
+      if (!tus || tus.disabled) throw new Error("ekran klavyesinde tuş yok: " + h);
+      tus.click();
     }
-    giris.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    document.getElementById("btnGonder").click();
   };
   const bekleKosul = async (kosul, ne) => {
     for (let i = 0; !kosul(); i++) {
@@ -109,12 +106,12 @@ window.SM_OTOMATIK = true;
     }
     const vv = window.visualViewport;
     const tamBoy = vv.height;
-    const klavyeAcik = () => vv.height < tamBoy - 100;
-    const klavyeBekle = (acik, ne) => {
-      if (MAGAZA && klavyeAcik() !== acik) throw new Error(`${ne}: klavye ${acik ? "açık olmalı" : "kapalı olmalı"}`);
+    // Uygulamanın kendi klavyesi var: telefonun klavyesi hiçbir ekranda açılmamalı
+    const klavyeYok = (ne) => {
+      if (vv.height < tamBoy - 100) throw new Error(`${ne}: telefonun klavyesi açıldı`);
     };
     await uyu(1000);                       // ilk boyama ve yazı tipi
-    klavyeBekle(false, "ana ekran");
+    klavyeYok("ana ekran");
     await asama("ana");
 
     document.getElementById("btnGunluk").click();
@@ -123,16 +120,14 @@ window.SM_OTOMATIK = true;
       throw new Error("günün bulmacası açık değil");
     }
     if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
-    await uyu(2500);                       // telefonun klavyesi açılır (bağlı klavye varsa açılmaz)
-    // Klavye açıksa kabuk görünen alana sığmalı; giriş satırı ve harf şeridi klavyenin üstünde kalmalı
-    const klavye = klavyeAcik();
-    isaret(`bilgi klavye=${klavye} gorunen=${Math.round(vv.height)} tam=${Math.round(tamBoy)} ust=${Math.round(vv.offsetTop)} ` +
-           `kayma=${Math.round(scrollY)} kabuk=${Math.round(kutu("oyun").height)} odak=${document.activeElement.id || "-"}`);
-    if (klavye) {
-      const alt = vv.offsetTop + vv.height + 1;
-      if (kutu("inputRow").top < vv.offsetTop || kutu("inputRow").bottom > alt) throw new Error("klavye açıkken giriş satırı görünmüyor");
-      if (kutu("harfler").bottom > alt) throw new Error("klavye açıkken harf şeridi klavyenin altında kalıyor");
-    }
+    await uyu(1500);
+    // Ekran tek parça: giriş satırı, ekran klavyesi ve eylem sırası kaydırmadan görünür
+    isaret(`bilgi gorunen=${Math.round(vv.height)} tam=${Math.round(tamBoy)} kayma=${Math.round(scrollY)} ` +
+           `klavye=${Math.round(kutu("keyboard").top)}-${Math.round(kutu("keyboard").bottom)} eylem=${Math.round(kutu("eylemler").bottom)} ` +
+           `odak=${document.activeElement.id || "-"}`);
+    klavyeYok("oyun");
+    if (kutu("eylemler").bottom > vv.height + 1) throw new Error("eylem sırası ekrana sığmıyor");
+    if (kutu("inputRow").bottom > kutu("keyboard").top + 1) throw new Error("giriş satırı klavyenin altında kalıyor");
     if (!MAGAZA) await asama("oyun");
 
     const yol = enKisaYol(oyun.startWord, oyun.targetWord, oyun.db[String(oyun.len)].words);
@@ -140,7 +135,7 @@ window.SM_OTOMATIK = true;
     for (const kelime of yol.slice(0, ilk)) yaz(kelime);
     if (oyun.chain.length !== ilk + 1) throw new Error("hamleler kabul edilmedi");
     await uyu(1000);
-    klavyeBekle(true, "hamle");
+    klavyeYok("hamle");
     await asama("hamle");
 
     for (const kelime of yol.slice(ilk)) yaz(kelime);
@@ -160,7 +155,7 @@ window.SM_OTOMATIK = true;
       await bekleKosul(() => ekran() === "oyun" && oyun.mode === "daily" && oyun.startWord !== bas && !oyun.over, "ertesi günün bulmacası");
       document.getElementById("btnHint").click();
       await uyu(2500);
-      klavyeBekle(true, "günlük");
+      klavyeYok("günlük");
       await asama("gunluk");
       document.getElementById("btnMenu").click();         // oyuncunun yolu: menü → "Ana menü"
       document.getElementById("btnAna").click();
@@ -171,7 +166,7 @@ window.SM_OTOMATIK = true;
     }
     if (!document.body.classList.contains("yardim")) throw new Error("yardım penceresi açılmadı");
     await uyu(1000);
-    klavyeBekle(false, "nasıl oynanır");
+    klavyeYok("nasıl oynanır");
     await asama("nasil");
   } catch (e) {
     isaret("hata " + e.message);

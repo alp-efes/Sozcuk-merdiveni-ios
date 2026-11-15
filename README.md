@@ -11,7 +11,7 @@ Oyunun kendisi site deposundadır (`alp-efes/sozcuk-merdiveni`); bu depo onu
   sonraki sürümde (`web/yerel.js` → `PLUS_ACIK`, şimdilik `false`). Tek izin istemi App Tracking Transparency.
 - Yerel özellikler: titreşim (geçersiz hamle, kabul, çözüm), iOS paylaşım sayfası, reklam (Plus kapalı).
 - Arayüz siteden farklıdır: açılış ekranı, ana ekran (Günün Bulmacası / Serbest Oyun),
-  sitenin ekran klavyesi yerine telefonun klavyesi ve Türkçe harf şeridi. Site aynı kalır.
+  Türkçe Q dizilişli ekran klavyesi ve altında Geri al / Gönder / İpucu sırası. Site aynı kalır.
 - Yalnızca iPhone, yalnızca dikey, iOS 15+, Türkçe.
 
 ## Nasıl çalışır
@@ -57,8 +57,8 @@ npm run gorsel         # simge ve açılış görselini ios/ içine yerleştir
 | `capacitor.config.json` | Paket kimliği (`appId`), görünen ad, durum çubuğu ve zemin rengi |
 | `package.json` | Sürüm (`version` → Xcode `MARKETING_VERSION`), bağımlılıklar |
 | `araclar/web-esitle.mjs` | Siteyi `www/` içine kopyalar; reklam/analitik/SEO'yu çıkarır, CSP ve uygulama arayüzünü ekler |
-| `araclar/arayuz.mjs` | Uygulama arayüzünün `index.html`'e eklenen parçaları: açılış, ana ekran, metin alanı, harf şeridi |
-| `web/uygulama.js` | Uygulama arayüzü: açılış → ana ekran ⇄ oyun, telefonun klavyesi, kaymayan ekran, yardım penceresi |
+| `araclar/arayuz.mjs` | Uygulama arayüzünün `index.html`'e eklenen parçaları: açılış, ana ekran, menü, eylem sırası |
+| `web/uygulama.js` | Uygulama arayüzü: açılış → ana ekran ⇄ oyun, ekran klavyesi dizilişi, eylem sırası, kaymayan ekran, yardım penceresi |
 | `web/uygulama.css` | Uygulama arayüzünün görünümü (yalnızca sitenin tasarım belirteçleriyle) |
 | `araclar/ios-ayarla.mjs` | Kimlik, ad ve sürümü Xcode projesine yazar |
 | `araclar/gorsel.mjs` | Simge ve açılış görseli |
@@ -103,10 +103,9 @@ kurulmadı: gerek yok.
 **Simülatör** iş akışı (`simulator.yml`) her PR'da, `main`'e her push'ta, her
 gün ve elle çalışır. macOS'ta uygulamayı iOS Simülatörü için imzasız derler
 (Apple hesabı, gizli bilgi yok), küçük (iPhone SE) ve büyük (Pro Max) iPhone'da
-açar ve şu anlarda ekran görüntüsü alır: ana ekran, günün bulmacası (telefonun
-klavyesi açık), iki hamle sonrası, çözüm penceresi, "Nasıl Oynanır". Hamlelerden sonra
-uygulamanın hâlâ çalıştığına ve JavaScript hatası olmadığına bakar; klavye açıkken
-ölçülen görünen alanı iş günlüğüne yazar (`SM-OTOMATIK: bilgi …`).
+açar ve şu anlarda ekran görüntüsü alır: ana ekran, günün bulmacası, iki hamle sonrası, çözüm penceresi, "Nasıl Oynanır". Hamlelerden sonra
+uygulamanın hâlâ çalıştığına ve JavaScript hatası olmadığına bakar; oyun ekranının
+ölçüsünü iş günlüğüne yazar (`SM-OTOMATIK: bilgi …`), telefonun klavyesi açılırsa durur.
 
 Hamleleri `araclar/otomatik-oyna.js` oynar: `araclar/simulator.sh` onu derlemeden
 hemen önce `ios/App/App/public` içine ekler. Asıl güvence `cap sync`'tir: her

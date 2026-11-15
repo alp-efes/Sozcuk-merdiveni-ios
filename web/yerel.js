@@ -41,6 +41,10 @@
   sar("win", "notification", { type: "SUCCESS" });     // bulmaca çözüldü
   // Kabul edilen kelime: hafif dokunuş (yazarken gözler klavyededir, onay parmakta hissedilir)
   sar("accept", "impact", { style: "LIGHT" });
+  // Ekran klavyesinin harf ve Sil tuşları: basınca hafif dokunuş (Gönder'in sonucu accept/reject'te titrer)
+  document.getElementById("keyboard")?.addEventListener("click", (e) => {
+    if (e.target.closest(".key")) titret("impact", { style: "LIGHT" });
+  });
   // Açılış ekranında her blok basamağa oturunca hafif dokunuş (uygulama.css → acilisDus)
   document.getElementById("acilis")?.addEventListener("animationend", (e) => {
     if (e.animationName === "acilisDus") titret("impact", { style: "LIGHT" });

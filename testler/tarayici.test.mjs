@@ -65,41 +65,37 @@ function enKisaYol(bas, hedef) {
 
 // Açılış ekranı geçer, ana ekran gelir
 const anaEkran = (sayfa) => sayfa.waitForSelector('body[data-ekran="ana"] #btnGunluk');
-// Ana ekrandan oyuna: telefonun klavyesini açan metin alanı odaklanır
+// Ana ekrandan oyuna
 async function oyunaGir(sayfa, mod = "daily") {
   await anaEkran(sayfa);
   await sayfa.tap(mod === "daily" ? "#btnGunluk" : "#btnSerbest");
-  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun" && (oyun.over || document.activeElement.id === "giris"));
+  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
 }
 // Oyundan ana ekrana: başlıktaki menü → "Ana menüye dön"
 async function anaya(sayfa) {
   await sayfa.tap("#btnMenu");
   await sayfa.tap("#btnAna");
 }
-// Oyuncu telefonun klavyesiyle yazar: harfler küçük gelir (uygulama Türkçe kuralla büyütür),
-// gönder tuşu Enter'dır. Sitenin ekran klavyesi uygulamada yoktur.
+// Bağlı (fiziksel) klavyeyle yazar: harfler küçük gelir (app.js Türkçe kuralla büyütür), Enter gönderir.
+// iPad ve Bluetooth klavyesinin yolu; ekran tuşlarıyla yazma için bas(). Playwright'ın keyboard.type'ı
+// ç, ş, ğ, ı, ö, ü'yü keydown'suz yazar (app.js görmez): her tuşun keydown'u doğrudan gönderilir.
 async function yaz(sayfa, kelime) {
-  await sayfa.keyboard.type(kelime.toLocaleLowerCase("tr-TR"));
-  await sayfa.keyboard.press("Enter");
+  await sayfa.evaluate((tuslar) => {
+    for (const key of tuslar) document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  }, [...kelime.toLocaleLowerCase("tr-TR"), "Enter"]);
 }
-// Telefonun klavyesi açılınca iOS'ta yalnızca GÖRÜNEN alan (visualViewport) küçülür; sayfanın
-// yerleşim alanı (100dvh, innerHeight) aynı kalır. Tarayıcıda klavye açılmadığı için görünen alan
-// sahtesiyle değiştirilir (SAHTE_GORUNUM); klavye() boyunu değiştirip iOS gibi "resize" gönderir.
-const KLAVYE = 336;
-const SAHTE_GORUNUM = () => {
-  const vv = new EventTarget();
-  let boy = null;                                        // null: klavye kapalı, görünen alan = yerleşim alanı
-  Object.assign(vv, { offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0, scale: 1 });
-  Object.defineProperty(vv, "height", { get: () => boy ?? innerHeight, set: (v) => { boy = v; } });
-  Object.defineProperty(vv, "width", { get: () => innerWidth });
-  Object.defineProperty(window, "visualViewport", { configurable: true, value: vv });
-};
-const klavye = (sayfa, acik) => sayfa.evaluate((boy) => {
-  visualViewport.height = innerHeight - boy;
-  visualViewport.dispatchEvent(new Event("resize"));
-}, acik ? KLAVYE : 0);
+// Tuşun yerine dokunur (Playwright'ın "üstü açık mı" denetimi olmadan): pencere tuşu örtüyorsa dokunuş ona gider
+async function tusaDokun(sayfa, harf) {
+  const k = await sayfa.locator(`#keyboard .key[data-key="${harf}"]`).boundingBox();
+  await sayfa.touchscreen.tap(k.x + k.width / 2, k.y + k.height / 2);
+}
+// Oyuncu gibi ekran klavyesinin tuşlarına dokunur, sonra Gönder'e basar
+async function bas(sayfa, kelime, gonder = true) {
+  for (const h of kelime) await sayfa.tap(`#keyboard .key[data-key="${h}"]`);
+  if (gonder) await sayfa.tap("#btnGonder");
+}
 const durum = (sayfa) => sayfa.evaluate(() => ({ mod: oyun.mode, zincir: oyun.chain.slice(), tampon: oyun.buffer, bitti: oyun.over,
-  ekran: document.body.dataset.ekran, odak: document.activeElement.id, alan: document.getElementById("giris").value }));
+  ekran: document.body.dataset.ekran, odak: document.activeElement.id }));
 
 test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılmaz", async () => {
   const baglam = await tarayici.newContext(TELEFON);
@@ -123,7 +119,7 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
     mod: oyun.mode, bas: oyun.startWord, hedef: oyun.targetWord,
     reklam: document.querySelectorAll(".ad-container, ins, iframe").length,
     izleme: typeof window.trackEvent, betikler: [...document.scripts].map((s) => s.getAttribute("src")),
-    ekranKlavyesi: getComputedStyle(document.getElementById("keyboard")).display,
+    ekranKlavyesi: getComputedStyle(document.getElementById("keyboard")).display !== "none",
   }));
   assert.equal(d.mod, "daily");
   // Açılış ekranı ana ekrana geçer; oyun arkada gizlidir
@@ -140,25 +136,29 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.equal(d.reklam, 0, "reklam alanı kalmış");
   assert.equal(d.izleme, "undefined", "analitik köprüsü tanımlı");
   assert.deepEqual(d.betikler, ["app.js", "uygulama.js", "yerel.js"]);
-  // Sahip kararı (13 Kasım 2026): uygulamada sitenin ekran klavyesi yok, telefonun klavyesi kullanılır
-  assert.equal(d.ekranKlavyesi, "none", "uygulamada sitenin ekran klavyesi görünmemeli");
+  // Sahip kararı (15 Kasım 2026): uygulamada oyunun kendi ekran klavyesi kullanılır
+  assert.ok(d.ekranKlavyesi, "ekran klavyesi görünmeli");
   await oyunaGir(sayfa);
   await goruntu("1-gunun-bulmacasi.png");
 
-  // Geçersiz hamle: kelimeyi değiştirmeden gönder → reddedilir + hata titreşimi
-  await yaz(sayfa, d.bas);
+  // Geçersiz hamle: kelimeyi değiştirmeden ekran tuşlarıyla gönder → reddedilir + hata titreşimi.
+  // Her harf tuşunda hafif dokunuş (açılıştaki üç bloğun ardından)
+  await bas(sayfa, d.bas);
+  assert.deepEqual(await cagrilar("dokunus"), Array(3 + d.bas.length).fill({ style: "LIGHT" }), "ekran tuşunda hafif dokunuş");
   assert.equal(await sayfa.evaluate(() => oyun.chain.length), 1, "değişmeyen kelime kabul edildi");
   assert.ok(await sayfa.evaluate(() => document.getElementById("toast").classList.contains("show")));
   assert.deepEqual(await cagrilar("titresim"), [{ type: "ERROR" }]);
   await goruntu("2-gecersiz-hamle.png");
-  for (const _ of d.bas) await sayfa.keyboard.press("Backspace");   // reddedilen kelime satırda kalır
+  for (const _ of d.bas) await sayfa.tap('#keyboard .key[data-key="BACK"]');   // reddedilen kelime satırda kalır
   assert.equal((await durum(sayfa)).tampon, "");
+  const dokunusOnce = (await cagrilar("dokunus")).length;
+  assert.equal(dokunusOnce, 3 + 2 * d.bas.length, "Sil tuşunda da hafif dokunuş");
 
   // Çözüm
   const yol = enKisaYol(d.bas, d.hedef);
-  await yaz(sayfa, yol[0]);
+  await yaz(sayfa, yol[0]);                                              // bağlı klavye: tuş titreşimi yok
   assert.equal(await sayfa.evaluate(() => oyun.chain.length), 2, "geçerli hamle eklenmedi");
-  assert.deepEqual(await cagrilar("dokunus"), Array(4).fill({ style: "LIGHT" }), "kabul edilen kelimede hafif dokunuş");
+  assert.equal((await cagrilar("dokunus")).length, dokunusOnce + 1, "kabul edilen kelimede hafif dokunuş");
   await goruntu("3-ilk-hamle.png");
   for (const kelime of yol.slice(1)) await yaz(sayfa, kelime);
   assert.ok(await sayfa.evaluate(() => oyun.over), "hedefe ulaşıldı ama oyun bitmedi");
@@ -255,9 +255,10 @@ async function otomatikOyna({ sozlukYok = false } = {}) {
 
 test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve aşamaları bildirir", async () => {
   const { baglam, sayfa, isaretler } = await otomatikOyna();
-  // "bilgi" satırı klavye ölçüsüdür (tarayıcıda klavye açılmaz: klavye=false), aşama değildir
+  // "bilgi" satırı oyun ekranının ölçüsüdür (eylem sırası ekranın içinde, odak metin alanında değil), aşama değildir
   const bilgi = isaretler.filter((i) => i.startsWith("bilgi "));
-  assert.deepEqual(bilgi, ["bilgi klavye=false gorunen=844 tam=844 ust=0 kayma=0 kabuk=844 odak=giris"]);
+  assert.equal(bilgi.length, 1);
+  assert.match(bilgi[0], /^bilgi gorunen=844 tam=844 kayma=0 klavye=\d+-\d+ eylem=\d+ odak=-$/);
   assert.deepEqual(isaretler.filter((i) => !i.startsWith("bilgi ")), ["ana", "oyun", "hamle", "cozum", "nasil"]);
   const d = await sayfa.evaluate(() => ({
     bitti: oyun.over, modalKapali: oyun.el.modal.classList.contains("hidden"), zincir: oyun.chain.length > 2,
@@ -270,13 +271,13 @@ test("simülatörün otomatik oynama betiği günün bulmacasını çözer ve a�
 });
 
 // Mağaza modu (simulator.sh ... magaza): betik sayfadan önce yüklenir, saat sabitlenir. Telefonun
-// klavyesi yok; odaktaki #giris için görünen alanı kısaltmak onu taklit eder.
-test("mağaza modu: sıra ana, hamle, cozum, gunluk, nasil; klavye oyunda açık, ana ve nasilda kapalı", async () => {
+// klavyesi tarayıcıda yok; bir metin alanı odak alırsa görünen alanı kısaltmak onu taklit eder.
+test("mağaza modu: sıra ana, hamle, cozum, gunluk, nasil; telefonun klavyesi hiçbir ekranda açılmaz", async () => {
   const baglam = await tarayici.newContext(TELEFON);
   await baglam.route("**/onay-*.txt", (r) => r.fulfill({ status: 200, body: "" }));
   await baglam.addInitScript(() => {
     Object.defineProperty(window.visualViewport, "height",
-      { get: () => innerHeight - (document.activeElement?.id === "giris" ? 300 : 0) });
+      { get: () => innerHeight - (document.activeElement?.matches("input, textarea, [contenteditable]") ? 300 : 0) });
   });
   await baglam.addInitScript({ content: "window.SM_MAGAZA = true;\n" + readFileSync(OTOMATIK, "utf8") });
   const sayfa = await baglam.newPage();
@@ -730,14 +731,12 @@ test("gelir kancası: StoreKit doğrulaması takılırsa 5 sn sonra reklam akı�
   await baglam.close();
 });
 
-/* ---------- Uygulama arayüzü (web/uygulama.js): açılış, ana ekran, telefonun klavyesi ----------
- * Arayüz Capacitor köprüsü gerektirmez. Telefonun klavyesi tarayıcıda açılmaz: yazma gerçek
- * klavye olaylarıyla, klavyenin kapladığı yer görünümü kısaltarak (visualViewport) taklit edilir.
- * iOS'un kendi kaydırma davranışı ancak simülatörde/cihazda görülür (araclar/otomatik-oyna.js ölçer). */
+/* ---------- Uygulama arayüzü (web/uygulama.js): açılış, ana ekran, ekran klavyesi ----------
+ * Arayüz Capacitor köprüsü gerektirmez. Yazma ekran tuşlarına dokunarak (bas) ya da bağlı
+ * klavye olaylarıyla (yaz). iOS'taki gerçek yerleşim simülatörde ölçülür (araclar/otomatik-oyna.js). */
 
 async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {} } = {}) {
   const baglam = await tarayici.newContext(secenek);
-  await baglam.addInitScript(SAHTE_GORUNUM);
   await baglam.addInitScript((k) => {
     if (sessionStorage.getItem("__kuruldu")) return;      // yalnızca ilk açılışta: yenileme kayıtları ezmesin
     sessionStorage.setItem("__kuruldu", "1");
@@ -902,135 +901,138 @@ test("uygulama arayüzü: hareketi azalt açıkken bloklar baştan yerinde, anim
   await baglam.close();
 });
 
-test("uygulama arayüzü: telefonun klavyesiyle yazma — Türkçe büyük harf, süzme, silme, harf şeridi", async () => {
+test("uygulama arayüzü: ekran klavyesi — Türkçe Q dizilişi, İ/I ayrımı, Sil, Gönder; telefonun klavyesi açılmaz", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_uzunluk: "5", sm_zorluk: "zor" } });
   await oyunaGir(sayfa, "free");
-  // Metin alanı: klavyeyi açar, otomatik düzeltme/büyütme yapmaz, iOS'u yakınlaştırmaz (≥ 16 px)
-  const alan = await sayfa.evaluate(() => {
-    const g = document.getElementById("giris");
-    return { tur: g.type, buyut: g.getAttribute("autocapitalize"), duzelt: g.getAttribute("autocorrect"), yazim: g.getAttribute("spellcheck"),
-      gonder: g.getAttribute("enterkeyhint"), ad: g.getAttribute("aria-label"), yazi: parseFloat(getComputedStyle(g).fontSize),
-      ust: g.getBoundingClientRect().top };
-  });
-  assert.deepEqual(alan, { tur: "text", buyut: "off", duzelt: "off", yazim: "false", gonder: "send", ad: "Kelime yaz", yazi: 16, ust: 0 });
-  const tampon = async () => { const d = await durum(sayfa); assert.equal(d.alan, d.tampon, "metin alanı tamponla aynı olmalı"); return d.tampon; };
+  // Sahip kararı (15 Kasım 2026): Türkçe Q, Sil son sıranın sağ ucunda; Gönder ayrı eylem sırasında
+  const d = await sayfa.evaluate(() => ({
+    siralar: [...document.querySelectorAll("#keyboard .kb-row")].map((r) => [...r.querySelectorAll(".key")].map((k) => k.dataset.key)),
+    kapali: [...document.querySelectorAll("#keyboard .key:disabled")].map((k) => k.dataset.key),
+    adlar: Object.fromEntries([...document.querySelectorAll('#keyboard .key[data-key="I"], #keyboard .key[data-key="İ"], #keyboard .key[data-key="BACK"]')]
+      .map((k) => [k.dataset.key, k.getAttribute("aria-label")])),
+    hepsiDugme: [...document.querySelectorAll("#keyboard .key, #eylemler > *")].every((k) => k.tagName === "BUTTON" && k.type === "button"),
+    // iOS klavyesini açabilecek hiçbir alan yok
+    metinAlani: [...document.querySelectorAll("input, textarea, select, [contenteditable]")].map((e) => e.outerHTML),
+  }));
+  assert.deepEqual(d.siralar, [
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"],
+    ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"],
+    ["Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç", "BACK"],
+  ]);
+  assert.deepEqual(d.kapali, ["Q", "W", "X"], "Türkçede olmayan harfler basılmamalı");
+  assert.deepEqual(d.adlar, { I: "Noktasız I", "İ": "Noktalı İ", BACK: "Sil" });
+  assert.ok(d.hepsiDugme, "tuşlar button olmalı");
+  assert.deepEqual(d.metinAlani, [], "telefonun klavyesini açacak alan olmamalı");
+  assert.equal(await sayfa.getAttribute("#btnGonder", "aria-label") ?? await sayfa.textContent("#btnGonder"), "Gönder");
 
-  // Küçük harfler Türkçe kuralla büyür: ı → I, i → İ (İngilizce kuralla i → I olurdu)
-  await sayfa.keyboard.type("ı");
-  assert.equal(await tampon(), "I");
-  await sayfa.keyboard.type("i");
-  assert.equal(await tampon(), "Iİ", "i harfi İ olmalı; tuş iki kez de yazılmamalı");
-  await sayfa.keyboard.type("şğ");
-  assert.equal(await tampon(), "IİŞĞ");
-  // Büyük yazılanlar olduğu gibi kalır
-  await sil(sayfa);
-  await sayfa.keyboard.type("Iİ");
-  assert.equal(await tampon(), "Iİ");
-  // Türk alfabesinde olmayan her şey süzülür (q, w, x, rakam, boşluk, noktalama)
-  await sayfa.keyboard.type("q1 w.x-é");
-  assert.equal(await tampon(), "Iİ");
-  // Silme tuşu
-  await sayfa.keyboard.press("Backspace");
-  assert.equal(await tampon(), "I");
-  await sil(sayfa);
-  assert.equal(await tampon(), "");
-  // Toplu yazma (dikte, öneri çubuğu, yapıştırma): süzülür ve kelime boyuna kırpılır
-  await sayfa.keyboard.insertText("çığ lık!");
-  assert.equal(await tampon(), "ÇIĞLI");
-  await sayfa.keyboard.type("k");
-  assert.equal(await tampon(), "ÇIĞLI", "kelime boyundan fazlası yazılmamalı");
-  await sil(sayfa);
+  // Noktasız I ve noktalı İ ayrı tuşlardır
+  await bas(sayfa, "Iİ", false);
+  assert.equal((await durum(sayfa)).tampon, "Iİ");
+  await sayfa.tap('#keyboard .key[data-key="Q"]', { force: true });
+  assert.equal((await durum(sayfa)).tampon, "Iİ", "Q yazılmamalı");
+  // Sil
+  await sayfa.tap('#keyboard .key[data-key="BACK"]');
+  assert.equal((await durum(sayfa)).tampon, "I");
+  await sayfa.tap('#keyboard .key[data-key="BACK"]');
+  assert.equal((await durum(sayfa)).tampon, "");
+  // Dokunmak odağı bir metin alanına vermez (iOS klavyesi açılmaz)
+  assert.ok(await sayfa.evaluate(() => !document.activeElement.matches("input, textarea, [contenteditable]")));
 
-  // Türkçe harf şeridi: Türkçe klavyesi olmayan için; dokunmak klavyeyi kapatmaz
-  assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#harfler .harf")].map((h) => h.dataset.key)),
-                   ["Ç", "Ğ", "I", "İ", "Ö", "Ş", "Ü"]);
-  assert.deepEqual(await kucukHedefler(sayfa, "#harfler .harf, #oyun .icon-btn"), [], "oyun ekranında 44 px'ten küçük dokunma hedefi");
-  for (const h of ["Ç", "I", "İ", "Ş", "Ü"]) await sayfa.tap(`.harf[data-key="${h}"]`);
-  assert.equal(await tampon(), "ÇIİŞÜ");
-  assert.equal((await durum(sayfa)).odak, "giris", "şeride dokununca klavye kapanmamalı");
-  // Sözlükte olmayan kelime: oyuncuyu suçlamayan ileti, kelime satırda kalır
-  await sayfa.keyboard.press("Enter");
+  // Gönder: sözlükte olmayan kelime oyuncuyu suçlamayan iletiyle reddedilir, kelime satırda kalır
+  await bas(sayfa, "ÇIİŞÜ");
   assert.equal(await sayfa.textContent("#toast"), "Sözlükte yok: ÇIİŞÜ");
   assert.equal((await durum(sayfa)).zincir.length, 1);
-  await sil(sayfa);
-  // Tahtaya, ipucuna dokunmak da klavyeyi açık tutar
-  await sayfa.tap("#inputRow");
-  assert.equal((await durum(sayfa)).odak, "giris");
-  await sayfa.tap("#btnHint");
-  assert.equal((await durum(sayfa)).odak, "giris");
+  for (let i = 0; i < 5; i++) await sayfa.tap('#keyboard .key[data-key="BACK"]');
   // Eksik kelime gönderilmez
-  await sayfa.keyboard.type("a");
-  await sayfa.keyboard.press("Enter");
+  await bas(sayfa, "A");
   assert.equal(await sayfa.textContent("#toast"), "Harf eksik");
+  await sayfa.tap('#keyboard .key[data-key="BACK"]');
+  // Geçerli kelime ekran tuşlarıyla kabul edilir
+  const { zincir: [ilk], } = await durum(sayfa);
+  const [sonraki] = enKisaYol(ilk, await sayfa.evaluate(() => oyun.targetWord));
+  await bas(sayfa, sonraki);
+  assert.deepEqual((await durum(sayfa)).zincir, [ilk, sonraki]);
+
+  // Bağlı (fiziksel) klavye de yazar: Türkçe kuralla ı → I, i → İ; Backspace siler
+  await sayfa.evaluate(() => { for (const key of ["ı", "i"]) document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })); });
+  assert.equal((await durum(sayfa)).tampon, "Iİ");
+  await sil(sayfa);
+  assert.equal((await durum(sayfa)).tampon, "");
   assert.ok(await tasmaYok(sayfa));
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
 
-test("uygulama arayüzü: klavye açılınca ekran kaymaz; giriş satırı, son kelime ve harf şeridi görünür kalır", async () => {
+test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altta; başlıkta menü, mod adı ve yardım", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
-  const olc = () => sayfa.evaluate(() => {
-    const r = (id) => { const k = document.getElementById(id).getBoundingClientRect(); return { ust: Math.round(k.top), alt: Math.round(k.bottom) }; };
-    const son = document.querySelector("#ladder .rung:last-child")?.getBoundingClientRect();
-    return { gorunen: visualViewport.height, kabuk: r("oyun"), giris: r("inputRow"), serit: r("harfler"), hedef: r("targetWord"), bas: r("startWord"),
-      son: son && { ust: Math.round(son.top), alt: Math.round(son.bottom) }, merdiven: r("steps"),
-      kayma: [scrollX, scrollY, visualViewport.offsetTop], belge: document.documentElement.scrollHeight <= innerHeight,
-      sitedekiKlavye: getComputedStyle(document.getElementById("keyboard")).display };
+  const d = await sayfa.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    const gorunen = (e) => getComputedStyle(e).display !== "none" && e.getBoundingClientRect().width > 0;
+    return {
+      eylem: [...document.getElementById("eylemler").children].map((e) => e.id),
+      baslik: [...document.querySelectorAll(".header button, .header a, .header h2")].filter(gorunen).map((e) => e.id),
+      klavyeAlt: r("#keyboard").bottom, eylemUst: r("#eylemler").top, eylemAlt: r("#eylemler").bottom,
+      gonder: r("#btnGonder"), geri: r("#btnUndo"), ipucu: r("#btnHint"),
+      rozet: [...document.querySelectorAll("#eylemler .hak")].map((h) => h.textContent),
+      yuvarlak: ["btnUndo", "btnHint"].map((id) => getComputedStyle(document.getElementById(id)).borderRadius),
+      harfBoy: Math.min(...[...document.querySelectorAll("#keyboard .key")].map((k) => k.getBoundingClientRect().height)),
+    };
   });
-  let o = await olc();
-  assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.sitedekiKlavye], [0, 844, "none"]);
-
-  // Klavye açılır: görünen alan 844 → 508 px; sayfanın yerleşim alanı 844 kalır (iOS'taki gibi)
-  await klavye(sayfa, true);
-  o = await olc();
-  assert.equal(await sayfa.evaluate(() => innerHeight), 844);
-  assert.deepEqual([o.gorunen, o.kabuk.ust, o.kabuk.alt], [508, 0, 508], "oyun ekranı görünen alana sığmalı");
-  assert.deepEqual(o.kayma, [0, 0, 0], "sayfa kaymamalı");
-  assert.ok(o.belge, "belge kaydırılabilir olmamalı");
-  assert.equal(o.serit.alt, 508, "harf şeridi klavyenin hemen üstünde olmalı");
-  assert.ok(o.giris.ust >= o.merdiven.ust && o.giris.alt <= o.serit.ust, "giriş satırı görünmüyor");
-  assert.ok(o.bas.ust >= 0 && o.hedef.alt <= o.serit.ust, "başlangıç ve hedef görünmeli");
-
-  // Uzun merdiven: son kelime ve giriş satırı klavyenin üstünde kalır, eski basamaklar yukarı kayar
-  const { zincir: [bas] } = await durum(sayfa);
-  const [bir] = enKisaYol(bas, await sayfa.evaluate(() => oyun.targetWord));
-  for (let i = 0; i < 5; i++) { await yaz(sayfa, bir); await yaz(sayfa, bas); }      // geri dönmek serbesttir
-  assert.equal((await durum(sayfa)).zincir.length, 11);
-  o = await olc();
-  assert.deepEqual([o.kabuk.ust, o.kabuk.alt, ...o.kayma], [0, 508, 0, 0, 0]);
-  assert.equal(await sayfa.evaluate(() => document.getElementById("game").scrollTop), 0, "merdivenin dış kabı kaymamalı");
-  assert.ok(o.giris.ust >= o.merdiven.ust && o.giris.alt <= o.merdiven.alt, "uzun merdivende giriş satırı görünmüyor");
-  assert.ok(o.son.ust >= o.merdiven.ust - 1 && o.son.alt <= o.giris.ust, "uzun merdivende son kelime görünmüyor");
-  assert.ok(o.hedef.alt <= o.serit.ust, "hedef klavyenin üstünde kalmalı");
-  assert.ok(o.bas.alt <= o.merdiven.ust + 1 || o.bas.ust < o.son.ust, "eski basamaklar yukarı kaymalı");
-  if (process.env.EKRAN_DIZINI) {
-    await sayfa.waitForTimeout(400);                    // basamakların giriş animasyonu bitsin
-    await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "7-uzun-merdiven-klavye.png") });
-  }
-
-  // Pencere (ipucu teklifi, çözüm) de görünen alana sığar
-  const pencere = () => sayfa.evaluate(() => { const r = document.getElementById("modal").getBoundingClientRect(); return [r.top, r.height]; });
-  assert.deepEqual(await pencere(), [0, 508]);
-  // iOS sayfayı yine de kaydırırsa (görünen alanın üstü 0'dan büyük) kabuk görünen alanı izler
-  await sayfa.evaluate(() => { visualViewport.offsetTop = 60; visualViewport.dispatchEvent(new Event("scroll")); });
-  o = await olc();
-  assert.deepEqual([o.kabuk.ust, o.kabuk.alt, await pencere()], [60, 568, [60, 508]], "kabuk kayan görünen alanı izlemeli");
-  await sayfa.evaluate(() => { visualViewport.offsetTop = 0; visualViewport.dispatchEvent(new Event("scroll")); });
-  assert.deepEqual((await olc()).kabuk, { ust: 0, alt: 508 });
-
-  // Ana ekrana dönünce klavye kapanır; yeniden girişte ekran son ölçülen klavyeli boya HEMEN geçer
-  // (iOS boyut olayını klavye animasyonu bitince gönderir; ekran o anda sıçramasın)
-  await anaya(sayfa);
-  assert.notEqual((await durum(sayfa)).odak, "giris", "ana ekranda klavye kapanmalı");
-  await klavye(sayfa, false);
-  await sayfa.waitForFunction(() => document.documentElement.style.getPropertyValue("--vvh") === "844px");
-  await sayfa.tap("#btnGunluk");
-  assert.equal(await sayfa.evaluate(() => document.documentElement.style.getPropertyValue("--vvh")), "508px", "klavyeli boy önceden uygulanmalı");
-  // Klavye hiç açılmazsa (bağlı klavye) gerçek ölçüye dönülür
-  await sayfa.waitForFunction(() => document.documentElement.style.getPropertyValue("--vvh") === "844px", null, { timeout: 4000 });
+  assert.deepEqual(d.eylem, ["btnUndo", "btnGonder", "btnHint"]);
+  assert.deepEqual(d.baslik, ["btnMenu", "modAdi", "btnHelp"]);
+  assert.ok(d.eylemUst >= d.klavyeAlt - 1 && d.eylemAlt <= 844, "eylem sırası klavyenin altında, ekranın içinde olmalı");
+  assert.ok(d.gonder.height >= 52 && d.gonder.width >= 160, `Gönder büyük olmalı (${d.gonder.width}×${d.gonder.height})`);
+  assert.ok(d.geri.right <= d.gonder.left && d.ipucu.left >= d.gonder.right, "Geri al solda, İpucu sağda");
+  for (const b of [d.geri, d.ipucu]) assert.ok(b.width >= 44 && b.height >= 44 && Math.abs(b.width - b.height) < 1);
+  assert.deepEqual(d.yuvarlak, ["50%", "50%"]);
+  assert.deepEqual(d.rozet, ["5", "5"], "kalan hak rozetleri düğmelerde kalmalı");
+  assert.ok(d.harfBoy >= 44, `harf tuşu en az 44 px yüksek olmalı (${d.harfBoy})`);
+  // Gönder fiziksel Enter'la aynı işi yapar; Geri al eylem sırasından çalışır
+  const { zincir: [ilk] } = await durum(sayfa);
+  const [sonraki] = enKisaYol(ilk, await sayfa.evaluate(() => oyun.targetWord));
+  await bas(sayfa, sonraki);
+  assert.equal((await durum(sayfa)).zincir.length, 2);
+  await sayfa.tap("#btnUndo");
+  assert.equal((await durum(sayfa)).zincir.length, 1);
+  assert.equal(await sayfa.textContent("#btnUndo .hak"), "4");
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
+});
+
+test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven kendi içinde kayar", async () => {
+  for (const [en, boy] of [[375, 667], [390, 844], [430, 932]]) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
+    await oyunaGir(sayfa);
+    const olc = () => sayfa.evaluate(() => {
+      const r = (s) => { const k = document.querySelector(s).getBoundingClientRect(); return { ust: Math.round(k.top), alt: Math.round(k.bottom) }; };
+      const son = document.querySelector("#ladder .rung:last-child")?.getBoundingClientRect();
+      return { kabuk: r("#oyun"), baslik: r(".header"), giris: r("#inputRow"), hedef: r("#targetWord"), bas: r("#startWord"),
+        merdiven: r("#steps"), klavye: r("#keyboard"), eylem: r("#eylemler"), son: son && { ust: Math.round(son.top), alt: Math.round(son.bottom) },
+        tasma: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight || scrollY !== 0 };
+    });
+    let o = await olc();
+    const ad = `${en}×${boy}`;
+    assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.tasma], [0, boy, false], `${ad}: oyun ekranı tam sığmalı`);
+    assert.ok(o.baslik.ust >= 0 && o.eylem.alt <= boy, `${ad}: başlık ve eylem sırası görünmeli`);
+    assert.ok(o.bas.ust >= o.baslik.alt && o.hedef.alt <= o.klavye.ust, `${ad}: başlangıç ve hedef klavyenin üstünde`);
+    assert.ok(o.giris.ust >= o.merdiven.ust && o.giris.alt <= o.merdiven.alt, `${ad}: giriş satırı görünmeli`);
+
+    // Uzun merdiven: eski basamaklar yukarı kayar; son kelime, giriş satırı ve hedef görünür kalır
+    const { zincir: [bas0] } = await durum(sayfa);
+    const [bir] = enKisaYol(bas0, await sayfa.evaluate(() => oyun.targetWord));
+    for (let i = 0; i < 5; i++) { await yaz(sayfa, bir); await yaz(sayfa, bas0); }      // geri dönmek serbesttir
+    assert.equal((await durum(sayfa)).zincir.length, 11);
+    await sayfa.waitForTimeout(400);                    // basamakların giriş animasyonu bitsin
+    o = await olc();
+    assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.tasma], [0, boy, false], `${ad}: uzun merdivende ekran kaymamalı`);
+    assert.ok(o.giris.ust >= o.merdiven.ust && o.giris.alt <= o.merdiven.alt, `${ad}: uzun merdivende giriş satırı görünmüyor`);
+    assert.ok(o.son.ust >= o.merdiven.ust - 1 && o.son.alt <= o.giris.ust, `${ad}: uzun merdivende son kelime görünmüyor`);
+    assert.ok(o.hedef.alt <= o.klavye.ust, `${ad}: hedef klavyenin üstünde kalmalı`);
+    if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}.png`) });
+    assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+    await baglam.close();
+  }
 });
 
 test("uygulama arayüzü: ana ekran ⇄ oyun; her modun oyunu ayrı saklanır, yeniden açılışta sürer", async () => {
@@ -1039,7 +1041,7 @@ test("uygulama arayüzü: ana ekran ⇄ oyun; her modun oyunu ayrı saklanır, y
   assert.equal(await sayfa.textContent("#modAdi"), "Günün Bulmacası");
   assert.equal(await gorunur(sayfa, "#ana"), false, "oyunda ana ekran görünmemeli");
   // Sekmeler ve oyun içi ayar satırı uygulamada yok (ana ekrandadır)
-  for (const s of [".mode-tabs", "#freeSettings", ".brand-game", "#keyboard", "#dailyTimer"]) assert.equal(await gorunur(sayfa, s), false, `${s} görünmemeli`);
+  for (const s of [".mode-tabs", "#freeSettings", ".brand-game", "#dailyTimer"]) assert.equal(await gorunur(sayfa, s), false, `${s} görünmemeli`);
   const g = await durum(sayfa);
   const gunlukYol = enKisaYol(g.zincir[0], await sayfa.evaluate(() => oyun.targetWord));
   await yaz(sayfa, gunlukYol[0]);
@@ -1056,7 +1058,7 @@ test("uygulama arayüzü: ana ekran ⇄ oyun; her modun oyunu ayrı saklanır, y
 
   // Serbest oyun: günlükte kalınan yer silinmez
   await sayfa.tap("#btnSerbest");
-  await sayfa.waitForFunction(() => document.activeElement.id === "giris");
+  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
   assert.equal(await sayfa.textContent("#modAdi"), "Serbest Oyun");
   let s = await durum(sayfa);
   assert.equal(s.mod, "free");
@@ -1103,7 +1105,7 @@ test("uygulama arayüzü: ana ekran ⇄ oyun; her modun oyunu ayrı saklanır, y
   await baglam.close();
 });
 
-test("uygulama arayüzü: çözülen bulmacada klavye kapanır; ana ekran sonucu ve geri sayımı gösterir", async () => {
+test("uygulama arayüzü: çözülen bulmacada tuşlar yazmaz; ana ekran sonucu ve geri sayımı gösterir", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
   const g = await durum(sayfa);
@@ -1112,25 +1114,23 @@ test("uygulama arayüzü: çözülen bulmacada klavye kapanır; ana ekran sonucu
   await sayfa.waitForSelector("#modal:not(.hidden)");
   let d = await durum(sayfa);
   assert.equal(d.bitti, true);
-  assert.notEqual(d.odak, "giris", "çözülünce klavye kapanmalı");
-  assert.ok(await sayfa.evaluate(() => document.getElementById("giris").disabled));
-  assert.equal(await gorunur(sayfa, "#harfler"), false, "çözülen bulmacada harf şeridi görünmemeli");
   await sayfa.tap("#btnCloseModal");
-  assert.notEqual((await durum(sayfa)).odak, "giris", "çözülmüş bulmacada klavye açılmamalı");
+  await bas(sayfa, "A", false);
+  assert.equal((await durum(sayfa)).tampon, "", "çözülmüş bulmacada tuş yazmamalı");
   await anaya(sayfa);
   assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
   assert.equal(await sayfa.textContent("#gunlukDurum"), `Çözüldü · ${yol.length} adım · en az ${yol.length}`);
   assert.ok(await gorunur(sayfa, "#gunlukSonraki"));
   assert.match(await sayfa.textContent("#anaGeriSayim"), /^\d\d:\d\d:\d\d$/);
-  // Sonucu gör: çözüm tahtada durur, klavye açılmaz
+  // Sonucu gör: çözüm tahtada durur
   await sayfa.tap("#btnGunluk");
   d = await durum(sayfa);
-  assert.deepEqual([d.ekran, d.bitti, d.zincir.length, d.odak === "giris"], ["oyun", true, yol.length + 1, false]);
-  // Ana ekrandan serbest oyuna geçince klavye açılır
+  assert.deepEqual([d.ekran, d.bitti, d.zincir.length], ["oyun", true, yol.length + 1]);
+  // Ana ekrandan serbest oyuna geçince yeni bulmaca yazılabilir
   await anaya(sayfa);
   await sayfa.tap("#btnSerbest");
   d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.odak], ["free", false, "giris"]);
+  assert.deepEqual([d.mod, d.bitti], ["free", false]);
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
@@ -1144,18 +1144,18 @@ test("uygulama arayüzü: \"Nasıl oynanır?\" pencere olarak açılır; açıkk
   const y = await kutu(sayfa, "#nasil-oynanir");
   assert.deepEqual([y.ust, y.sol, y.en, y.boy], [0, 0, 390, 844], "yardım ekranı kaplamalı");
   assert.equal(await gorunur(sayfa, "#ana"), false, "yardım açıkken alttaki ekran ekran okuyucuya kapalı olmalı");
-  assert.match(await sayfa.textContent("#nasil-oynanir"), /telefonunun klavyesiyle yaz[\s\S]*Ç Ğ I İ Ö Ş Ü/);
+  assert.match(await sayfa.textContent("#nasil-oynanir"), /alttaki klavyeyle yaz, Gönder'e bas/);
+  assert.doesNotMatch(await sayfa.textContent("#nasil-oynanir"), /telefonunun klavyesi|şerit/);
   assert.deepEqual(await kucukHedefler(sayfa, "#btnYardimKapat"), []);
   assert.equal(await sayfa.evaluate(() => document.activeElement.id), "btnYardimKapat", "odak kapatma düğmesinde olmalı");
   await sayfa.tap("#btnYardimKapat");
   assert.equal(await gorunur(sayfa, "#nasil-oynanir"), false);
   assert.ok(await gorunur(sayfa, "#ana"));
 
-  // Oyundan: klavye kapanır, yazılan tuş tahtaya gitmez; "Anladım" oyuna ve klavyeye döndürür
+  // Oyundan: yazılan tuş tahtaya gitmez; "Anladım" oyuna döndürür
   await oyunaGir(sayfa);
   await sayfa.tap("#btnHelp");
   assert.ok(await gorunur(sayfa, "#nasil-oynanir"));
-  assert.notEqual((await durum(sayfa)).odak, "giris", "yardım açıkken klavye kapanmalı");
   await sayfa.keyboard.type("ab");
   assert.equal((await durum(sayfa)).tampon, "");
   // Enter odaktaki kapatma düğmesini çalıştırır; alttaki tahtaya kelime göndermez
@@ -1165,13 +1165,12 @@ test("uygulama arayüzü: \"Nasıl oynanır?\" pencere olarak açılır; açıkk
   await sayfa.tap("#btnHelp");
   await sayfa.tap('#nasil-oynanir a[href="#oyun"]');
   let d = await durum(sayfa);
-  assert.deepEqual([await gorunur(sayfa, "#nasil-oynanir"), d.ekran, d.odak], [false, "oyun", "giris"]);
+  assert.deepEqual([await gorunur(sayfa, "#nasil-oynanir"), d.ekran], [false, "oyun"]);
   assert.equal(await sayfa.evaluate(() => location.hash), "", "sayfa içi bağlantı adresi değiştirmemeli");
   // Escape de kapatır
   await sayfa.tap("#btnHelp");
   await sayfa.keyboard.press("Escape");
-  d = await durum(sayfa);
-  assert.deepEqual([await gorunur(sayfa, "#nasil-oynanir"), d.odak], [false, "giris"]);
+  assert.equal(await gorunur(sayfa, "#nasil-oynanir"), false);
   assert.ok(await tasmaYok(sayfa));
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
@@ -1201,8 +1200,8 @@ test("uygulama arayüzü: ses tercihi hatırlanır; dar ekranda taşma ve küç�
     assert.ok(await tasmaYok(sayfa), `${en} px: ana ekranda yatay taşma`);
     for (const mod of ["daily", "free"]) {
       await sayfa.tap(mod === "daily" ? "#btnGunluk" : "#btnSerbest");
-      await sayfa.waitForFunction(() => document.activeElement.id === "giris");
-      assert.deepEqual(await kucukHedefler(sayfa, "#harfler .harf, #oyun .icon-btn"), [], `${en} px: oyunda küçük dokunma hedefi`);
+      await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
+      assert.deepEqual(await kucukHedefler(sayfa, "#oyun .icon-btn, #eylemler button"), [], `${en} px: oyunda küçük dokunma hedefi`);
       assert.ok(await tasmaYok(sayfa), `${en} px: oyunda yatay taşma`);
       assert.ok(await sayfa.evaluate(() => { const m = document.getElementById("modAdi"); return m.scrollWidth <= m.clientWidth; }), `${en} px: mod adı kesiliyor`);
       await anaya(sayfa);
@@ -1212,7 +1211,7 @@ test("uygulama arayüzü: ses tercihi hatırlanır; dar ekranda taşma ve küç�
   }
 });
 
-test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf tahtaya gitmez", async () => {
+test("uygulama arayüzü: ipucu teklifi açıkken ne ekran tuşu ne bağlı klavye tahtaya yazar", async () => {
   const { baglam, sayfa, bekle } = await gelirSayfasi({ haklar: { geriAl: 5, ipucu: 1, gun: "" } });
   await bekle(() => window.__cagri.some((c) => c[0] === "prepareRewardVideoAd"));
   await oyunaGir(sayfa);
@@ -1221,11 +1220,12 @@ test("uygulama arayüzü: ipucu teklifi açıkken klavye kapanır, yazılan harf
   await yaz(sayfa, enKisaYol(g.zincir[0], await sayfa.evaluate(() => oyun.targetWord))[0]);
   await sayfa.tap("#btnHint");                            // hak bitti: teklif penceresi
   await sayfa.waitForSelector("#offer:not(.hidden)");
-  assert.notEqual((await durum(sayfa)).odak, "giris", "teklif açıkken klavye kapanmalı");
   await sayfa.keyboard.type("ab");
+  await tusaDokun(sayfa, "A");                           // pencerenin perdesi tuşu örter
   assert.equal((await durum(sayfa)).tampon, "");
   await sayfa.tap("#btnCloseOffer");
-  assert.equal((await durum(sayfa)).odak, "giris", "teklif kapanınca klavye geri gelmeli");
+  await bas(sayfa, "A", false);
+  assert.equal((await durum(sayfa)).tampon, "A", "teklif kapanınca tuşlar yeniden yazmalı");
   // Ana ekrana dönünce açık pencere kalmaz
   await sayfa.tap("#btnHint");
   await sayfa.waitForSelector("#offer:not(.hidden)");
@@ -1246,10 +1246,9 @@ async function gezin(sayfa, adimSayisi) {
   return hedef;
 }
 
-test("uygulama arayüzü: Geri al ve Sonucu göster klavye açıkken görünür; onay açıkken klavye kapanır", async () => {
+test("uygulama arayüzü: Geri al ve Sonucu göster görünür; onay açıkken tuşlar yazmaz", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa, "daily");
-  await klavye(sayfa, true);
   const [bas, hedef, en] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord, oyun.optimal]);
   assert.ok(await gorunur(sayfa, "#btnUndo"), "Geri al düğmesi uygulamada görünmüyor");
   assert.equal(await sayfa.evaluate(() => document.getElementById("btnUndo").disabled), true, "başlangıçta Geri al devre dışı olmalı");
@@ -1257,26 +1256,25 @@ test("uygulama arayüzü: Geri al ve Sonucu göster klavye açıkken görünür;
   await yaz(sayfa, enKisaYol(bas, hedef)[0]);
   await sayfa.tap("#btnUndo");
   const d = await durum(sayfa);
-  assert.deepEqual([d.zincir.length, d.odak], [1, "giris"], "Geri al zinciri kısaltmalı, klavye açık kalmalı");
-  // Eşik aşılınca Sonucu göster görünür, klavye açıkken görünen alanın içindedir
+  assert.equal(d.zincir.length, 1, "Geri al zinciri kısaltmalı");
+  // Eşik aşılınca Sonucu göster görünür, klavyenin üstünde ekranın içindedir
   await gezin(sayfa, en + 1);
   assert.ok(await gorunur(sayfa, "#btnShowResult"), "Sonucu göster görünmüyor");
   const k = await kutu(sayfa, "#btnShowResult");
-  assert.ok(k.alt <= 844 - KLAVYE && k.en >= 44, `Sonucu göster klavye açıkken görünür olmalı (${JSON.stringify(k)})`);
-  // Onay penceresi: klavye kapanır, yazılan harf tahtaya gitmez; vazgeçince klavye geri gelir
+  assert.ok(k.alt <= (await kutu(sayfa, "#keyboard")).ust && k.en >= 44, `Sonucu göster görünür olmalı (${JSON.stringify(k)})`);
+  // Onay penceresi: yazılan harf tahtaya gitmez
   await sayfa.tap("#btnShowResult");
   await sayfa.waitForSelector("#pes:not(.hidden)");
-  assert.notEqual((await durum(sayfa)).odak, "giris", "onay açıkken klavye kapanmalı");
   await sayfa.keyboard.type("ab");
+  await tusaDokun(sayfa, "A");
   assert.equal((await durum(sayfa)).tampon, "");
   await sayfa.tap("#btnPesVazgec");
-  assert.equal((await durum(sayfa)).odak, "giris", "vazgeçince klavye geri gelmeli");
-  // Evet: oyun biter, klavye kapanır
+  // Evet: oyun biter
   await sayfa.tap("#btnShowResult");
   await sayfa.tap("#btnPesEvet");
-  const son = await sayfa.evaluate(() => ({ bitti: oyun.over, gosterildi: oyun.shown, odak: document.activeElement.id,
+  const son = await sayfa.evaluate(() => ({ bitti: oyun.over, gosterildi: oyun.shown,
     kayit: JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())) }));
-  assert.deepEqual([son.bitti, son.gosterildi, son.odak === "giris"], [true, true, false]);
+  assert.deepEqual([son.bitti, son.gosterildi], [true, true]);
   assert.equal(son.kayit.steps, 0, "günlükte çözüm kaydı oluşmamalı");
   // Ana ekran kartı "çözüm gösterildi"yi okur: ne "adım attın" ne "Oyna"
   await sayfa.evaluate(() => document.getElementById("btnAna").click());
@@ -1291,7 +1289,7 @@ test("uygulama arayüzü: Geri al ve Sonucu göster klavye açıkken görünür;
   assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
   await sayfa.tap("#btnGunluk");
   await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
-  assert.deepEqual(await sayfa.evaluate(() => [oyun.mode, oyun.over, oyun.shown, document.activeElement.id === "giris"]), ["daily", true, true, false]);
+  assert.deepEqual(await sayfa.evaluate(() => [oyun.mode, oyun.over, oyun.shown]), ["daily", true, true]);
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası");
   await baglam.close();
 });
@@ -1307,12 +1305,11 @@ test("uygulama arayüzü: gecikmeli çözüm penceresi, o arada geçilen başka 
   await sayfa.evaluate(() => document.getElementById("btnAna").click());
   // Serbest bulmacayı çöz; pencere açılmadan (650 ms) ana ekrana, oradan çözülmüş günlüğe geç
   await sayfa.tap("#btnSerbest");
-  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun" && document.activeElement.id === "giris");
+  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
   const [sb, sh] = await sayfa.evaluate(() => [oyun.startWord, oyun.targetWord]);
   const yol = enKisaYol(sb, sh);
   for (const k of yol.slice(0, -1)) await yaz(sayfa, k);
-  await sayfa.keyboard.type(yol[yol.length - 1].toLocaleLowerCase("tr-TR"));
-  await sayfa.keyboard.press("Enter");
+  await yaz(sayfa, yol[yol.length - 1]);
   await sayfa.evaluate(() => {
     document.getElementById("btnAna").click();
     document.getElementById("btnGunluk").click();
@@ -1353,7 +1350,7 @@ test("uygulama arayüzü: çözüm penceresindeki \"Serbest Oyun\" ve bitmiş ta
   assert.equal(await sayfa.textContent("#btnNewGame"), "Serbest Oyun");
   await sayfa.tap("#btnNewGame");
   d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.zincir, d.ekran, d.odak], ["free", serbest, "oyun", "giris"], "penceredeki Serbest Oyun kalınan yeri ezdi");
+  assert.deepEqual([d.mod, d.zincir, d.ekran], ["free", serbest, "oyun"], "penceredeki Serbest Oyun kalınan yeri ezdi");
   assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")));
   assert.deepEqual(await kayitliSerbest(), serbest);
 
@@ -1373,7 +1370,7 @@ test("uygulama arayüzü: çözüm penceresindeki \"Serbest Oyun\" ve bitmiş ta
   assert.equal(await sayfa.textContent("#btnNewGame"), "Yeni Oyun");
   await sayfa.tap("#btnNewGame");
   d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.zincir.length, d.odak], ["free", false, 1, "giris"]);
+  assert.deepEqual([d.mod, d.bitti, d.zincir.length], ["free", false, 1]);
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
@@ -1395,7 +1392,6 @@ test("uygulama arayüzü: çözümden hemen sonra başka ekrana geçilirse çöz
   assert.deepEqual([d.mod, d.bitti, d.ekran], ["free", false, "oyun"]);
   await sayfa.waitForTimeout(900);
   assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")), "günlüğün çözüm penceresi serbest oyunun üstünde açıldı");
-  assert.equal((await durum(sayfa)).odak, "giris");
   // Günlük yine çözülmüş sayılır; sonuç ana ekranda ve tahtada durur
   await anaya(sayfa);
   assert.equal(await sayfa.textContent("#btnGunluk"), "Sonucu gör");
@@ -1410,28 +1406,6 @@ test("uygulama arayüzü: çözümden hemen sonra başka ekrana geçilirse çöz
   await anaya(sayfa);
   await sayfa.evaluate(() => oyun.showModal());
   assert.ok(await sayfa.evaluate(() => document.getElementById("modal").classList.contains("hidden")), "ana ekranın üstünde çözüm penceresi açıldı");
-  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
-  await baglam.close();
-});
-
-test("uygulama arayüzü: şapkalı harf şapkasız yazılır; bileşim (IME) bitince tahtaya geçer", async () => {
-  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_uzunluk: "5" } });
-  await oyunaGir(sayfa, "free");
-  // Sözlük şapkasızdır (kâse → KASE): â → A, î → İ, û → U; sessizce düşmez
-  await sayfa.keyboard.insertText("kâîûÂ");
-  let d = await durum(sayfa);
-  assert.deepEqual([d.tampon, d.alan], ["KAİUA", "KAİUA"]);
-  await sil(sayfa);
-  // Bileşim sürerken alan yarım metin tutar; tahta bileşim bitince güncellenir
-  await sayfa.evaluate(() => {
-    const g = document.getElementById("giris");
-    g.value = "çay";
-    g.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true, inputType: "insertCompositionText" }));
-  });
-  assert.equal((await durum(sayfa)).tampon, "", "bileşim sürerken tahtaya yazılmamalı");
-  await sayfa.evaluate(() => document.getElementById("giris").dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "çay" })));
-  d = await durum(sayfa);
-  assert.deepEqual([d.tampon, d.alan], ["ÇAY", "ÇAY"], "bileşim bitince tahta eşitlenmeli");
   assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
   await baglam.close();
 });
@@ -1467,7 +1441,7 @@ test("uygulama arayüzü: günlük tekrar sürerken mod değiştirmek tekrarı v
   await sayfa.waitForSelector("#modal:not(.hidden)");
   await sayfa.tap("#btnRetry");                               // web'de (kanca yok) tekrar serbesttir
   let d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.zincir.length, d.odak], ["daily", false, 1, "giris"], "tekrar başlayınca klavye açılmalı");
+  assert.deepEqual([d.mod, d.bitti, d.zincir.length], ["daily", false, 1], "tekrar başlamalı");
   await yaz(sayfa, yol[0]);
   const deneme = (await durum(sayfa)).zincir;
   assert.equal(deneme.length, 2);
@@ -1488,7 +1462,7 @@ test("uygulama arayüzü: günlük tekrar sürerken mod değiştirmek tekrarı v
   assert.equal(await sayfa.textContent("#btnGunluk"), "Devam et");
   await sayfa.tap("#btnGunluk");
   d = await durum(sayfa);
-  assert.deepEqual([d.mod, d.bitti, d.zincir, d.odak], ["daily", false, deneme, "giris"], "süren tekrar mod değişiminde kayboldu");
+  assert.deepEqual([d.mod, d.bitti, d.zincir], ["daily", false, deneme], "süren tekrar mod değişiminde kayboldu");
   assert.deepEqual(await ilkSonuc(), [yol.length + 2, deneme], "ilk sonuç ya da tekrar kaydı bozuldu");
   // Yeniden açılışta da sürer; serbest oyun da yerinde
   await sayfa.reload();
@@ -1575,80 +1549,19 @@ test("uygulama arayüzü: çözülmüş günlükte tekrar Sonucu göster ile bit
   await baglam.close();
 });
 
-test("uygulama arayüzü: Türkçe harf şeridi ana ekrandan kapatılır, hatırlanır; kapalıyken yer kaplamaz", async () => {
-  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+test("uygulama arayüzü: Türkçe harf şeridi kalktı; düğmesi ve menü anahtarı yok, eski sm_serit kaydı açılışta silinir", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar: { sm_serit: "0" } });
   await anaEkran(sayfa);
-  const dugme = () => sayfa.evaluate(() => { const d = document.getElementById("btnSerit"); return [d.getAttribute("aria-pressed"), d.getAttribute("aria-label")]; });
-  assert.deepEqual(await dugme(), ["true", "Türkçe harf şeridi"], "varsayılan açık olmalı");
-  assert.deepEqual(await kucukHedefler(sayfa, "#btnSerit, #btnMute"), [], "ana ekran düğmeleri en az 44 px");
-  // Ses düğmesinin yanında, aynı satırda
-  const s = await kutu(sayfa, "#btnSerit"), m = await kutu(sayfa, "#btnMute");
-  assert.ok(Math.abs(s.ust - m.ust) < 1 && s.sag <= m.sol, "şerit düğmesi ses düğmesinin solunda olmalı");
-  assert.match(await sayfa.textContent("#nasil-oynanir"), /şeridi menüden kapatabilirsin/);
-
-  // Açıkken (klavye açık, görünen alan 508): şerit klavyenin hemen üstünde
-  const olc = () => sayfa.evaluate(() => {
-    const r = (id) => { const k = document.getElementById(id).getBoundingClientRect(); return { ust: Math.round(k.top), alt: Math.round(k.bottom), boy: Math.round(k.height) }; };
-    return { kabuk: r("oyun"), serit: r("harfler"), hedef: r("targetWord"), giris: r("inputRow"), merdiven: r("steps"),
-      seritGorunur: getComputedStyle(document.getElementById("harfler")).display !== "none" };
-  });
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_serit")), null, "eski kayıt silinmeli");
+  assert.deepEqual(await sayfa.evaluate(() => ["btnSerit", "menuSerit", "harfler"].filter((id) => document.getElementById(id))), []);
+  assert.equal(await sayfa.evaluate(() => document.body.classList.contains("serit-yok")), false);
+  // Ana ekranın üst satırında yalnızca ses düğmesi
+  assert.deepEqual(await sayfa.evaluate(() => [...document.getElementById("anaUst").children].map((e) => e.id)), ["btnMute"]);
   await oyunaGir(sayfa);
-  await klavye(sayfa, true);
-  const acik = await olc();
-  assert.deepEqual([acik.kabuk.alt, acik.serit.alt, acik.seritGorunur], [508, 508, true]);
-
-  // Kapat: şerit görünmez, HEDEF klavyenin hemen üstüne iner, merdiven büyür
-  await anaya(sayfa);
-  await sayfa.tap("#btnSerit");
-  assert.equal((await dugme())[0], "false");
-  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_serit")), "0");
-  await sayfa.tap("#btnGunluk");
-  await sayfa.waitForFunction(() => document.activeElement.id === "giris");
-  await klavye(sayfa, true);
-  let kapali = await olc();
-  assert.equal(kapali.seritGorunur, false, "kapalıyken şerit görünmemeli");
-  assert.equal(kapali.kabuk.alt, 508, "oyun ekranı görünen alana sığmalı");
-  assert.ok(kapali.hedef.alt <= 508 && kapali.hedef.alt > acik.hedef.alt, `şeridin yeri boş kalmamalı (hedef ${acik.hedef.alt} → ${kapali.hedef.alt})`);
-  assert.ok(kapali.merdiven.boy > acik.merdiven.boy, "merdiven şeridin yerini kullanmalı");
-  assert.ok(kapali.giris.ust >= kapali.merdiven.ust && kapali.giris.alt <= kapali.merdiven.alt, "giriş satırı görünmeli");
-  // Klavyedeki harf yazmaya devam eder
-  await sayfa.keyboard.type("ç");
-  assert.equal((await durum(sayfa)).tampon, "Ç");
-
-  // Yeniden açılışta hatırlanır
-  await sayfa.reload();
-  await sayfa.waitForFunction(() => window.oyun?.db && window.oyun.startWord);
-  await anaEkran(sayfa);
-  assert.equal((await dugme())[0], "false", "kapalı tercih yeniden açılışta kayboldu");
-  await oyunaGir(sayfa);
-  assert.equal(await gorunur(sayfa, "#harfler"), false);
-  // Yeniden aç
-  await anaya(sayfa);
-  await sayfa.tap("#btnSerit");
-  assert.equal((await dugme())[0], "true");
-  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_serit")), null);
-  await oyunaGir(sayfa);
-  assert.ok(await gorunur(sayfa, "#harfler"), "açınca şerit geri gelmeli");
+  await bas(sayfa, "Ç", false);
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_serit")), null, "oynarken yeniden yazılmamalı");
   assert.deepEqual(kayit.hatalar, []);
-  if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "9-serit-acik.png") });
   await baglam.close();
-
-  // En dar iPhone (320 px): şerit kapalıyken ana ekran ve oyun taşmaz, dokunma hedefleri yeterli
-  const dar = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: 320, height: 568 } }, kayitlar: { sm_serit: "0", sm_uzunluk: "5" } });
-  await anaEkran(dar.sayfa);
-  assert.equal(await dar.sayfa.evaluate(() => document.getElementById("btnSerit").getAttribute("aria-pressed")), "false");
-  assert.deepEqual(await kucukHedefler(dar.sayfa, "#ana button, #ana a"), [], "320 px: ana ekranda küçük dokunma hedefi");
-  assert.ok(await tasmaYok(dar.sayfa), "320 px: ana ekranda taşma");
-  await oyunaGir(dar.sayfa, "free");
-  const d = await dar.sayfa.evaluate(() => ({ serit: getComputedStyle(document.getElementById("harfler")).display,
-    hedef: document.getElementById("targetWord").getBoundingClientRect().bottom,
-    giris: document.getElementById("inputRow").getBoundingClientRect().bottom, gorunen: visualViewport.height }));
-  assert.equal(d.serit, "none");
-  assert.ok(d.hedef <= d.gorunen && d.giris <= d.hedef, `320 px: giriş satırı ve HEDEF ekranda olmalı (${d.giris}, ${d.hedef} / ${d.gorunen})`);
-  assert.deepEqual(await kucukHedefler(dar.sayfa, "#oyun .icon-btn"), [], "320 px: oyunda küçük dokunma hedefi");
-  assert.ok(await tasmaYok(dar.sayfa), "320 px: oyunda taşma");
-  assert.deepEqual(dar.kayit.hatalar, []);
-  await dar.baglam.close();
 });
 
 /* ---------- Sayılı haklar (site PR'ı: sayili-haklar): geri al ve ipucu, yenile onayı ---------- */
@@ -1684,7 +1597,6 @@ test("uygulama arayüzü: sayılı haklar — rozet, 0 hakta geri al için ödü
   assert.equal(await sayfa.textContent("#offerTitle"), "Geri alma hakkın bitti");
   assert.equal(await sayfa.textContent("#btnOfferAd"), "Reklam izle, geri al");
   assert.equal((await durum(sayfa)).zincir.length, 2, "teklif açılınca adım henüz geri alınmamalı");
-  assert.notEqual((await durum(sayfa)).odak, "giris", "teklif açıkken klavye kapanmalı");
   if (process.env.EKRAN_DIZINI) {
     await sayfa.waitForTimeout(400);
     await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "h2-geri-al-teklifi.png") });
@@ -1711,7 +1623,7 @@ test("uygulama arayüzü: sayılı haklar — rozet, 0 hakta geri al için ödü
   await p.baglam.close();
 });
 
-test("uygulama arayüzü: yenile düğmesi başlıkta yok; serbestte menüdeki \"Serbest oyun\" yeni bulmaca açar, ilerleme varken onay ister, onay açıkken klavye kapanır", async () => {
+test("uygulama arayüzü: yenile düğmesi başlıkta yok; serbestte menüdeki \"Serbest oyun\" yeni bulmaca açar, ilerleme varken onay ister, onay açıkken tuşlar yazmaz", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa, "free");
   // Sahip notu (15 Kasım 2026): yenile düğmesi geri okuna benziyordu; başlıkta yalnızca menü, mod adı ve yardım
@@ -1729,8 +1641,8 @@ test("uygulama arayüzü: yenile düğmesi başlıkta yok; serbestte menüdeki \
   await yeni();
   await sayfa.waitForSelector("#yenile:not(.hidden)");
   assert.equal(await sayfa.textContent("#yenileTitle"), "Yeni bulmaca açılsın mı?");
-  assert.notEqual((await durum(sayfa)).odak, "giris", "onay açıkken klavye kapanmalı");
   await sayfa.keyboard.type("ab");
+  await tusaDokun(sayfa, "A");
   assert.equal((await durum(sayfa)).tampon, "");
   if (process.env.EKRAN_DIZINI) {
     await sayfa.waitForTimeout(400);
@@ -1738,74 +1650,72 @@ test("uygulama arayüzü: yenile düğmesi başlıkta yok; serbestte menüdeki \
   }
   await sayfa.tap("#btnYenileVazgec");
   let d = await durum(sayfa);
-  assert.deepEqual([d.zincir.length, d.odak], [2, "giris"], "vazgeçince ilerleme kalmalı, klavye geri gelmeli");
+  assert.equal(d.zincir.length, 2, "vazgeçince ilerleme kalmalı");
   await yeni();
   await sayfa.tap("#btnYenileEvet");
   d = await durum(sayfa);
-  assert.deepEqual([d.zincir.length, d.odak, d.mod, await sayfa.evaluate(() => document.getElementById("yenile").classList.contains("hidden"))],
-    [1, "giris", "free", true], "onaydan sonra yeni bulmaca açılmalı, onay kapanmalı, klavye açık kalmalı");
+  assert.deepEqual([d.zincir.length, d.mod, await sayfa.evaluate(() => document.getElementById("yenile").classList.contains("hidden"))],
+    [1, "free", true], "onaydan sonra yeni bulmaca açılmalı, onay kapanmalı");
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
 
-test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş); odak ve klavye; günlükte \"Yeniden dene\" yok", async () => {
+test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş); odak; açıkken tuşlar yazmaz; günlükte \"Yeniden dene\" yok", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
   const m = () => sayfa.evaluate(() => ({ acik: !document.getElementById("menu").classList.contains("hidden"),
     genis: document.getElementById("btnMenu").getAttribute("aria-expanded"), odak: document.activeElement.id,
     gizli: document.getElementById("menu").getAttribute("aria-hidden") }));
   assert.equal(await sayfa.getAttribute("#btnMenu", "aria-controls"), "menu");
-  assert.deepEqual(await m(), { acik: false, genis: "false", odak: "giris", gizli: "true" });
+  assert.deepEqual({ ...await m(), odak: undefined }, { acik: false, genis: "false", odak: undefined, gizli: "true" });
   await birAdim(sayfa);
   await sayfa.tap("#btnMenu");
-  assert.deepEqual(await m(), { acik: true, genis: "true", odak: "btnAna", gizli: "false" }, "açılınca odak ilk öğede, klavye kapalı");
+  assert.deepEqual(await m(), { acik: true, genis: "true", odak: "btnAna", gizli: "false" }, "açılınca odak ilk öğede");
   // Günlükte "Baştan başla" yok (sahip kararı): yeni oyun satırı hiç görünmez
   assert.equal(await gorunur(sayfa, "#menuYeniden"), false, "günlükte Yeniden dene görünmemeli (sahibin cevabı bekleniyor)");
   const ogeler = () => sayfa.evaluate(() => [...document.querySelectorAll("#menu button")].filter((e) => !e.hidden).map((e) => e.textContent.trim()));
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Ses"]);
   // Eylemler büyük tuş (en az 52 px, sitenin birincil/ikincil tuşları), ayarlar küçük satır
   assert.deepEqual(await sayfa.evaluate(() => ["btnAna", "menuSerbest"].map((id) => [document.getElementById(id).className,
     Math.round(document.getElementById(id).getBoundingClientRect().height) >= 52])), [["btn-primary", true], ["btn-secondary", true]]);
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll('#menu [role="switch"]')].map((e) => [e.id, e.getAttribute("aria-checked")])),
-    [["menuTitresim", "true"], ["menuSerit", "true"], ["menuSes", "true"]]);
+    [["menuTitresim", "true"], ["menuSes", "true"]]);
   assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), [], "menü satırları en az 44 px");
   assert.ok(await tasmaYok(sayfa));
   // Odak tuzağı: Tab ve Shift+Tab menünün görünen satırları arasında döner
   const odaklar = [];
-  for (let i = 0; i < 6; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
-  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSerit", "menuSes", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
+  for (let i = 0; i < 5; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
+  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSes", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
   await sayfa.keyboard.press("Shift+Tab");
   assert.equal((await m()).odak, "menuSes", "ilk satırda Shift+Tab sona gitmeli");
   await sayfa.keyboard.press("Tab");
-  // Menü açıkken yazılan harf tahtaya gitmez
+  // Menü açıkken yazılan harf ve ekran tuşu tahtaya gitmez (perde tuşları örter)
   await sayfa.keyboard.type("ab");
+  await tusaDokun(sayfa, "A");
   assert.equal((await durum(sayfa)).tampon, "");
+  if ((await m()).acik === false) await sayfa.tap("#btnMenu");   // perdeye dokunuş menüyü kapatır
   await sayfa.keyboard.press("Escape");
-  assert.deepEqual(await m(), { acik: false, genis: "false", odak: "giris", gizli: "true" }, "Escape kapatır; oyunda klavye geri gelir");
+  assert.deepEqual(await m(), { acik: false, genis: "false", odak: "btnMenu", gizli: "true" }, "Escape kapatır; odak menü düğmesine döner");
   assert.equal((await durum(sayfa)).zincir.length, 2, "menü ilerlemeye dokunmaz");
   // Dışarı (perdeye) dokunuş kapatır
   await sayfa.tap("#btnMenu");
   await sayfa.mouse.click(195, 100);
-  assert.deepEqual(await m(), { acik: false, genis: "false", odak: "giris", gizli: "true" }, "dışarı dokunuş kapatır");
-  // Nasıl oynanır? menüden açılır; odak kapat düğmesine gider, #giris arada odak almaz (iOS'ta klavye kıpırdardı)
-  await sayfa.evaluate(() => { window.__girisOdak = 0; document.getElementById("giris").addEventListener("focus", () => window.__girisOdak++); });
+  assert.deepEqual(await m(), { acik: false, genis: "false", odak: "btnMenu", gizli: "true" }, "dışarı dokunuş kapatır");
+  // Nasıl oynanır? menüden açılır; odak kapat düğmesine gider
   await sayfa.tap("#btnMenu");
   await sayfa.tap("#menuYardim");
   assert.ok(await sayfa.evaluate(() => document.body.classList.contains("yardim")));
   assert.equal((await m()).odak, "btnYardimKapat");
-  assert.equal(await sayfa.evaluate(() => window.__girisOdak), 0, "yardım açılırken klavye bir an açılmamalı");
   await sayfa.tap("#btnYardimKapat");
-  // Ana menü: ana ekran; #giris arada odak almaz
-  await sayfa.evaluate(() => { window.__girisOdak = 0; });
+  // Ana menü: ana ekran
   await anaya(sayfa);
-  assert.equal(await sayfa.evaluate(() => window.__girisOdak), 0, "ana ekrana dönerken klavye bir an açılmamalı");
   assert.equal((await durum(sayfa)).ekran, "ana");
   assert.equal((await m()).acik, false);
   // Serbestte yeni oyun satırı görünür
   await sayfa.tap("#btnSerbest");
-  await sayfa.waitForFunction(() => document.activeElement.id === "giris");
+  await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
   await sayfa.tap("#btnMenu");
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Türkçe harf şeridi", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Ses"]);
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
@@ -1869,8 +1779,8 @@ test("uygulama arayüzü: menüdeki \"Yeniden dene\" aynı bulmacayı baştan a�
   await sayfa.waitForSelector("#yenile:not(.hidden)");
   await sayfa.tap("#btnYenileEvet");
   const d = await durum(sayfa);
-  assert.deepEqual([...(await bulmaca()), d.odak, await sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_state")).chain.length)],
-    [bas, hedef, 1, false, "giris", 1], "aynı bulmaca baştan açılmalı, kaydedilmeli, klavye açık kalmalı");
+  assert.deepEqual([...(await bulmaca()), d.tampon, await sayfa.evaluate(() => JSON.parse(localStorage.getItem("sm_state")).chain.length)],
+    [bas, hedef, 1, false, "", 1], "aynı bulmaca baştan açılmalı, kaydedilmeli");
   // Çözülmüş serbest bulmaca da baştan açılır
   for (const k of enKisaYol(bas, hedef)) await yaz(sayfa, k);
   await sayfa.waitForSelector("#modal:not(.hidden)");
@@ -1911,14 +1821,14 @@ test("uygulama arayüzü: günlükte menüdeki \"Serbest oyun\" serbest moda ge�
   const serbest = await sayfa.evaluate(() => oyun.chain.slice());
   await anaya(sayfa);
   await sayfa.tap("#btnGunluk");
-  await sayfa.waitForFunction(() => oyun.mode === "daily" && document.activeElement.id === "giris");
+  await sayfa.waitForFunction(() => oyun.mode === "daily");
   await birAdim(sayfa);
   const gunluk = await sayfa.evaluate(() => oyun.chain.slice());
   await sayfa.tap("#btnMenu");
   await sayfa.tap("#menuSerbest");
   await sayfa.waitForFunction(() => oyun.mode === "free");
   let d = await durum(sayfa);
-  assert.deepEqual([d.zincir, d.ekran, d.odak, await gorunur(sayfa, "#yenile")], [serbest, "oyun", "giris", false], "kalınan serbest oyun sürmeli, onay sorulmamalı");
+  assert.deepEqual([d.zincir, d.ekran, await gorunur(sayfa, "#yenile")], [serbest, "oyun", false], "kalınan serbest oyun sürmeli, onay sorulmamalı");
   assert.equal(await sayfa.textContent("#modAdi"), "Serbest Oyun");
   // Günlükte kalınan yer de silinmedi
   await anaya(sayfa);
@@ -1929,33 +1839,27 @@ test("uygulama arayüzü: günlükte menüdeki \"Serbest oyun\" serbest moda ge�
   await baglam.close();
 });
 
-test("uygulama arayüzü: menüdeki şerit ve ses ana ekrandaki düğmelerle aynı kaydı tutar", async () => {
+test("uygulama arayüzü: menüdeki ses ana ekrandaki düğmeyle aynı kaydı tutar", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   await oyunaGir(sayfa);
   await sayfa.tap("#btnMenu");
-  await sayfa.tap("#menuSerit");
   await sayfa.tap("#menuSes");
-  assert.deepEqual([await sayfa.getAttribute("#menuSerit", "aria-checked"), await sayfa.getAttribute("#menuSes", "aria-checked")], ["false", "false"]);
+  assert.equal(await sayfa.getAttribute("#menuSes", "aria-checked"), "false");
   assert.equal(await gorunur(sayfa, "#menu"), true, "ayar değiştirmek menüyü kapatmaz");
   await sayfa.waitForFunction(() => localStorage.getItem("sm_ses") === "0");
-  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_serit")), "0");
   await sayfa.tap("#btnAna");
-  assert.equal(await sayfa.getAttribute("#btnSerit", "aria-pressed"), "false", "ana ekrandaki şerit düğmesi de kapalı görünmeli");
   assert.equal(await sayfa.evaluate(() => document.getElementById("btnMute").classList.contains("muted")), true, "ana ekrandaki ses düğmesi de kapalı görünmeli");
   // Ana ekrandan açınca menü de açık gösterir
-  await sayfa.tap("#btnSerit");
   await sayfa.tap("#btnMute");
   await oyunaGir(sayfa);
-  assert.equal(await gorunur(sayfa, "#harfler"), true);
   await sayfa.tap("#btnMenu");
-  assert.deepEqual([await sayfa.getAttribute("#menuSerit", "aria-checked"), await sayfa.getAttribute("#menuSes", "aria-checked")], ["true", "true"]);
+  assert.equal(await sayfa.getAttribute("#menuSes", "aria-checked"), "true");
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
 
 test("uygulama: titreşim menüden kapatılınca Haptics hiç çağrılmaz; açınca yeniden çağrılır", async () => {
   const baglam = await tarayici.newContext(TELEFON);
-  await baglam.addInitScript(SAHTE_GORUNUM);
   await baglam.addInitScript(() => {
     window.__cagri = [];
     const kaydet = (ad) => (arg) => { window.__cagri.push([ad, arg]); return Promise.resolve(); };
@@ -1970,6 +1874,8 @@ test("uygulama: titreşim menüden kapatılınca Haptics hiç çağrılmaz; aç�
   assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_titresim")), "0");
   await sayfa.keyboard.press("Escape");
   const once = await say();
+  await bas(sayfa, "A", false);                          // ekran tuşu: hafif dokunuş olurdu
+  await sayfa.tap('#keyboard .key[data-key="BACK"]');
   await birAdim(sayfa);                                  // kabul: hafif dokunuş olurdu
   await yaz(sayfa, "zzzz");                              // geçersiz: hata titreşimi olurdu
   assert.equal((await durum(sayfa)).zincir.length, 2);

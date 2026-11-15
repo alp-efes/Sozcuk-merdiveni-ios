@@ -6,10 +6,10 @@
  * Site (app.js, style.css) değiştirilmeden paketlenir ve web'de bugünkü gibi
  * kalır. Uygulamaya özgü deneyim buradadır:
  *   - açılış ekranı → ana ekran (Günün Bulmacası / Serbest Oyun) ⇄ oyun
- *   - sitenin ekran klavyesi yerine telefonun klavyesi + Türkçe harf şeridi
- *   - oyun ekranı kaymaz; klavye açılınca görünen alana sığar
+ *   - ekran klavyesi Türkçe Q dizilişinde; altında eylem sırası (Geri al, Gönder, İpucu)
+ *   - oyun ekranı kaymaz; telefonun klavyesi hiç açılmaz
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
- *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/şerit/ses
+ *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/ses
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -22,12 +22,9 @@
   if (!ACILIS_MS) document.getElementById("acilis")?.classList.add("hemen");
   if (typeof WordLadder === "undefined") return;   // app.js yüklenmediyse bağlanacak bir şey yok
   const P = WordLadder.prototype;
-  const kok = document.documentElement;
   const govde = document.body;
   const al = (id) => document.getElementById(id);
-  const giris = al("giris");
   const menu = al("menu");
-  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile"), menu];
   // Açılış ekranı uygulama açılırken en az ACILIS_MS görünür (sayfa açılışından; yukarıda)
   const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
@@ -37,150 +34,56 @@
   const oku = (anahtar) => { try { return localStorage.getItem(anahtar); } catch (_) { return null; } };
   const yaz = (anahtar, deger) => { try { localStorage.setItem(anahtar, deger); } catch (_) { /* kayıt tutulamadı */ } };
   const yardimAcik = () => govde.classList.contains("yardim");
-  const pencereAcik = () => pencereler.some((p) => !p.classList.contains("hidden"));
 
-  /* ---------- Giriş: telefonun klavyesi ---------- */
+  // Eski sürümün "Türkçe harf şeridi" tercihi: şerit kalktı, kayıt silinir (gizlilik metni artık saymaz)
+  try { localStorage.removeItem("sm_serit"); } catch (_) { /* kayıt silinemedi */ }
 
-  // Metin alanına odaklanır; telefonun klavyesi açılır. Oyun ekranında her
-  // dokunuştan sonra çağrılır: klavye oyun boyunca açık kalır, ekran oynamaz.
-  const odakla = () => {
-    if (!oyun || ekran !== "oyun" || oyun.over || yardimAcik() || pencereAcik()) return;
-    giris.focus({ preventScroll: true });
+  /* ---------- Ekran klavyesi ve eylem sırası ----------
+     Tuşları app.js üretir (buildKeyboard, LAYOUT) ve basar (pressKey); telefonun klavyesi
+     açılmaz, çünkü odak alan metin alanı yoktur. Bağlı klavye app.js'in keydown yolundan yazar.
+     Diziliş sahip kararı (15 Kasım 2026): Türkçe Q, Sil son sıranın sağ ucunda, Gönder ayrı
+     eylem sırasında. Q, W, X Türkçede yok: yerleri tanıdık dursun diye görünür ama basılmaz. */
+  WordLadder.LAYOUT = [
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"],
+    ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"],
+    ["Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç", "BACK"],
+  ];
+  const asilBuildKeyboard = P.buildKeyboard;
+  P.buildKeyboard = function (...arg) {
+    const s = asilBuildKeyboard.apply(this, arg);
+    for (const tus of this.el.keyboard.querySelectorAll(".key")) {
+      const k = tus.dataset.key;
+      if (k === "I") tus.setAttribute("aria-label", "Noktasız I");
+      else if (k === "İ") tus.setAttribute("aria-label", "Noktalı İ");
+      else if (k !== "BACK" && !WordLadder.TR_LETTER.test(k)) tus.disabled = true;
+    }
+    return s;
   };
+  // Geri al ve İpucu (rozetleriyle) Gönder'in iki yanına; Sonucu göster durum satırında kalır
+  al("eylemler").prepend(al("btnUndo"));
+  al("eylemler").append(al("btnHint"));
+  al("btnGonder").addEventListener("click", (e) => {
+    e.currentTarget.blur();          // odakta kalırsa bağlı klavyedeki Enter/Space onu yeniden tetikler
+    oyun?.pressKey("ENTER");
+  });
 
-  // Metin alanı her zaman app.js'teki buffer'ın aynısını tutar: silme tuşu her
-  // klavyede çalışır, ekran okuyucu yazılanı okur. Bitmiş oyunda klavye açılmaz.
-  const asilRenderInput = P.renderInput;
-  P.renderInput = function (...arg) {
-    if (giris.value !== this.buffer) giris.value = this.buffer;
-    giris.disabled = this.over;
-    return asilRenderInput.apply(this, arg);
-  };
-
-  // Çözülünce klavye kapanır: merdivenin tamamı ve sonuç penceresi görünür
   // Çözüm penceresi win()'den 650 ms sonra açılır; o arada oyuncu ana ekrana dönüp
   // başka bir bulmacaya (ör. bugün zaten çözülmüş Günün Bulmacası) geçmiş olabilir.
   // Pencere yalnızca hâlâ aynı biten oyundaysa açılır.
   let kazanilan = null;
   const asilWin = P.win;
   P.win = function (...arg) {
-    giris.disabled = true;
-    giris.blur();
     kazanilan = { mod: this.mode, bas: this.startWord, hedef: this.targetWord, uzunluk: this.chain.length };
     return asilWin.apply(this, arg);
   };
-  // Sonucu göster: onay penceresi açıkken klavye kapanır (teklifteki gibi); yol
-  // gösterilince oyun biter, klavye kapanır
-  const asilShowPes = P.showPes;
-  P.showPes = function (ac, ...arg) {
-    const s = asilShowPes.call(this, ac, ...arg);
-    if (ac) giris.blur(); else odakla();
-    return s;
-  };
-  // Yenile onayı (ilerleme varken): açıkken klavye kapanır, kapanınca geri gelir
+  // Yenile onayı kapanınca bir sonraki açılış yine app.js'indir (menüdeki "Yeniden dene" değil)
   const asilShowYenile = P.showYenile;
   P.showYenile = function (ac, ...arg) {
-    if (!ac) yenidenOnay = false;           // onay kapandı: bir sonraki açılış app.js'in (menü)
-    const s = asilShowYenile.call(this, ac, ...arg);
-    if (ac) giris.blur(); else odakla();
-    return s;
+    if (!ac) yenidenOnay = false;
+    return asilShowYenile.call(this, ac, ...arg);
   };
-  const asilShowResult = P.showResult;
-  P.showResult = function (...arg) {
-    const s = asilShowResult.apply(this, arg);
-    if (this.over) giris.blur();
-    return s;
-  };
-
-  // İpucu teklifi açıkken yazılan harf arkadaki tahtaya gitmesin; kapanınca klavye geri gelir
-  const asilShowOffer = P.showOffer;
-  P.showOffer = function (ac, ...arg) {
-    const s = asilShowOffer.call(this, ac, ...arg);
-    if (ac) giris.blur(); else odakla();
-    return s;
-  };
-
-  // Harfler Türkçe kuralla büyütülür (i → İ, ı → I); şapkalı harf sözlükteki gibi şapkasız
-  // yazılır (â → A, î → İ, û → U); harf olmayan her şey süzülür
-  const SAPKA = { "Â": "A", "Î": "İ", "Û": "U" };
-  const harfler = (metin, boy) => [...metin.toLocaleUpperCase("tr-TR")].map((h) => SAPKA[h] || h)
-    .filter((h) => WordLadder.TR_LETTER.test(h)).slice(0, boy).join("");
-
-  // Bileşim (IME) sürerken alan yarım metin tutar: bitince (compositionend) eşitlenir
-  const girisEsitle = (e) => {
-    if (!oyun || e.isComposing) return;
-    const once = oyun.buffer.length;
-    const yeni = oyun.over ? "" : harfler(giris.value, oyun.len);
-    // Yeni harf app.js'in kendi yolundan geçer (ses, animasyon); silme ve toplu yazma doğrudan yazılır
-    if (yeni.length === once + 1 && yeni.startsWith(oyun.buffer)) oyun.pressKey(yeni[once]);
-    else { oyun.buffer = yeni; oyun.renderInput(); }
-    if (giris.value !== oyun.buffer) giris.value = oyun.buffer;   // süzülen ya da sığmayan harf alanda kalmasın
-  };
-  giris.addEventListener("input", girisEsitle);
-  giris.addEventListener("compositionend", girisEsitle);
-  // Odak metin alanındayken harf ve silme tuşlarını alan kendisi işler; app.js'in
-  // belge düzeyindeki dinleyicisi aynı tuşu ikinci kez yazmasın. Enter ona ulaşır.
-  giris.addEventListener("keydown", (e) => { if (e.key !== "Enter") e.stopPropagation(); });
-
   // iOS, sayfada dokunma dinleyicisi yoksa düğmelerin basılı görünümünü (:active) göstermez
   document.addEventListener("touchstart", () => {}, { passive: true });
-
-  // Türkçe harf şeridi
-  al("harfler").addEventListener("click", (e) => {
-    const dugme = e.target.closest(".harf");
-    if (dugme && oyun) oyun.pressKey(dugme.dataset.key);
-  });
-  // Oyun ekranına dokunmak odağı metin alanından almaz: klavye kapanıp açılmaz
-  al("oyun").addEventListener("mousedown", (e) => { if (e.target !== giris) e.preventDefault(); });
-  // Oyun ekranında ya da pencerelerde her dokunuştan sonra (tahta, şerit, ipucu,
-  // yeni oyun, pencereyi kapat) klavye açık kalır; koşullar odakla()'da
-  for (const kap of [al("oyun"), ...pencereler]) kap.addEventListener("click", () => odakla());
-  // Reklamdan sonra başlayan tekrar: dokunuş zinciri kopmuş olabilir, yine de dene
-  const asilBeginRetry = P.beginRetry;
-  P.beginRetry = function (...arg) { const s = asilBeginRetry.apply(this, arg); odakla(); return s; };
-
-  /* ---------- Oyun ekranı görünen alana sığar ----------
-     Klavye açılınca görünen alan (visualViewport) küçülür; kabuğun boyu ona
-     eşitlenir (--vvh), sayfa kaydıysa üstü de (--vv-top). iOS boyut olayını
-     klavye animasyonu bitince gönderir: ekran o anda sıçramasın diye son
-     ölçülen klavyeli ve klavyesiz boy hatırlanır, odak değişir değişmez uygulanır. */
-  const vv = window.visualViewport;
-  let tamBoy = 0, klavyeliBoy = 0, esitleme = 0;
-
-  // Giriş satırı kayan bölümlerin içinde görünür kalsın (belge kaydırılmaz)
-  const girisGoster = () => {
-    if (!oyun || ekran !== "oyun" || oyun.over) return;
-    for (const kap of [oyun.el.steps, oyun.el.game]) {
-      const k = kap.getBoundingClientRect();
-      const r = oyun.el.input.parentElement.getBoundingClientRect();
-      if (r.bottom > k.bottom) kap.scrollTop += r.bottom - k.bottom;
-      else if (r.top < k.top) kap.scrollTop -= k.top - r.top;
-    }
-  };
-  const boyYaz = (boy) => {
-    kok.style.setProperty("--vvh", boy + "px");
-    kok.style.setProperty("--vv-top", (vv ? vv.offsetTop : 0) + "px");
-    girisGoster();
-  };
-  const gorunum = () => {
-    const boy = vv ? vv.height : window.innerHeight;
-    if (document.activeElement === giris) klavyeliBoy = boy; else tamBoy = boy;
-    boyYaz(boy);
-  };
-  // Tahmin yanlışsa (ör. bağlı klavye: ekran klavyesi hiç açılmaz) gerçek ölçüye dönülür
-  const tahmin = (boy) => {
-    if (boy) boyYaz(boy);
-    clearTimeout(esitleme);
-    esitleme = setTimeout(gorunum, 1000);
-  };
-  giris.addEventListener("focus", () => {
-    giris.setSelectionRange(giris.value.length, giris.value.length);   // imleç hep sonda
-    tahmin(klavyeliBoy);
-  });
-  giris.addEventListener("blur", () => tahmin(tamBoy));
-  gorunum();
-  (vv || window).addEventListener("resize", gorunum);
-  if (vv) vv.addEventListener("scroll", gorunum);
 
   /* ---------- Her modun oyunu ayrı saklanır ---------- */
 
@@ -255,14 +158,12 @@
 
   const yardimAc = (ac) => {
     govde.classList.toggle("yardim", ac);
-    if (ac) { giris.blur(); al("nasil-oynanir").scrollTop = 0; al("btnYardimKapat").focus({ preventScroll: true }); }
-    else odakla();
+    if (ac) { al("nasil-oynanir").scrollTop = 0; al("btnYardimKapat").focus({ preventScroll: true }); }
   };
 
   const anaAc = () => {
-    ekranAc("ana");                                  // önce: menü kapanırken klavye bir an açılmasın
+    ekranAc("ana");
     menuAc(false);
-    giris.blur();
     oyun.hideModal();
     oyun.showOffer(false);
     oyun.showYenile(false);
@@ -279,8 +180,6 @@
       if (!k || !oyun.restoreState() || oyun.mode !== mod) oyun.newGame(mod);
     }
     ekranAc("oyun");
-    odakla();
-    girisGoster();
   };
 
   // Günlük çözüm penceresindeki "Serbest Oyun" (ve bitmiş günlükte Enter: app.js aynı düğmeye
@@ -352,18 +251,6 @@
     catch (_) { /* kayıt tutulamadı */ }
   }, 0));
   if (oku("sm_ses") === "0") muteGame(true);
-  // Türkçe harf şeridi: varsayılan açık; kapatılırsa hiç görünmez, yerini merdiven alır (sm_serit)
-  const seritAyarla = (acik) => {
-    govde.classList.toggle("serit-yok", !acik);
-    al("btnSerit").setAttribute("aria-pressed", String(acik));
-  };
-  al("btnSerit").addEventListener("click", () => {
-    const acik = govde.classList.contains("serit-yok");
-    seritAyarla(acik);
-    try { acik ? localStorage.removeItem("sm_serit") : localStorage.setItem("sm_serit", "0"); }
-    catch (_) { /* kayıt tutulamadı */ }
-  });
-  seritAyarla(oku("sm_serit") !== "0");
   // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
   // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca kanca `plusSatinAl` veriyorsa görünür).
   al("plusBox").classList.add("kart");
@@ -375,7 +262,7 @@
      Sitenin yenile düğmesi uygulamada gizlidir (style: uygulama.css). "Serbest oyun" serbestte ona
      basar (app.js askRestart: yeni bulmaca, ilerleme varsa onay), günlükte ana ekrandaki Serbest
      Oyun kartının yolundan gider (kalınan serbest oyun sürer). "Yeniden dene" aynı bulmacayı
-     baştan açar. Ayarlar ana ekrandaki düğmelerle aynı kaydı kullanır (sm_serit, sm_ses);
+     baştan açar. Ses ana ekrandaki düğmeyle aynı kaydı kullanır (sm_ses);
      sm_titresim'i yerel.js okur. */
   // Günlükte "Baştan başla" olmasın (sahip kararı); sahibin cevabı gelene dek Yeniden dene yalnızca serbestte
   const YENIDEN_DENE_GUNLUKTE = false;
@@ -383,7 +270,6 @@
   const menuAcik = () => !menu.classList.contains("hidden");
   const anahtarlar = () => {
     al("menuTitresim").setAttribute("aria-checked", String(oku("sm_titresim") !== "0"));
-    al("menuSerit").setAttribute("aria-checked", String(!govde.classList.contains("serit-yok")));
     al("menuSes").setAttribute("aria-checked", String(!al("btnMute").classList.contains("muted")));
   };
   function menuAc(ac) {
@@ -392,21 +278,19 @@
     menu.setAttribute("aria-hidden", String(!ac));
     btnMenu.setAttribute("aria-expanded", String(ac));
     if (ac) {
-      giris.blur();                                    // klavye kapanır, menü tam görünür
       al("menuYeniden").hidden = oyun?.mode !== "free" && !YENIDEN_DENE_GUNLUKTE;
       anahtarlar();
       al("btnAna").focus({ preventScroll: true });
     } else {
       // Odak başka yere (ör. yardımın kapat düğmesi) geçmediyse menü düğmesine döner
       if (menu.contains(document.activeElement) || document.activeElement === govde) btnMenu.focus({ preventScroll: true });
-      odakla();                                        // oyun ekranındaysa klavye geri gelir
     }
   }
   btnMenu.addEventListener("click", () => menuAc(true));
   menu.addEventListener("click", (e) => { if (e.target === menu) menuAc(false); });   // dışarı dokunuş
   al("menuSerbest").addEventListener("click", () => {
     if (oyun.mode === "free") { menuAc(false); al("btnRestart").click(); }
-    else { oyna("free"); menuAc(false); }              // önce oyun: odak bir kez, yeni tahtaya
+    else { oyna("free"); menuAc(false); }
   });
   // Yeniden dene: serbestte app.js'te "aynı bulmaca baştan" yolu yok (askRestart yeni bulmaca çeker);
   // zincir başlangıca döner. Onay için sitenin yenile penceresi kendi metniyle kullanılır.
@@ -414,7 +298,6 @@
     Object.assign(oyun, { chain: [oyun.startWord], buffer: "", over: false, shown: false });
     oyun.render();
     oyun.saveState();
-    odakla();
   };
   al("menuYeniden").addEventListener("click", () => {
     menuAc(false);
@@ -433,14 +316,13 @@
     oyun.showYenile(false);
     yenidenBasla();
   }, true);
-  al("menuYardim").addEventListener("click", () => { yardimAc(true); menuAc(false); });   // önce yardım: klavye kıpırdamaz
+  al("menuYardim").addEventListener("click", () => { yardimAc(true); menuAc(false); });   // önce yardım: odak onun kapat düğmesine
   al("menuTitresim").addEventListener("click", () => {
     const ac = oku("sm_titresim") === "0";
     try { ac ? localStorage.removeItem("sm_titresim") : localStorage.setItem("sm_titresim", "0"); }
     catch (_) { /* kayıt tutulamadı */ }
     anahtarlar();
   });
-  al("menuSerit").addEventListener("click", () => { al("btnSerit").click(); anahtarlar(); });
   al("menuSes").addEventListener("click", () => { al("btnMute").click(); anahtarlar(); });
 
   // Ana ekran, yardım ya da menü açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz

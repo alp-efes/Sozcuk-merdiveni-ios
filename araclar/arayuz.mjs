@@ -27,19 +27,14 @@ const ISARET = `<svg class="isaret" viewBox="0 0 320 320" aria-hidden="true" foc
     </svg>`;
 
 // Açılış ekranı (sözlük yüklenene dek durur) ve ana ekran: iki büyük seçenek
-// Ana ekranın üst satırı: Türkçe harf şeridi aç/kapa (sm_serit); ses düğmesi uygulama.js ile yanına taşınır
+// Ana ekranın üst satırı: ses düğmesi uygulama.js ile buraya taşınır
 export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
     ${ISARET}
     <p class="acilis-ad">Sözcük Merdiveni</p>
   </div>
 
   <section class="ana" id="ana" aria-label="Ana ekran">
-    <div class="ana-ust" id="anaUst">
-      <button class="icon-btn" id="btnSerit" type="button" aria-label="Türkçe harf şeridi" aria-pressed="true">
-        <svg class="icon icon-serit-acik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
-        <svg class="icon icon-serit-kapali" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/><path d="m3 3 18 18"/></svg>
-      </button>
-    </div>
+    <div class="ana-ust" id="anaUst"></div>
     <div class="ana-marka">
     ${ISARET}
       <h1 class="ana-ad">Sözcük Merdiveni</h1>
@@ -91,30 +86,23 @@ export const MENU = `<div class="modal-overlay menu-perde hidden" id="menu" role
       <hr class="menu-ayrac">
       ${menuOge("menuYardim", '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.8"/><path d="M12 17h.01"/>', "Nasıl oynanır?")}
       ${menuOge("menuTitresim", '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 9v6M21 9v6"/>', "Titreşim", true)}
-      ${menuOge("menuSerit", '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>', "Türkçe harf şeridi", true)}
       ${menuOge("menuSes", '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', "Ses", true)}
     </div>
   </div>`;
 
-// Telefonun klavyesini açan metin alanı; yazılan harfler merdivendeki kutularda görünür.
-// Büyük harfe uygulama.js çevirir (Türkçe kural: i → İ, ı → I), bu yüzden autocapitalize kapalı.
-export const GIRIS = '<input class="giris" id="giris" type="text" inputmode="text" enterkeyhint="send" autocomplete="off" ' +
-  'autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Kelime yaz">';
-
-// Türkçe klavyesi olmayanlar için: klavyenin hemen üstünde duran harf şeridi
-export const HARFLER = `<div class="harfler" id="harfler" role="group" aria-label="Türkçe harfler">
-${[["Ç"], ["Ğ"], ["I", "Noktasız I"], ["İ", "Noktalı İ"], ["Ö"], ["Ş"], ["Ü"]].map(([harf, ad]) =>
-    `    <button class="harf" type="button" data-key="${harf}"${ad ? ` aria-label="${ad}"` : ""}><span class="cap">${harf}</span></button>`).join("\n")}
+// Ekran klavyesinin altındaki eylem sırası: ortada büyük Gönder; Geri al (solda) ve İpucu (sağda)
+// sitenin durum satırından uygulama.js ile buraya taşınır, kalan hak rozetleriyle birlikte
+export const EYLEMLER = `<div class="eylemler" id="eylemler" role="group" aria-label="Eylemler">
+    <button class="btn-primary gonder" id="btnGonder" type="button">Gönder</button>
   </div>`;
 
 // "Nasıl oynanır?" uygulamada pencere olarak açılır: kapatma düğmesi ve klavye açıklaması
 export const YARDIM_KAPAT = `<button class="modal-close" id="btnYardimKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>`;
-export const YARDIM_KLAVYE = `<p>Kelimeyi telefonunun klavyesiyle yaz, klavyenin sağ altındaki tuşla gönder.
-  Klavyende Türkçe harf yoksa merdivenin altındaki <strong>Ç Ğ I İ Ö Ş Ü</strong> şeridini kullan;
-  şeridi menüden kapatabilirsin.</p>`;
+export const YARDIM_KLAVYE = `<p>Kelimeyi alttaki klavyeyle yaz, <strong>Gönder</strong>'e bas.
+  Geri al ve İpucu, Gönder'in iki yanında.</p>`;
 
 // uygulama.js'in bağlandığı site ögeleri: her biri index.html'de tam bir kez bulunmalı
 export const SITE_OGELERI = [
   'id="btnHelp" href="#nasil-oynanir"', '<a class="btn-primary" href="#oyun">', 'id="btnMute"', 'id="btnRestart"',
-  'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
+  'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnHint"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
 ];

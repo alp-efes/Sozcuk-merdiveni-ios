@@ -124,7 +124,7 @@ test("dönüşüm, sitenin yapısı beklenmedik biçimde değişirse durur", () 
     ["gizlilik bağlantısı yok", siteIndex.replace('<a href="gizlilik.html">Gizlilik Politikası</a>', "")],
     // Uygulama arayüzünün eklendiği ve bağlandığı yerler
     ["başlık yok", siteIndex.replace('<header class="header">', '<header class="ust">')],
-    ["oyun kabuğu değişmiş", siteIndex.replace('<div class="app" id="oyun">', '<div class="app" id="oyun2">')],
+    ["İpucu düğmesi yok", siteIndex.replace('id="btnHint"', 'id="btnIpucu"')],
     ["ekran klavyesi yok", siteIndex.replace(/<footer class="keyboard"[^>]*><\/footer>/, "")],
     ["nasıl oynanır bölümü değişmiş", siteIndex.replace('<section class="info page" id="nasil-oynanir">', '<section class="info page" id="yardim">')],
     ["örnek açıklaması yok", siteIndex.replace('<p class="legend">', '<p class="aciklama">')],
@@ -175,15 +175,14 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   // uygulama.js bu metotları sarar ya da çağırır, bu alanları okur; site değişirse burada fark edilir
   for (const [desen, ad] of [
     [/^  async init\(\) \{/m, "init(): açılış ekranı → ana ekran"],
-    [/^  renderInput\(popLast = false\) \{/m, "renderInput(): metin alanı tamponla eşitlenir"],
-    [/^  win\(\) \{/m, "win(): klavye kapanır"],
-    [/^  showOffer\(open, tur = "ipucu"\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
-    [/^  showYenile\(open\) \{/m, "showYenile(): yenile onayı açıkken klavye kapanır"],
+    [/^  static LAYOUT = \[/m, "LAYOUT: ekran klavyesinin dizilişi (uygulama.js değiştirir)"],
+    [/^  buildKeyboard\(\) \{\s+WordLadder\.LAYOUT\.forEach/m, "buildKeyboard(): tuşlar LAYOUT'tan, init'te üretilir"],
+    [/btn\.dataset\.key = k;/, "tuşun data-key'i (Q, W, X devre dışı bırakılır)"],
+    [/this\.el\.keyboard\.addEventListener\("click", \(e\) => \{\s+const btn = e\.target\.closest\("\.key"\);\s+if \(!btn\) return;\s+btn\.blur\(\);[^\n]*\s+this\.pressKey\(btn\.dataset\.key\);/, "ekran tuşu pressKey'e gider"],
+    [/^  win\(\) \{/m, "win(): gecikmeli çözüm penceresi"],
+    [/^  showYenile\(open\) \{/m, "showYenile(): menüdeki Yeniden dene onayı"],
     [/this\.el\.btnRestart\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+this\.askRestart\(\);/, "btnRestart → askRestart: menüdeki Yeni serbest oyun ona basar"],
     [/this\.el\.btnMute\.addEventListener\("click", \(e\) => \{\s+e\.currentTarget\.blur\(\);\s+muteGame\(!AudioFX\.isMuted\(\)\);/, "btnMute: menüdeki Ses ona basar, durumu eşzamanlı okur"],
-    [/^  beginRetry\(\) \{/m, "beginRetry(): tekrar başlayınca klavye açılır"],
-    [/^  showPes\(open\) \{/m, "showPes(): sonucu göster onayı açıkken klavye kapanır"],
-    [/^  showResult\(\) \{/m, "showResult(): yol gösterilince klavye kapanır"],
     [/^  showModal\(\{ oncedenCozuldu = false \} = \{\}\) \{/m, "showModal(): gecikmeli çözüm penceresi yalnızca aynı oyunda açılır"],
     [/^  saveState\(\) \{/m, "saveState(): her modun kaydı"],
     [/^  restoreState\(\) \{/m, "restoreState(): modun kaydından sürdürme"],
@@ -221,11 +220,10 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
   ]) assert.match(siteApp, desen, ad);
   // Sarılan her metot uygulama.js'te gerçekten sarılıyor
   const uygulama = oku(KOK, "web", "uygulama.js");
-  for (const ad of ["init", "renderInput", "win", "showModal", "showOffer", "showPes", "showResult", "beginRetry", "saveState", "updateTabs", "tickCountdown"]) {
+  for (const ad of ["init", "buildKeyboard", "win", "showModal", "showYenile", "saveState", "updateTabs", "tickCountdown"]) {
     assert.ok(uygulama.includes(`P.${ad} = `), `uygulama.js ${ad} metodunu sarmıyor`);
   }
-  // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar)
-  assert.ok(uygulama.includes('toLocaleUpperCase("tr-TR")'));
+  // Büyük harf Türkçe kuralla: i → İ, ı → I (yerel ayarsız toUpperCase i'yi I yapar; bağlı klavyede app.js çevirir)
   assert.doesNotMatch(uygulama, /toUpperCase\(\)|toLowerCase\(\)/, "yerel ayarsız büyük/küçük harf dönüşümü");
   assert.deepEqual(["i", "ı", "ş", "ğ", "ç", "ö", "ü"].map((h) => h.toLocaleUpperCase("tr-TR")), ["İ", "I", "Ş", "Ğ", "Ç", "Ö", "Ü"]);
   // Uygulama betiği dışarıya hiçbir şey göndermez, dinamik kod çalıştırmaz
@@ -236,17 +234,17 @@ test("uygulama.css yalnızca sitenin tasarım belirteçlerini kullanır", () => 
   const css = oku(KOK, "web", "uygulama.css").replace(/\/\*[\s\S]*?\*\//g, "");
   // Sabit renk, dış kaynak, içe aktarma yok
   assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|url\(|@import|expression\(/i);
-  // Kullanılan her belirteç sitenin style.css'inde tanımlı (iki tanesi uygulama.js'ten gelir)
+  // Kullanılan her belirteç sitenin style.css'inde tanımlı
   const tanimli = new Set([...oku(SITE, "style.css").matchAll(/^\s*(--[\w-]+)\s*:/gm)].map((m) => m[1]));
   const kullanilan = new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
   assert.ok(kullanilan.size > 20, "belirteç bulunamadı: desen bozulmuş olabilir");
   for (const ad of kullanilan) {
-    assert.ok(tanimli.has(ad) || ["--vvh", "--vv-top"].includes(ad), `uygulama.css tanımsız belirteç kullanıyor: ${ad}`);
+    assert.ok(tanimli.has(ad), `uygulama.css tanımsız belirteç kullanıyor: ${ad}`);
   }
   // Sitenin gizlediği ya da yeniden düzenlediği sınıflar style.css'te duruyor
   const stil = oku(SITE, "style.css");
   for (const sinif of [".app", ".mode-tabs", ".free-settings", ".keyboard", ".brand-game", ".toast", ".modal-overlay", ".info",
-                       ".modal-close", ".cap", ".btn-group", ".pick-btn", ".btn-primary", ".icon-btn", ".site-footer", ".game.bitti"]) {
+                       ".modal-close", ".cap", ".kb-row", ".key", ".hint-btn", ".hak", ".btn-group", ".pick-btn", ".btn-primary", ".icon-btn", ".site-footer", ".game.bitti"]) {
     assert.ok(stil.includes(sinif + " ") || stil.includes(sinif + ",") || stil.includes(sinif + ":") || stil.includes(sinif + "."), `style.css'te ${sinif} yok`);
   }
 });
@@ -486,6 +484,11 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
   assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
   const gizlilik = oku(KOK, "web", "gizlilik.html");
+  // Türkçe harf şeridi kalktı (15 Kasım 2026): sm_serit artık yazılmaz, eski kayıt açılışta silinir; metin saymaz
+  assert.ok(oku(KOK, "web", "uygulama.js").includes('localStorage.removeItem("sm_serit")'), "eski sm_serit kaydı silinmiyor");
+  assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /setItem\("sm_serit"/, "sm_serit yeniden yazılıyor");
+  assert.doesNotMatch(gizlilik, /sm_serit|harf şeridi/, "gizlilik metni kalkan şerit kaydını sayıyor");
+  adlar.delete("sm_serit");
   // Plus kapalıyken (PLUS_ACIK = false) sm_plus yazılmaz, yalnızca silinir; gizlilik metni Plus'tan söz etmez.
   // Plus açılırken bayrakla birlikte metne sm_plus ve satın alma bölümü geri konur.
   const plusKapali = oku(KOK, "web", "yerel.js").includes("const PLUS_ACIK = false;");
