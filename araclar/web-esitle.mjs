@@ -36,7 +36,7 @@ export const CSP = [
   `script-src ${KAYNAK}`,
   `style-src ${KAYNAK}`,
   `img-src ${KAYNAK}`,
-  `font-src ${KAYNAK}`,         // style.css paketteki Fraunces dosyalarını yükler
+  `font-src ${KAYNAK}`,         // style.css paketteki Young Serif dosyasını yükler
   `connect-src ${KAYNAK}`,      // words.json fetch ile okunur
   "base-uri 'none'",
   "form-action 'none'",
@@ -44,7 +44,7 @@ export const CSP = [
 
 // Siteden değiştirilmeden kopyalananlar
 export const AYNEN = ["app.js", "style.css", "words.json",
-  "fonts/fraunces-latin.woff2", "fonts/fraunces-latin-ext.woff2", "fonts/OFL.txt"];
+  "fonts/young-serif.woff2", "fonts/OFL.txt"];
 // Uygulamanın kendi dosyaları (web/ içinde)
 export const KENDI = ["yerel.js", "uygulama.js", "uygulama.css", "gizlilik.html", "lisanslar.html"];
 // www/ içinde bulunması gereken her şey (testler bu listeyi denetler)
@@ -95,7 +95,7 @@ export function donustur(html) {
   degistir(/<meta charset="UTF-8">/g,
            `<meta charset="UTF-8">\n  <meta http-equiv="Content-Security-Policy" content="${CSP}">`,
            "charset", 1);
-  // Açık kaynak lisansları (Capacitor, Zemberek-NLP, Fraunces) uygulamadan erişilebilir olmalı
+  // Açık kaynak lisansları (Capacitor, Zemberek-NLP, Young Serif) uygulamadan erişilebilir olmalı
   degistir(/<a href="gizlilik\.html">Gizlilik Politikası<\/a>/g,
            '$&\n  <a href="lisanslar.html">Lisanslar</a>', "gizlilik bağlantısı", 1);
   // uygulama.js app.js'ten sonra (WordLadder'a bağlanır), yerel.js'ten önce yüklenir

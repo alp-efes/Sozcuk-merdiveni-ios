@@ -132,11 +132,11 @@ test("uygulama: oyun oynanır, yerel özellikler bağlanır, dış istek yapılm
   assert.deepEqual(await cagrilar("dokunus"), Array(3).fill({ style: "LIGHT" }), "açılışta her blok oturunca hafif dokunuş");
   assert.equal(await sayfa.textContent("#gunlukBulmaca"), `${d.bas} → ${d.hedef}`);
   await goruntu("0-ana-ekran.png");
-  // Paketteki Fraunces yüklenmeli (CSP font-src)
+  // Paketteki Young Serif yüklenmeli (CSP font-src)
   assert.ok(await sayfa.evaluate(async () => {
     await document.fonts.ready;
-    return [...document.fonts].some((f) => f.family.includes("Fraunces") && f.status === "loaded");
-  }), "Fraunces yazı tipi yüklenmedi");
+    return [...document.fonts].some((f) => f.family.includes("Young Serif") && f.status === "loaded");
+  }), "Young Serif yazı tipi yüklenmedi");
   assert.equal(d.reklam, 0, "reklam alanı kalmış");
   assert.equal(d.izleme, "undefined", "analitik köprüsü tanımlı");
   assert.deepEqual(d.betikler, ["app.js", "uygulama.js", "yerel.js"]);
