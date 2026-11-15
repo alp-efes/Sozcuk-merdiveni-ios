@@ -130,9 +130,6 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 .yardim .app, .yardim .ana { visibility: hidden; }
 
 .ana-ust { display: flex; justify-content: flex-end; gap: var(--space-1h); flex-shrink: 0; min-height: var(--tap-min); }
-/* Harf şeridi düğmesi: açıkken klavye, kapalıyken üstü çizili klavye */
-.icon-serit-kapali, [aria-pressed="false"] > .icon-serit-acik { display: none; }
-[aria-pressed="false"] > .icon-serit-kapali { display: block; }
 .ana-marka { text-align: center; color: var(--text-dim); flex-shrink: 0; }
 .ana-marka .isaret { width: 88px; height: 88px; margin: 0 auto var(--space-2); }
 .ana-ad {
@@ -196,27 +193,33 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 .ana .site-footer { margin-top: auto; }
 
 /* ---------- Oyun ekranı ----------
-   Görünen alanı tam kaplar. Telefonun klavyesi açılınca uygulama.js --vvh ve
-   --vv-top'u görünen alana (visualViewport) eşitler: giriş satırı, son kelime
-   ve harf şeridi klavyenin üstünde kalır. */
+   Ekranı tam kaplar ve kaymaz: merdiven, ekran klavyesi ve eylem sırası tek parça.
+   Telefonun klavyesi açılmaz (odak alan metin alanı yok). Uzun merdiven kendi içinde kayar. */
 .app {
   position: fixed;
-  left: 0;
-  right: 0;
-  top: var(--vv-top, 0px);
-  height: var(--vvh, 100dvh);
+  inset: 0;
+  height: auto;
 }
 /* Ana ekran varken sekmeler ve oyun içi ayar satırı gereksiz: yer merdivene kalır */
 .mode-tabs, .app .free-settings { display: none; }
-/* Sitenin ekran klavyesi: uygulamada telefonun klavyesi kullanılır */
-.keyboard { display: none; }
+/* Merdiven başlıkla klavye arasındaki alanla sınırlı: sitede bitmiş merdivenin çerçevesi içeriği kadar
+   uzar ve dış kap (.game) kayardı, HEDEF klavyenin arkasında kalıyordu. Çerçeve alanın boyuna sabitlenir;
+   uzun merdiveni yalnızca .steps kendi içinde kaydırır (app.js addRung sona kaydırır), HEDEF en altta görünür. */
+.app .frame { height: 100%; }
 
-/* Başlık: menü + mod adı + yardım. Ses düğmesi ana ekranda; sitenin yenile düğmesi
+/* Başlık: menü + mod adı + en kısa yolu göster. Ses düğmesi ana ekranda; sitenin yenile düğmesi
    gizli (geri okuna benziyordu; sahip notu, 15 Kasım 2026): yerine menüde "Yeni serbest oyun" */
 .header .brand-game, .header #btnRestart { display: none; }
+/* Yardım menüde ("Nasıl oynanır?"); yerinde en kısa yolu göster. O düğme koşul sağlanmadan (adım en azı
+   geçmeden) görünmez ama yerini tutar: mod adı hep ortada kalır */
+.header #btnHelp { display: none; }
+.header #btnShowResult.hidden { visibility: hidden; }
+/* Mod adı tam ortada (sahip notu, 15 Kasım 2026): iki yanında eşit genişlikte birer düğme (☰ ve yardım);
+   sığmazsa küçülür, yine sığmazsa üç noktayla kısalır, düğmelerin altına girmez */
 .mod-adi {
   flex: 1;
   min-width: 0;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -231,72 +234,53 @@ body:not([data-ekran="ana"]) .ana { display: none; }
    ana ekrandaki kartta ve çözüm penceresinde yazıyla birlikte durur */
 .status .daily-timer { display: none; }
 
-/* Görünmez metin alanı: odaklanınca telefonun klavyesi açılır, harfler merdivendeki
-   kutularda görünür. Ekranın en üstünde durur: klavye onu hiç örtmediği için iOS
-   odaklanırken sayfayı kaydırmaz. Dokunuşu almaz (odağı uygulama.js verir).
-   16 px'ten küçük yazı iOS'ta odaklanınca yakınlaştırır. */
-.giris {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: transparent;
-  caret-color: transparent;
-  font-size: var(--fs-md);
-  opacity: 0;
-  pointer-events: none;
-  -webkit-user-select: text;
-  user-select: text;
-}
-.giris:disabled { display: none; }
+/* Ekran klavyesi: Türkçe Q (uygulama.js → WordLadder.LAYOUT). 24 sütunlu ızgara: 1. sıra 12 harf,
+   2. sıra yarım tuş içeride, 3. sırada Sil sağ uçta İ'nin hizasında biter. Tuş ve kapak sitenin. */
+.kb-row { grid-template-columns: repeat(24, 1fr); }
+.kb-row:first-child .key:first-child { grid-column: span 2; }
+.kb-row + .kb-row .key:first-child { grid-column: 2 / span 2; }
+.key[data-key="BACK"] { grid-column: span 4; }
+/* Q, W, X Türkçede yok: yeri durur, basılmaz */
+.key:disabled { cursor: default; }
+.key:disabled .cap { opacity: 0.35; box-shadow: inset 0 0 0 1px var(--border); }
+.key:disabled:active .cap { transform: none; }
 
-/* Türkçe harf şeridi: klavyenin hemen üstünde. Düğmenin kendisi dokunma
-   alanıdır (aralıksız, 44 px); görünen kapak sitenin tuş kapağıdır (.cap). */
-.harfler {
+/* Eylem sırası: klavyenin altında, ortada büyük Gönder; iki yanında yuvarlak Geri al ve İpucu
+   (sitenin durum satırından taşınır, rozetleriyle). Parmak alt kenara uzanmadan gönderir. */
+.eylemler {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: var(--space-1) var(--space-1h);
+  gap: var(--space-4);
+  /* altta 28 px: Gönder ana ekran çubuğuna yapışmasın (sahip kararı, 15 Kasım 2026) */
+  padding: var(--space-1) var(--space-4) calc(var(--space-6) + var(--space-1));
   background: var(--surface-2);
-  border-top: 1.5px solid var(--border);
   flex-shrink: 0;
 }
-.game.bitti ~ .harfler { display: none; }   /* Çözülen bulmacada yazılacak bir şey yok */
-.serit-yok .harfler { display: none; }      /* Oyuncu ana ekrandan kapattı: yer de kaplamaz */
-.harf {
-  flex: 1;
-  min-width: var(--tap-min);
-  max-width: 56px;
-  height: var(--tap-min);
-  padding: 3px 2.5px;
-  display: flex;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  touch-action: manipulation;
+.eylemler .gonder { width: auto; flex: 1; max-width: 260px; min-height: var(--btn-height); }
+.eylemler .gonder:disabled { opacity: 0.4; box-shadow: none; transform: none; cursor: default; }   /* bitmiş oyun */
+.eylemler .hint-btn {
+  flex-shrink: 0;
+  width: var(--btn-height);
+  height: var(--btn-height);
+  border-radius: 50%;
 }
-.harf:active .cap { transform: translateY(2px); box-shadow: inset 0 0 0 1px var(--border); }
+/* Bitmiş oyunda app.js İpucu'yu gizler (.hidden): yeri kalır, Gönder ortadan kaymaz */
+.eylemler .hint-btn.hidden { display: grid; visibility: hidden; }
+.eylemler .hint-btn::before { display: none; }      /* dokunma alanı zaten 52 px */
+.eylemler .hint-btn .icon { width: 24px; height: 24px; }
+.eylemler .hak { top: -2px; right: -2px; }
 
 /* Bildirim: durum satırını örtmez, merdivenin üst ucunda durur; uzun ileti
    satır atlar. Ana ekrandayken de (oyun gizliyken) görünür. */
 .toast {
-  top: calc(var(--vv-top, 0px) + 88px);
+  top: 88px;
   width: max-content;
   max-width: calc(100vw - 2 * var(--space-4));
   white-space: normal;
   text-align: center;
   visibility: visible;
   z-index: calc(var(--z-modal) + 1);
-}
-
-/* Pencereler de görünen alana sığar (klavye açıkken altı kesilmesin) */
-.modal-overlay {
-  inset: auto 0;
-  top: var(--vv-top, 0px);
-  height: var(--vvh, 100%);
 }
 
 /* ---------- Yardım: "Nasıl oynanır?" oyunun ya da ana ekranın üstünde ---------- */
@@ -387,3 +371,16 @@ body:not(.yardim) .info { display: none; }
 }
 [aria-checked="true"] > .anahtar { background: var(--green); border-color: var(--green); }
 [aria-checked="true"] > .anahtar::after { background: var(--surface); transform: translateX(18px); }
+
+/* ---------- Çözüm penceresi: en kısa yol (uygulama.js) ---------- */
+.modal [hidden] { display: none; }
+.modal #btnEnKisa { margin: 0 0 var(--space-3); }
+.en-kisa-yol {
+  outline: none;                  /* odağı yalnızca ekran okuyucu için alır (tabindex="-1") */
+  margin-bottom: var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-sm);
+}

@@ -60,10 +60,10 @@ jobs:
       - name: Simülatörde derle, oyna, ekran görüntüsü al
         run: bash araclar/simulator.sh "$RUNNER_TEMP/ekran"
 
-      # App Store görselleri: 6,9" iPhone'da gerçek klavyeyle ham ekranlar, sonra site deposundaki
+      # App Store görselleri: 6,9" iPhone'da ham ekranlar (uygulamanın kendi klavyesiyle), sonra site deposundaki
       # bant şablonuyla çerçeve. Mağazaya gidecek görseller macOS yazı tipiyle buradan alınır.
       # Kırılırsa iş kırmızı olmaz: normal ekran görüntüleri ve yayinla ona bağlı değil
-      - name: Mağaza görselleri (ham ekranlar, klavye açık; sonra bantla)
+      - name: Mağaza görselleri (ham ekranlar; sonra bantla)
         id: magaza
         continue-on-error: true
         env:

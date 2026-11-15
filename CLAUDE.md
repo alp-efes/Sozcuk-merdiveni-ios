@@ -81,8 +81,8 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 **Uygulama arayüzü siteden farklıdır (sahip kararı, 13 Kasım 2026); site aynı kalır.**
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
-dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
-`win`, `showModal`, `showOffer`, `showPes`, `showYenile`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `buildKeyboard`, `renderStatus`, `askShowResult`, `beginRetry`, `dailyRecord`, `restoreState`,
+`win`, `showModal`, `showYenile`, `saveState`, `updateTabs`, `tickCountdown`), `canShowResult`'u, `canRetry`'yi ve `WordLadder.LAYOUT`'u değiştirir ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
 - **Oyun başlığında menü (☰, `#btnMenu`), yenile düğmesi yok** (sahip notları, 15 Kasım 2026: yenile
@@ -93,28 +93,51 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   ilerleme varken sitenin yenile penceresi kendi metniyle onay ister; app.js'te serbest için bu yol yok,
   zinciri `uygulama.js` sıfırlar). Yeniden dene günlükte gizli: `YENIDEN_DENE_GUNLUKTE = false` (sahip
   "günlükte baştan başla olmasın" demişti; yeni isteği soruldu). Altta Nasıl oynanır? ve `role="switch"`
-  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Türkçe harf şeridi
-  (`#btnSerit`'e basar), Ses (`#btnMute`'a basar). Açılınca klavye kapanır, odak ilk tuşa gider; Escape ve
-  dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak düğmeye, oyundaysa `#giris`'e döner.
+  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar).
+  Açılınca odak ilk tuşa gider; Escape ve dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak
+  menü düğmesine döner, oyun ekranında orada bırakılmaz (bağlı klavyedeki Boşluk menüyü yeniden açardı; Tab başlıktan sürer). Açıkken perdesi ekran tuşlarını örter, bağlı klavye de tahtaya yazmaz.
   Gecikmeli çözüm penceresi açılırken açık menü kapanır.
+- **Başlık: ☰ solda, mod adı tam ortada, sağda "En kısa yolu göster"** (sahip kararları, 15 Kasım 2026).
+  Sitenin yardım düğmesi (`#btnHelp`) uygulamada gizli; yardım menüde. Sitenin `#btnShowResult`'ı durum
+  satırından başlığa taşınır (yuvarlak `icon-btn`). Sitede yalnızca adım en azı geçince görünür; uygulamada
+  `canShowResult` oyun sürdükçe hep açık der, her basış sitenin onay penceresini açar (günlükte ilk çözüm
+  yoksa metin: "Bugünün bulmacası çözülmemiş sayılır"). Onayda sitenin yolu sürer (en kısa yol basılır,
+  `sm_gunluk_*` `{steps: 0, gosterildi: true}`). Bitmiş oyunda düğme `visibility: hidden`: yerini tutar,
+  mod adı kaymaz.
+- **Çözüm penceresinde "En kısa yolu gör"** (`#btnEnKisa`, `arayuz.mjs` → `EN_KISA`): pencerenin adım
+  sayısı en azı aşıyorsa görünür; basınca sitenin `shortestPath()`'iyle bir en kısa yol pencerede yazılır
+  (`#enKisaYol`). Yalnızca gösterim: kayıt, seri, paylaşım değişmez; pencere kapanmaz (geçiş reklamı
+  pencerenin kapanmasına bağlıdır).
+- **Günlükte tekrar yok** (sahip kararı, 15 Kasım 2026; site aynı kalır). `canRetry` hep `false`: çözüm
+  penceresinde ve durum satırında "Tekrar dene" çıkmaz, ödüllü reklamlı tekrar (`odulluReklam("tekrar")`)
+  tetiklenmez; `beginRetry` günlükte bir şey yapmaz. Eski sürümde başlamış tekrar (`sm_gunluk_*` → `deneme`)
+  okunurken temizlenir, sm_state'teki süren tekrar yerine günlük ilk çözümüyle bitmiş açılır; ilk çözüm,
+  en iyi, seri ve paylaşım değişmez. Serbestteki menü "Yeniden dene" aynen durur.
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
   Serbest Oyun (zorluk/uzunluk burada seçilir). Oyun başlığında menü düğmesi ve mod adı;
   sitenin sekmeleri, ayar satırı, durum satırındaki geri sayım ve ses düğmesi oyun ekranında
   yoktur (ses düğmesi ana ekrana taşınır, tercih `sm_ses`'te hatırlanır).
-- **Telefonun klavyesi.** Sitenin ekran klavyesi gizlidir. Görünmez `#giris` metin alanı
-  odaklanınca klavye açılır; alan `app.js`'teki `buffer`'ın aynısını tutar. Harfler
-  `toLocaleUpperCase("tr-TR")` ile büyür (i → İ, ı → I), şapkalı harf şapkasız yazılır
-  (â → A, î → İ, û → U) ve `TR_LETTER` ile süzülür; bileşim (IME) bitince eşitlenir. Alan
-  ekranın en üstündedir: klavye onu örtmediği için iOS odaklanırken sayfayı kaydırmaz.
-  Klavyenin üstünde `Ç Ğ I İ Ö Ş Ü` şeridi durur (Türkçe klavyesi olmayanlar için). Oyuncu
-  şeridi menüden ya da ana ekrandaki düğmeyle (`#btnSerit`, ses düğmesinin yanında) kapatabilir: varsayılan
-  açık, tercih `sm_serit`; kapalıyken `body.serit-yok` şeridi hiç göstermez, yerini merdiven alır.
-- **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed` ve boyu
-  `visualViewport.height`'tir (`--vvh`, `--vv-top`). iOS boyut olayını klavye animasyonu
-  bitince gönderdiği için son klavyeli/klavyesiz boy hatırlanır ve odak değişir değişmez
-  uygulanır; 1 sn sonra gerçek ölçüyle eşitlenir. `@capacitor/keyboard` eklentisi YOK.
+- **Oyunun kendi ekran klavyesi; telefonun klavyesi hiç açılmaz** (sahip isteği, 15 Kasım 2026:
+  "en alt köşeye uzanıp enter demek yorucu"). Tuşları sitenin `buildKeyboard`'u üretir ve basar
+  (`pressKey`); diziliş `uygulama.js`'te `WordLadder.LAYOUT` ile değişir: Türkçe Q
+  (`Q W E R T Y U I O P Ğ Ü` / `A S D F G H J K L Ş İ` / `Z X C V B N M Ö Ç ⌫`). Q, W, X Türkçede yok:
+  yerleri durur, devre dışıdır. I ve İ'nin `aria-label`'ı "Noktasız I" / "Noktalı İ". Klavyenin altında
+  eylem sırası (`#eylemler`, `arayuz.mjs` → `EYLEMLER`): ortada büyük Gönder (`#btnGonder`, `.btn-primary`,
+  52 px), solda Geri al, sağda İpucu (sitenin `#btnUndo`/`#btnHint`'i durum satırından taşınır, yuvarlak,
+  hak rozetleri yerinde); altında 16 px boşluk (ana ekran çubuğuna yapışmasın). Bitmiş oyunda Gönder devre
+  dışıdır (`renderStatus` sarılır). Sayfada metin alanı yoktur (test kırılır):
+  iOS klavyesini açacak odak olmaz. Bağlı klavye (iPad, Bluetooth) `app.js`'in keydown yolundan yazar
+  (şapkalı harf orada süzülür). Harf ve Sil tuşu hafif dokunuş verir (`yerel.js`, `sm_titresim`'e uyar);
+  basış bir şey yapmayacaksa (oyun bitmiş, satır dolu, boşken Sil) titremez.
+  Tasarım dili sitenin: tuş kapağı `.cap`, renkler belirteçlerden; harf boyama yok.
+  Türkçe harf şeridi ve `#btnSerit` kalktı: `sm_serit` yazılmaz, eski kayıt açılışta silinir.
+- **Ekran kaymaz.** `html, body` kaydırılmaz; `.app` `position: fixed; inset: 0`. Merdiven,
+  klavye ve eylem sırası tek parçadır (375×667'den 430×932'ye test edilir); uzun merdiven
+  kendi içinde kayar. `.app .frame { height: 100% }`: sitede bitmiş merdivenin çerçevesi uzayıp
+  dış kap kaydığı için HEDEF klavyenin arkasında kalıyordu; artık bitince de yalnızca `.steps`
+  kayar, sona kaydırılmış açılır, HEDEF görünür. `@capacitor/keyboard` eklentisi YOK.
 - **Her modun oyunu ayrı saklanır:** `sm_mod_daily`, `sm_mod_free` (`sm_state`'in kopyaları);
   ana ekrandan öteki moda geçmek kalınan yeri silmez. Günlük çözüm penceresindeki "Serbest
   Oyun" ve bitmiş günlükte Enter de aynı yoldan gider (`#modal`'da yakalanır; `app.js` yeni
@@ -130,7 +153,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 **İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
-ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),
+ipucu/geri al için bu donuk kancayı çağırır (sitedeki günlük tekrar ödüllü reklamı uygulamada yok:
+günlükte tekrar hakkı kaldırıldı, 15 Kasım 2026): `plusMu()` (düz boolean, söz değil),
 `odulluReklam(neden)`, `gecisReklami("cozum")`, `plusSatinAl()`, `plusGeriYukle()`.
 Açılış sırası: StoreKit'ten Plus'ı yeniden doğrula → Plus yoksa UMP (AEA, BK, İsviçre)
 → vitrin (App Store ülkesi, en çok 2 sn) → ATT (yalnızca karar verilmemişse ve vitrin GBR değilse;
@@ -138,7 +162,7 @@ GBR'de ATT sorulmaz ve `tagForUnderAgeOfConsent` verilir) → AdMob başlat → 
 Plus sahibine reklam başlatılmaz, izin sorulmaz. ATT reddedilirse reklam
 kişiselleştirilmeden sürer (reklam kimliği ve diğer uygulama/sitelerdeki bilgi kullanılmaz). Geçiş reklamı: oturumun ilk çözümünde yok, en az 3 dk aralık,
 hazır değilse atlanır. Reklam `win()` anında değil, çözüm penceresi (650 ms sonra) açılıp **oyuncu
-onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun"/"Tekrar dene" ile
+onu kapatır kapatmaz** (MutationObserver, yoklama yok) gösterilir; pencere "Yeni Oyun" ile
 kapanıp yeni bulmaca çekildiyse ya da oyuncu yazmaya başladıysa o çözümde reklam yoktur. Son reklam
 zamanı ve çözüm sayısı `sessionStorage` (`sm_gecis`, `sm_cozum`) tutulur. Reklamlar 55 dk sonra eskir ve
 yeniden yüklenir. İzin hatası (çevrimdışı açılış) saklanmaz, sonraki istek yeniden dener. Kimlikler `gelir.json` → `web-esitle.mjs`
@@ -209,10 +233,10 @@ değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adre
 `ios/App/App/public`'e eklenir; her `cap sync` o klasörü yeniden yazıp siler
 (TestFlight arşivden önce eşitler). Yerelde `simulator.sh`'tan sonra `cap sync`
 yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Betik oyuncunun yolundan gider
-(ana ekranda "Oyna", `#giris` alanına yazma, `#btnHelp`); site `index.html`'de
+(ana ekranda "Oyna", ekran klavyesinin tuşları ve `#btnGonder`, menüden "Nasıl oynanır?"); site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da bu ögeler değişirse iş akışı kırılır,
-tarayıcı testi de. Klavye açıldıysa görünen alanı ölçer (`SM-OTOMATIK: bilgi …`, iş
-günlüğünde görünür) ve giriş satırı ile harf şeridinin klavyenin üstünde kaldığını denetler.
+tarayıcı testi de. Oyun ekranını ölçer (`SM-OTOMATIK: bilgi …`, iş günlüğünde görünür):
+telefonun klavyesi hiçbir ekranda açılmamalı, eylem sırası ekrana sığmalı.
 
 **Tarayıcı testi sahte köprü kullanır.** Titreşimin, paylaşım sayfasının, gerçek
 reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı ancak cihazda
@@ -255,13 +279,10 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
 6. `simulator.yml`'deki ön sürüm adımı (`gh release`) yalnızca `main`'de çalışır;
    PR'da denenemedi. İlk birleştirmeden sonra
    `releases/download/simulator/kucuk-1-gunun-bulmacasi.png` açılıyor mu bakın.
-7. Telefonun klavyesi (13 Kasım 2026): yalnızca tarayıcıda, görünüm kısaltılarak denendi.
-   Cihazda bakılacaklar: (a) klavye açılırken ekranın sıçramaması ve sayfanın kaymaması
-   (kayarsa `--vv-top` izler; kalıcı çözüm `capacitor.config.json` → `ios.scrollEnabled:
-   false`, ama gizlilik/lisans sayfaları belge kaydırır, önce onlar iç kaydırmaya alınmalı);
-   (b) WKWebView'in klavyenin üstünde gösterdiği "Bitti" çubuğu (form yardımcı çubuğu)
-   eklentisiz gizlenemez: yer kaplıyor ya da rahatsız ediyorsa seçenek `@capacitor/keyboard`
-   (sahip onayı) ya da `AnaGorunum`'da küçük bir Swift eklemesi; (c) gönder tuşunun
-   (`enterkeyhint="send"`) kelimeyi göndermesi; (d) İngilizce klavyede `i` → `İ`, şeritteki
-   `I`; (e) dikte ve öneri çubuğu; (f) ödüllü reklamdan dönünce klavyenin geri gelmesi
-   (gelmezse tahtaya dokunmak açar).
+7. Ekran klavyesi (15 Kasım 2026): yalnızca tarayıcıda denendi. Cihazda bakılacaklar:
+   (a) hızlı yazarken tuşların her dokunuşu alması (çift dokunuş yakınlaştırması yok,
+   `touch-action: manipulation`); (b) basılı görünüm ve tuş başına hafif titreşimin yorucu
+   olmaması; (c) iPhone SE'de (375×667, güvenli alan düşülünce daha kısa) merdivenin yeterli
+   yer bulması; (d) ana ekran çubuğu ile Gönder'in arasında yeterli boşluk; (e) VoiceOver'da
+   "Noktasız I" / "Noktalı İ" ve devre dışı Q, W, X'in okunuşu; (g) menü kapanınca `blur()` sonrası
+   bağlı klavyede Tab sırası WKWebView'de Chromium'daki gibi mi (iPad/TestFlight'ta bakılacak).

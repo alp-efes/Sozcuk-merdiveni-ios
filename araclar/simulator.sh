@@ -5,7 +5,7 @@
 #   npm ci && npm run ios:sync && bash araclar/simulator.sh <çıktı klasörü> [magaza]
 #
 # "magaza": yalnızca 6,9" iPhone'da (Pro Max, 1320×2868) App Store görüntüleri için ham
-# ekranları alır: durum çubuğu temiz (9:41), oyun ekranlarında telefonun klavyesi açık.
+# ekranları alır: durum çubuğu temiz (9:41); oyun ekranlarında uygulamanın kendi klavyesi.
 # Başlık bandını site deposundaki tools/magaza_gorsel.js --ham ekler (simulator.yml).
 #
 # Otomatik oynama betiği (araclar/otomatik-oyna.js) YALNIZCA burada, derlemeden
@@ -121,8 +121,8 @@ calistir() {
     fi
     onceki="$CIKTI/$on-${adim%%:*}.png"
   done
-  # Klavye açıkken ölçülen görünen alan (otomatik-oyna.js yazar): iş günlüğünde görünsün
-  grep -o "SM-OTOMATIK: bilgi.*" "$gunluk" || echo "::warning::$on: klavye ölçüsü günlükte yok"
+  # Oyun ekranının ölçüleri (otomatik-oyna.js yazar): iş günlüğünde görünsün
+  grep -o "SM-OTOMATIK: bilgi.*" "$gunluk" || echo "::warning::$on: oyun ekranı ölçüsü günlükte yok"
   sleep 2
   # Çökme denetimi: uygulama hamlelerden sonra hâlâ çalışıyor olmalı (PID'li launchd işi)
   if ! xcrun simctl spawn "$udid" launchctl list |
@@ -137,8 +137,8 @@ calistir() {
   echo "::endgroup::"
 }
 
-# Ekran klavyesi açılsın: Simulator "bağlı klavye" varsayarsa telefonun klavyesi görünmez ve
-# oyun ekranının klavyeli hali (uygulamanın asıl kullanımı) ekran görüntüsüne girmez
+# Simulator "bağlı klavye" varsaymasın: bir metin alanı yanlışlıkla odak alırsa telefonun klavyesi
+# açılsın ve otomatik-oyna.js bunu yakalasın (uygulama kendi klavyesini kullanır)
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 
 if [ -n "$MAGAZA" ]; then

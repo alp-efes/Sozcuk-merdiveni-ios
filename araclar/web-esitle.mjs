@@ -10,8 +10,8 @@
  * Web görünümü hiçbir dış ağ isteği yapmaz: sitedeki reklam, analitik (geri gelirse
  * derleme durur), SEO etiketleri çıkarılır, sıkı bir içerik güvenlik politikası (CSP)
  * eklenir. Reklamlar ve satın alma yerel (native) taraftadır, web görünümünde değil.
- * Uygulamanın kendi arayüzü (açılış ve ana ekran, telefonun klavyesi için metin alanı,
- * Türkçe harf şeridi) de burada eklenir: parçalar araclar/arayuz.mjs, davranış
+ * Uygulamanın kendi arayüzü (açılış ve ana ekran, menü, klavyenin altındaki eylem
+ * sırası) de burada eklenir: parçalar araclar/arayuz.mjs, davranış
  * web/uygulama.js, görünüm web/uygulama.css. Site aynı kalır.
  * Site dosyaları elle düzenlenmez; bütün fark buradadır.
  *
@@ -22,7 +22,7 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ANA_EKRAN, BASLIK, GIRIS, HARFLER, MENU, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
+import { ANA_EKRAN, BASLIK, EN_KISA, EYLEMLER, MENU, SITE_OGELERI, YARDIM_KAPAT, YARDIM_KLAVYE } from "./arayuz.mjs";
 
 const KOK = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Site deposu: SITE_DEPOSU ortam değişkeni, yoksa yandaki klasör
@@ -102,14 +102,14 @@ export function donustur(html) {
   degistir(/<script src="app\.js"><\/script>/g,
            '<script src="app.js"></script>\n  <script src="uygulama.js"></script>\n  <script src="yerel.js"></script>', "app.js betiği", 1);
 
-  // Uygulama arayüzü (araclar/arayuz.mjs): açılış + ana ekran, telefonun klavyesi, Türkçe harf
-  // şeridi, yardım penceresi. Her ekleme noktası tam bir kez bulunmalı; site yapısı değişirse durur.
+  // Uygulama arayüzü (araclar/arayuz.mjs): açılış + ana ekran, menü, eylem sırası,
+  // yardım penceresi. Her ekleme noktası tam bir kez bulunmalı; site yapısı değişirse durur.
   const ekle = (desen, parca, ad) => degistir(desen, (bulunan) => bulunan + parca, ad, 1);
   ekle(/<link rel="stylesheet" href="style\.css">/g, '\n  <link rel="stylesheet" href="uygulama.css">', "style.css bağlantısı");
   ekle(/<body>\n/g, `\n  ${ANA_EKRAN}\n\n  ${MENU}\n`, "body");
-  ekle(/<div class="app" id="oyun">\n/g, `  ${GIRIS}\n`, "oyun kabuğu");
   ekle(/<header class="header">\n/g, `    ${BASLIK}\n`, "başlık");
-  ekle(/<footer class="keyboard" id="keyboard"[^>]*><\/footer>\n/g, `  ${HARFLER}\n`, "ekran klavyesi");
+  ekle(/<footer class="keyboard" id="keyboard"[^>]*><\/footer>\n/g, `  ${EYLEMLER}\n`, "ekran klavyesi");
+  ekle(/<div class="result-grid" id="modalGrid"[^>]*><\/div>\n/g, `      ${EN_KISA}\n`, "çözüm ızgarası");
   ekle(/<section class="info page" id="nasil-oynanir">\n/g, `  ${YARDIM_KAPAT}\n`, "nasıl oynanır bölümü");
   ekle(/<p class="legend">.*<\/p>\n/g, `  ${YARDIM_KLAVYE}\n`, "örnek açıklaması");
   // uygulama.js'in bağlandığı site ögeleri: biri kalkar ya da çoğalırsa uygulama sessizce bozulmasın
