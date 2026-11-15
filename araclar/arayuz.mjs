@@ -8,21 +8,22 @@
 const ikon = (yol) => '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
   `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${yol}</svg>`;
 
-// Uygulama işareti: merdiven ve üç blok (yerel açılış görseliyle aynı çizim)
+// Uygulama işareti: merdiven ve üç blok (yerel açılış görseliyle aynı çizim). Bloklar
+// gruplanır: açılış ekranında alttan üste (i-dus-1 → 3) basamağa (i-basamak-1 → 3) düşerler (uygulama.css)
 const ISARET = `<svg class="isaret" viewBox="0 0 320 320" aria-hidden="true" focusable="false">
-      <rect class="i-cita" x="52" y="51" width="216" height="18" rx="5"/>
-      <rect class="i-cita" x="52" y="151" width="216" height="18" rx="5"/>
-      <rect class="i-cita" x="52" y="251" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-3" x="52" y="51" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-2" x="52" y="151" width="216" height="18" rx="5"/>
+      <rect class="i-cita i-basamak-1" x="52" y="251" width="216" height="18" rx="5"/>
       <rect class="i-ray" x="40" y="0" width="22" height="320" rx="9"/>
       <rect class="i-cita" x="46" y="4" width="8" height="312" rx="4"/>
       <rect class="i-ray" x="258" y="0" width="22" height="320" rx="9"/>
       <rect class="i-cita" x="264" y="4" width="8" height="312" rx="4"/>
-      <rect class="i-blok-g" x="72" y="26" width="84" height="84" rx="16"/>
-      <rect class="i-blok" x="72" y="18" width="84" height="84" rx="16"/>
-      <rect class="i-yesil-g" x="118" y="126" width="84" height="84" rx="16"/>
-      <rect class="i-yesil" x="118" y="118" width="84" height="84" rx="16"/>
-      <rect class="i-hedef-g" x="164" y="226" width="84" height="84" rx="16"/>
-      <rect class="i-hedef" x="164" y="218" width="84" height="84" rx="16"/>
+      <g class="i-dus i-dus-3"><rect class="i-blok-g" x="72" y="26" width="84" height="84" rx="16"/>
+      <rect class="i-blok" x="72" y="18" width="84" height="84" rx="16"/></g>
+      <g class="i-dus i-dus-2"><rect class="i-yesil-g" x="118" y="126" width="84" height="84" rx="16"/>
+      <rect class="i-yesil" x="118" y="118" width="84" height="84" rx="16"/></g>
+      <g class="i-dus i-dus-1"><rect class="i-hedef-g" x="164" y="226" width="84" height="84" rx="16"/>
+      <rect class="i-hedef" x="164" y="218" width="84" height="84" rx="16"/></g>
     </svg>`;
 
 // Açılış ekranı (sözlük yüklenene dek durur) ve ana ekran: iki büyük seçenek
@@ -96,5 +97,5 @@ export const YARDIM_KLAVYE = `<p>Kelimeyi telefonunun klavyesiyle yaz, klavyenin
 // uygulama.js'in bağlandığı site ögeleri: her biri index.html'de tam bir kez bulunmalı
 export const SITE_OGELERI = [
   'id="btnHelp" href="#nasil-oynanir"', '<a class="btn-primary" href="#oyun">', 'id="btnMute"', 'id="btnRestart"',
-  'id="modal"', 'id="offer"', 'id="pes"', 'id="btnUndo"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
+  'id="modal"', 'id="offer"', 'id="pes"', 'id="yenile"', 'id="btnUndo"', 'id="btnShowResult"', 'id="btnNewGame"', 'id="plusBox"', 'id="steps"', 'id="inputRow"', 'id="game"', 'class="site-footer"', '<h1 class="brand-game">',
 ];

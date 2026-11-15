@@ -38,9 +38,10 @@ test("site CSS'inin yüklediği her dosya pakete kopyalanır", () => {
 });
 
 // Yalnızca metin olarak geçebilecek adresler; hiçbiri bağlantı ya da kaynak değildir.
-// Site adresi paylaşım metnine yazılır (yerel.js), diğerleri lisans metinlerindedir.
+// Unicode site adresi paylaşım metnine yazılır (yerel.js); punycode makine alanlarındadır
+// (canonical, og:url); diğerleri lisans metinlerindedir.
 const METIN_ADRESLERI = new Set([
-  "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
+  "https://sözcükyolu.com/", "https://xn--szckyolu-n4a6d.com/", "https://ionic.io", "https://github.com/ahmetaa/zemberek-nlp",
   "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
   "https://github.com/undercasetype/Fraunces", "http://scripts.sil.org/OFL",
 ]);
@@ -148,6 +149,13 @@ test("site temizlik betiğini kaldırsa da dönüşüm çalışır, betik pakete
   assert.doesNotThrow(() => donustur(betiksiz));
 });
 
+test("paylaşım metninde Unicode adres, makine alanlarında punycode", () => {
+  const yerel = oku(KOK, "web/yerel.js");
+  assert.match(yerel, /const SITE = "https:\/\/sözcükyolu\.com\/";/, "paylaşım adresi Unicode olmalı");
+  assert.doesNotMatch(yerel, /xn--/, "yerel.js'te punycode olmamalı (kullanıcıya görünen metin)");
+  assert.match(siteIndex, /<link rel="canonical" href="https:\/\/xn--szckyolu-n4a6d\.com\/">/, "sitede canonical punycode kalmalı");
+});
+
 test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   // yerel.js bunları sarar ya da varsayar; site değişirse burada fark edilir
   assert.match(siteApp, /^class WordLadder \{/m, "WordLadder sınıfı");
@@ -155,7 +163,8 @@ test("yerel.js'in app.js'te bağlandığı noktalar duruyor", () => {
   assert.match(siteApp, /^  win\(\) \{/m, "win(): çözüm titreşimi");
   assert.match(siteApp, /^  accept\(word\) \{/m, "accept(): kabul edilen kelimede hafif dokunuş");
   assert.ok(siteApp.includes("await navigator.share({ text: metin })"), "share(): navigator.share({ text })");
-  assert.ok(siteApp.includes("location.href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
+  // yerel.js bu adresi (uygulamada capacitor://localhost/) site adresiyle değiştirir
+  assert.ok(siteApp.includes("this.paylasimAdresi(location.href)") && siteApp.includes("href.split(/[?#]/)[0]"), "share(): adresin hesaplanışı");
   // Site analitiği kaldırıldı; app.js'te trackEvent çağrısı kalmamalı
   assert.doesNotMatch(siteApp, /trackEvent/, "app.js'te trackEvent kalmış");
   assert.ok(siteApp.includes('fetch("words.json"'), "words.json göreli yoldan okunmalı");
@@ -169,7 +178,8 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/^  async init\(\) \{/m, "init(): açılış ekranı → ana ekran"],
     [/^  renderInput\(popLast = false\) \{/m, "renderInput(): metin alanı tamponla eşitlenir"],
     [/^  win\(\) \{/m, "win(): klavye kapanır"],
-    [/^  showOffer\(open\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
+    [/^  showOffer\(open, tur = "ipucu"\) \{/m, "showOffer(): teklif açıkken klavye kapanır"],
+    [/^  showYenile\(open\) \{/m, "showYenile(): yenile onayı açıkken klavye kapanır"],
     [/^  beginRetry\(\) \{/m, "beginRetry(): tekrar başlayınca klavye açılır"],
     [/^  showPes\(open\) \{/m, "showPes(): sonucu göster onayı açıkken klavye kapanır"],
     [/^  showResult\(\) \{/m, "showResult(): yol gösterilince klavye kapanır"],
@@ -185,7 +195,7 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/setTimeout\(\(\) => this\.showModal\(\), 650\);/, "win(): pencere prototipteki showModal ile gecikmeli açılır"],
     [/^  freePool\(\) \{/m, "freePool(): serbest bulmaca seçime uyuyor mu"],
     [/^  renderPlus\(\) \{/m, "renderPlus(): ana ekrandaki Plus kartı"],
-    [/this\.el\.plusBox\.classList\.toggle\("hidden", !G\);/, "Plus kutusu yalnızca kanca varsa görünür"],
+    [/this\.el\.plusBox\.classList\.toggle\("hidden", !this\.plusAcik\(\)\);/, "Plus kutusu yalnızca kanca Plus satıyorsa görünür"],
     [/showInterstitialAd\(\(\) => this\.newGame\("free"\)\);/, "btnNewGame: uygulamada günlükten serbeste geçiş yönlendirilir"],
     [/if \(this\.over\) \{ this\.el\.btnNewGame\.click\(\); return; \}/, "bitmiş oyunda Enter btnNewGame'e basar"],
     [/^  dailyPuzzle\(\) \{/m, "dailyPuzzle()"],
@@ -353,7 +363,7 @@ test("simge ve açılış görseli doğru boyutta, alfasız ve kaynağıyla ayn�
 });
 
 test("iş akışları: sabit eylem sürümü, dar yetki, gizli bilgi yalnızca Secrets'tan", () => {
-  for (const ad of ["test.yml", "testflight.yml", "simulator.yml"]) {
+  for (const ad of ["test.yml", "testflight.yml", "simulator.yml", "magaza-kayit.yml", "test-grubu.yml"]) {
     const akis = oku(KOK, ".github/workflows", ad);
     const eylemler = akis.match(/uses:.*/g) || [];
     assert.ok(eylemler.length > 0, `${ad}: eylem yok`);
@@ -403,6 +413,12 @@ test("otomatik oynama betiği yalnızca simülatör iş akışında, paketlere g
   assert.deepEqual(Object.keys(is).filter((ad) => /contents: write/.test(is[ad].metin)), ["yayinla"]);
   assert.match(is.yayinla.metin, /^    if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'$/m);
   assert.doesNotMatch(is.ekran.metin, /permissions:|github\.token|GH_TOKEN/);
+  // Mağaza görselleri normal akışı ve yayinla'yı kırmaz; site ikinci kez çekilmez
+  const magaza = is.ekran.metin.split(/\n      - name: /).find((b) => b.includes("id: magaza"));
+  assert.match(magaza, /continue-on-error: true/);
+  assert.ok(is.ekran.metin.indexOf("id: magaza") > is.ekran.metin.indexOf('bash araclar/simulator.sh "$RUNNER_TEMP/ekran"'), "mağaza normal adımdan sonra");
+  assert.match(is.ekran.metin, /if: steps\.magaza\.outcome == 'failure'\n\s+run: echo "::warning::Mağaza görselleri üretilemedi/);
+  assert.doesNotMatch(is.ekran.metin, /site-magaza/);
 });
 
 test("gelir.json: kimlikler biçimli; TestFlight denetimi test kimliğini yakalar", () => {
@@ -469,6 +485,10 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
   assert.ok(adlar.has("sm_plus"), "sm_plus bulunamadı: desen bozulmuş olabilir");
   const gizlilik = oku(KOK, "web", "gizlilik.html");
+  // Plus kapalıyken (PLUS_ACIK = false) sm_plus yazılmaz, yalnızca silinir; gizlilik metni Plus'tan söz etmez.
+  // Plus açılırken bayrakla birlikte metne sm_plus ve satın alma bölümü geri konur.
+  const plusKapali = oku(KOK, "web", "yerel.js").includes("const PLUS_ACIK = false;");
+  if (plusKapali) { adlar.delete("sm_plus"); assert.doesNotMatch(gizlilik, /Plus|StoreKit|sm_plus/, "Plus kapalıyken gizlilik metni Plus'a değinmemeli"); }
   for (const ad of adlar) assert.ok(gizlilik.includes(ad), `gizlilik.html "${ad}" kaydını listelemiyor`);
   // "Reklam Tercihleri" bağlantısı alt bilgiyle birlikte ana ekranın altındadır (uygulama.js taşır)
   assert.match(gizlilik.replace(/\s+/g, " "), /ana ekranın altındaki "Reklam Tercihleri" bağlantısını/);

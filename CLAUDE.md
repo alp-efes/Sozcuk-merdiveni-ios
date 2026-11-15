@@ -38,6 +38,11 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
 - **TestFlight gizli bilgileri yalnızca `testflight` ortamında.** Ortam
   yalnızca `main`'den çalışır; `testflight.yml`'deki `environment:` satırı
   testle korunur. Gizli bilgiyi başka bir işe ya da depo düzeyine taşımayın.
+  İstisna (sahip isteği, 14 Kasım 2026): `magaza-kayit.yml` (mağaza metinleri; incelemeye göndermez) aynı
+  `testflight` ortamını kullanır; gizli bilgi taşınmadı, yeni ad eklenmedi. Yalnızca `workflow_dispatch` ve
+  yalnızca `main` (testle korunur); `pull_request` tetikleyicisi eklenmez.
+  İkinci elle çalışan iş (sahip isteği, 14 Kasım 2026): `test-grubu.yml` bir derlemeyi dış test grubu "1. Seviye Test"e ekler
+  (kullanıcı eklemez/silmez); aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
@@ -77,9 +82,11 @@ Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
 sayarak ekler, `web/uygulama.js` davranışı, `web/uygulama.css` görünümü verir. Site
 dosyalarına dokunulmaz; `uygulama.js` `WordLadder` metotlarını sarar (`init`, `renderInput`,
-`win`, `showModal`, `showOffer`, `showPes`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
+`win`, `showModal`, `showOffer`, `showPes`, `showYenile`, `showResult`, `beginRetry`, `saveState`, `updateTabs`, `tickCountdown`) ve Capacitor
 köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 
+- **Yenile düğmesi başlığın sol ucunda** (ana ekran düğmesinin yanında): sitedeki yerinde geri al'ın
+  tam üstüne düşüyor, ikisi karışıyordu (sahip notu, 13 Kasım 2026). İlerleme varken onay ister (site).
 - **Açılış → ana ekran ⇄ oyun.** `body[data-ekran]` (`ana` | `oyun`; yokken açılış ekranı).
   Açılış ekranı yerel açılış görseliyle aynı çizimdir (satır içi SVG, renkler belirteçlerden),
   sözlük yüklenene dek ve en az 0,8 sn görünür. Ana ekranda iki kart: Günün Bulmacası,
@@ -106,9 +113,11 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 - **Çözüm penceresi yalnızca oyun ekranında ve bitmiş oyunda açılır** (`showModal` sarılır):
   `app.js` pencereyi çözümden 650 ms sonra açar; o arada başka ekrana geçildiyse açılmaz.
 - **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
-  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca varsa). Alt bilgi
+  notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca `plusSatinAl` veriyorsa). Alt bilgi
   (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
+
+**İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 
 **Gelir (`window.SozcukGelir`, `web/yerel.js`).** Oyun (site deposu) reklam, Plus ve
 ipucu/tekrar için bu donuk kancayı çağırır: `plusMu()` (düz boolean, söz değil),

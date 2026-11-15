@@ -2,7 +2,11 @@
 # Simülatör derlemesi ve ekran görüntüleri. Yalnızca .github/workflows/simulator.yml
 # çalıştırır (macOS). İmzasız simülatör derlemesidir: Apple hesabı, gizli bilgi yok.
 #
-#   npm ci && npm run ios:sync && bash araclar/simulator.sh <çıktı klasörü>
+#   npm ci && npm run ios:sync && bash araclar/simulator.sh <çıktı klasörü> [magaza]
+#
+# "magaza": yalnızca 6,9" iPhone'da (Pro Max, 1320×2868) App Store görüntüleri için ham
+# ekranları alır: durum çubuğu temiz (9:41), oyun ekranlarında telefonun klavyesi açık.
+# Başlık bandını site deposundaki tools/magaza_gorsel.js --ham ekler (simulator.yml).
 #
 # Otomatik oynama betiği (araclar/otomatik-oyna.js) YALNIZCA burada, derlemeden
 # hemen önce ios/App/App/public içine eklenir. Her `cap sync` (npm run ios:sync,
@@ -10,7 +14,8 @@
 # DİKKAT: bunu yerelde çalıştırıp cap sync yapmadan Xcode'da arşivlemeyin.
 set -euo pipefail   # macOS bash 3.2: $(...) içinde set -e geçmez, hatalar açıkça döndürülür
 
-CIKTI=${1:?"kullanım: bash araclar/simulator.sh <çıktı klasörü>"}
+CIKTI=${1:?"kullanım: bash araclar/simulator.sh <çıktı klasörü> [magaza]"}
+MAGAZA=${2:-}
 KOK=$(cd "$(dirname "$0")/.." && pwd)
 KIMLIK=$(jq -r .appId "$KOK/capacitor.config.json")
 PUBLIC="$KOK/ios/App/App/public"
@@ -22,7 +27,11 @@ echo "::group::Otomatik oynama betiği ekleniyor"
 [ -f "$PUBLIC/index.html" ] || { echo "::error::$PUBLIC/index.html yok: önce npm run ios:sync"; exit 1; }
 cp "$KOK/araclar/otomatik-oyna.js" "$PUBLIC/"
 # yerel.js'ten ÖNCE: betik reklam/ATT/satın almayı kapatan bayrağı yerel.js okumadan koyar
-perl -0pi -e 's|<script src="yerel\.js"></script>|<script src="otomatik-oyna.js"></script>\n  $&|' "$PUBLIC/index.html"
+# Aynı pakette ikinci çalıştırma (magaza) betiği ikinci kez eklemesin
+grep -q 'otomatik-oyna.js' "$PUBLIC/index.html" ||
+  perl -0pi -e 's|<script src="yerel\.js"></script>|<script src="otomatik-oyna.js"></script>\n  $&|' "$PUBLIC/index.html"
+# Mağaza modu bayrağı betiğin ilk satırı olur (saati sabitlemek için her şeyden önce okunur)
+[ -z "$MAGAZA" ] || perl -pi -e 'print "window.SM_MAGAZA = true;\n" if $. == 1' "$PUBLIC/otomatik-oyna.js"
 grep -q '<script src="otomatik-oyna.js"></script>' "$PUBLIC/index.html" ||
   { echo "::error::otomatik-oyna.js index.html'e eklenemedi"; exit 1; }
 echo "::endgroup::"
@@ -88,13 +97,17 @@ calistir() {
   gunluk="$CIKTI/$on.log"
   echo "::group::$on: $(xcrun simctl list devices | grep "$udid")"
   xcrun simctl bootstatus "$udid" -b
+  # Önceki çalıştırmanın localStorage'ı kalmasın (kurulum veri klasörünü korur)
+  xcrun simctl uninstall "$udid" "$KIMLIK" || true
+  [ -z "$MAGAZA" ] || xcrun simctl status_bar "$udid" override --time 9:41 --batteryState charged \
+    --batteryLevel 100 --cellularMode active --cellularBars 4 --wifiMode active --wifiBars 3
   xcrun simctl install "$udid" "$APP"
   paket=$(xcrun simctl get_app_container "$udid" "$KIMLIK" app)
   # Uygulamanın çıktısı doğrudan dosyaya; NSUnbufferedIO arabelleği kapatır
   # (kapatmasa da otomatik-oyna.js her aşamada onay bekler, yalnızca yavaşlar)
   SIMCTL_CHILD_NSUnbufferedIO=YES xcrun simctl launch \
     --stdout="$gunluk" --stderr="$CIKTI/$on.err.log" "$udid" "$KIMLIK"
-  for adim in 0-ana-ekran:ana 1-gunun-bulmacasi:oyun 2-hamleler:hamle 3-cozum:cozum 4-nasil-oynanir:nasil; do
+  for adim in $ASAMALAR; do
     if ! bekle "$gunluk" "${adim#*:}"; then
       xcrun simctl io "$udid" screenshot "$CIKTI/$on-hata.png" || true
       grep -v "(yineleme)" "$gunluk"; exit 1
@@ -128,6 +141,13 @@ calistir() {
 # oyun ekranının klavyeli hali (uygulamanın asıl kullanımı) ekran görüntüsüne girmez
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
 
-calistir kucuk '^iPhone SE'
-calistir buyuk '^iPhone [0-9]+ Pro Max$'
+if [ -n "$MAGAZA" ]; then
+  # Mağaza sırası otomatik-oyna.js'teki oynama sırasıdır; dosya numarası mağaza sırasıdır
+  ASAMALAR="02-ana-ekran:ana 03-hamle:hamle 04-cozum:cozum 01-gunluk:gunluk 05-nasil-oynanir:nasil"
+  calistir buyuk '^iPhone [0-9]+ Pro Max$'
+else
+  ASAMALAR="0-ana-ekran:ana 1-gunun-bulmacasi:oyun 2-hamleler:hamle 3-cozum:cozum 4-nasil-oynanir:nasil"
+  calistir kucuk '^iPhone SE'
+  calistir buyuk '^iPhone [0-9]+ Pro Max$'
+fi
 ls -l "$CIKTI"

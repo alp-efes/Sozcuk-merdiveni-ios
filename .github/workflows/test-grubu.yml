@@ -1,0 +1,54 @@
+# Bir TestFlight derlemesini dış test grubuna ("1. Seviye Test") ekler. Yalnızca elle ve yalnızca
+# main'den çalışır. Test kullanıcısı eklemez/silmez. Aynı gizli bilgiler testflight ortamındadır.
+name: Test grubuna gönder
+
+on:
+  workflow_dispatch:
+    inputs:
+      derleme:
+        description: "Gruba eklenecek derleme numarası (rakam)"
+        required: true
+      neyi_test_etmeli:
+        description: "Test notu (boşsa varsayılan Türkçe metin)"
+        default: ""
+      kuru:
+        description: "Kuru çalıştırma: yalnızca okur, ne yapacağını yazar"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency: test-grubu
+
+jobs:
+  grup:
+    # Ortam yalnızca main'den çalışmaya izin verir; if: ikinci kilit
+    environment: testflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Test grubuna ekle
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          DERLEME: ${{ inputs.derleme }}
+          NOT: ${{ inputs.neyi_test_etmeli }}
+          KURU: ${{ inputs.kuru }}
+        run: |
+          set -euo pipefail
+          [[ "$DERLEME" =~ ^[0-9]+$ ]] || { echo "::error::derleme bir sayı olmalı"; exit 1; }
+          arg=(--derleme "$DERLEME")
+          [ -n "$NOT" ] && arg+=(--not "$NOT")
+          [ "$KURU" = "true" ] && arg+=(--kuru)
+          node araclar/test-grubu.mjs "${arg[@]}"

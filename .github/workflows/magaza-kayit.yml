@@ -1,0 +1,64 @@
+# App Store Connect mağaza kaydı (açıklama, alt başlık, anahtar kelimeler, inceleme notu;
+# isteğe bağlı derleme ve ekran görüntüleri). Yalnızca elle ve yalnızca main'den çalışır.
+# İncelemeye GÖNDERMEZ. Aynı gizli bilgiler testflight ortamındadır (SAHIP-ADIMLARI 4-5).
+name: Mağaza kaydı
+
+on:
+  workflow_dispatch:
+    inputs:
+      kuru:
+        description: "Kuru çalıştırma: yalnızca okur, ne değişeceğini yazar"
+        type: boolean
+        default: true
+      derleme:
+        description: "Sürüme bağlanacak derleme numarası (boşsa dokunulmaz)"
+        default: ""
+      gorseller:
+        description: "Ekran görüntülerini site deposundan yükle"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency: magaza-kayit
+
+jobs:
+  kayit:
+    # Ortam yalnızca main'den çalışmaya izin verir; if: ikinci kilit
+    environment: testflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Site deposu (ekran görüntüleri; herkese açık)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: alp-efes/sozcuk-merdiveni
+          path: site
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Mağaza kaydı
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          KURU: ${{ inputs.kuru }}
+          DERLEME: ${{ inputs.derleme }}
+          GORSELLER: ${{ inputs.gorseller }}
+        run: |
+          set -euo pipefail
+          [[ -z "$DERLEME" || "$DERLEME" =~ ^[0-9]+$ ]] || { echo "::error::derleme bir sayı olmalı"; exit 1; }
+          arg=()
+          [ "$KURU" = "true" ] && arg+=(--kuru)
+          [ -n "$DERLEME" ] && arg+=(--derleme "$DERLEME")
+          [ "$GORSELLER" = "true" ] && arg+=(--gorseller site/tools/uygulama/magaza)
+          node araclar/magaza-kayit.mjs "${arg[@]}"

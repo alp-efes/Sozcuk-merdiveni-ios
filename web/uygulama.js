@@ -15,16 +15,18 @@
  * Capacitor köprüsü gerekmez: tarayıcı testinde de aynı çalışır.
  * ========================================================= */
 (() => {
+  // Gizlilik/lisans dönüşünde (referrer dolu) açılış bekletilmez, bloklar düşmez: sınıf, betiğin
+  // ilk işi olarak konur (index.html'de daha erken betik yok; CSP satır içi betiğe izin vermez)
+  const ACILIS_MS = document.referrer ? 0 : 800;
+  if (!ACILIS_MS) document.getElementById("acilis")?.classList.add("hemen");
   if (typeof WordLadder === "undefined") return;   // app.js yüklenmediyse bağlanacak bir şey yok
   const P = WordLadder.prototype;
   const kok = document.documentElement;
   const govde = document.body;
   const al = (id) => document.getElementById(id);
   const giris = al("giris");
-  const pencereler = [al("modal"), al("offer"), al("pes")];
-  // Açılış ekranı uygulama açılırken en az bu kadar görünür (sayfa açılışından). Gizlilik ya da
-  // lisans sayfasından dönüşte (referrer dolu) bekletilmez.
-  const ACILIS_MS = document.referrer ? 0 : 800;
+  const pencereler = [al("modal"), al("offer"), al("pes"), al("yenile")];
+  // Açılış ekranı uygulama açılırken en az ACILIS_MS görünür (sayfa açılışından; yukarıda)
   const KAYIT = { daily: "sm_mod_daily", free: "sm_mod_free" };   // her modun canlı oyunu (sm_state'in kopyası)
   let oyun = null;
   let ekran = "acilis";
@@ -69,6 +71,13 @@
   const asilShowPes = P.showPes;
   P.showPes = function (ac, ...arg) {
     const s = asilShowPes.call(this, ac, ...arg);
+    if (ac) giris.blur(); else odakla();
+    return s;
+  };
+  // Yenile onayı (ilerleme varken): açıkken klavye kapanır, kapanınca geri gelir
+  const asilShowYenile = P.showYenile;
+  P.showYenile = function (ac, ...arg) {
+    const s = asilShowYenile.call(this, ac, ...arg);
     if (ac) giris.blur(); else odakla();
     return s;
   };
@@ -251,6 +260,7 @@
     giris.blur();
     oyun.hideModal();
     oyun.showOffer(false);
+    oyun.showYenile(false);
     anaCiz();
     al("ana").scrollTop = 0;
   };
@@ -329,6 +339,9 @@
     anaCiz();
   });
 
+  // Yenile düğmesi geri al'ın tam üstünde duruyordu ve ikisi karışıyordu: başlığın sol ucuna,
+  // ana ekran düğmesinin yanına taşınır (geri al ve ipucu durum satırının sağ ucunda kalır)
+  al("btnAna").after(al("btnRestart"));
   // Ses düğmesi ana ekrana taşınır (oyun başlığında mod adına yer açılır); seçim hatırlanır
   al("anaUst").append(al("btnMute"));
   // (app.js'in kendi dinleyicisi sesi bu dinleyiciden sonra değiştirir: durum bir tur sonra okunur)
@@ -350,7 +363,7 @@
   });
   seritAyarla(oku("sm_serit") !== "0");
   // Plus (satın al, geri yükle, cayma notu) ana ekranda kart olarak durur: doğrudan ulaşılır.
-  // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca gelir kancası varsa görünür).
+  // Görünürlüğünü ve metnini app.js yönetir (renderPlus: yalnızca kanca `plusSatinAl` veriyorsa görünür).
   al("plusBox").classList.add("kart");
   al("ana").insertBefore(al("plusBox"), al("btnAnaYardim"));
   // Gizlilik ve lisans bağlantıları ana ekranın altında
@@ -362,12 +375,33 @@
     else if (ekran !== "oyun") e.stopPropagation();
   }, true);
 
-  // Açılış ekranı sözlük yüklenene dek (en az ACILIS_MS) durur, sonra ana ekran gelir
+  // Açılış: bloklar basamaklara düşer (uygulama.css → acilisDus); dönüşte (.hemen) beklenmez.
+  // Animasyon olayları gelmezse (sayfa arka planda) bekleme, son animasyonun beklenen
+  // bitişinden ACILIS_PAY_MS sonra bırakılır.
+  const ACILIS_PAY_MS = 400;
+  const acilis = al("acilis");
+  const animasyonBitti = async () => {
+    const animasyonlar = ACILIS_MS ? acilis.getAnimations?.({ subtree: true }) || [] : [];
+    if (!animasyonlar.length) return;
+    // Zaman çizelgesi performance.now ile aynı kökten sayar; henüz başlamamış animasyon şimdi başlar
+    const bitis = Math.max(...animasyonlar.map((a) => (a.startTime ?? performance.now()) + a.effect.getComputedTiming().endTime));
+    let zamanlayici;
+    await Promise.race([
+      Promise.all(animasyonlar.map((a) => a.finished.catch(() => {}))),
+      new Promise((coz) => { zamanlayici = setTimeout(coz, Math.max(0, bitis + ACILIS_PAY_MS - performance.now())); }),
+    ]);
+    clearTimeout(zamanlayici);
+  };
+
+  // Açılış ekranı sözlük yüklenene ve bloklar oturana dek (en az ACILIS_MS) durur, sonra ana ekran gelir
   const asilInit = P.init;
   P.init = async function (...arg) {
     await asilInit.apply(this, arg);
     oyun = this;
-    await new Promise((coz) => setTimeout(coz, Math.max(0, ACILIS_MS - performance.now())));
+    await Promise.all([
+      new Promise((coz) => setTimeout(coz, Math.max(0, ACILIS_MS - performance.now()))),
+      animasyonBitti(),
+    ]);
     anaAc();
   };
 })();
