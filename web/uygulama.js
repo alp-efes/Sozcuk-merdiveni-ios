@@ -10,6 +10,7 @@
  *   - oyun ekranı kaymaz; telefonun klavyesi hiç açılmaz
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
  *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/ses
+ *   - oyuna ilk girişte bir kez kısa, canlı örnekli "nasıl oynanır" kartı
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -224,6 +225,7 @@
       if (!k || !oyun.restoreState() || oyun.mode !== mod) oyun.newGame(mod);
     }
     ekranAc("oyun");
+    if (!ilkGoruldu) ilkYardimAc(true);
   };
 
   // Günlük çözüm penceresindeki "Serbest Oyun" (ve bitmiş günlükte Enter: app.js aynı düğmeye
@@ -248,7 +250,8 @@
       kazanilan = null;
       if (!k || k.mod !== this.mode || k.bas !== this.startWord || k.hedef !== this.targetWord || k.uzunluk !== this.chain.length) return undefined;
     }
-    menuAc(false);                         // çözüm penceresi açık menünün üstüne açılmaz
+    menuAc(false);                         // çözüm penceresi açık menünün ya da ilk giriş kartının üstüne açılmaz
+    ilkYardimAc(false);
     const s = asilShowModal.call(this, secenek, ...arg);
     // En kısa yoldan uzun çözüldüyse "En kısa yolu gör" (pencere kapanmaz: geçiş reklamı kuralı aynı kalır)
     const adim = this.lastResult ? this.lastResult.steps : this.chain.length - 1;
@@ -386,19 +389,66 @@
   });
   al("menuSes").addEventListener("click", () => { al("btnMute").click(); anahtarlar(); });
 
-  // Ana ekran, yardım ya da menü açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
+  /* ---------- İlk giriş kartı (sahip isteği, 16 Kasım 2026) ----------
+     Oyun ekranına ilk girişte bir kez: kısa kurallar, canlı örnek, iki oyun türü. Kapanınca
+     sm_ilk_yardim yazılır. Perdesi ekran tuşlarını ve ☰'i örter; ilk girişte oyun bitmemiş
+     olduğundan çözüm penceresi, teklif ve menü o sırada açılamaz (açılsa da showModal kartı kapatır). */
+  const ilk = al("ilkYardim");
+  const ORNEK = ["KAL", "KOL", "KOY", "SOY"];          // hedef SOY: yerine oturmuş harf yeşil (sitedeki gibi)
+  let ilkGoruldu = oku("sm_ilk_yardim") !== null;      // kayıt tutulamasa da oturumda bir kez
+  let ornekZamanlayici = null;
+  const ilkAcik = () => !ilk.classList.contains("hidden");
+  const ornekCiz = (i) => {
+    const kelime = ORNEK[i], onceki = ORNEK[i - 1], hedef = ORNEK[ORNEK.length - 1];
+    [...al("ilkOrnek").children].forEach((t, j) => {
+      const degisti = !!onceki && onceki[j] !== kelime[j];
+      t.textContent = kelime[j];
+      t.classList.toggle("green", kelime[j] === hedef[j]);
+      t.classList.toggle("changed", degisti);
+      t.classList.remove("pop");
+      if (degisti) { void t.offsetWidth; t.classList.add("pop"); }   // zıplama her adımda yeniden başlasın
+    });
+    [...al("ilkZincir").children].forEach((k, j) => k.classList.toggle("simdi", j === i));
+  };
+  function ilkYardimAc(ac) {
+    if (ac === ilkAcik()) return;
+    ilk.classList.toggle("hidden", !ac);
+    ilk.setAttribute("aria-hidden", String(!ac));
+    clearInterval(ornekZamanlayici);
+    if (ac) {
+      let i = 0;
+      ornekCiz(i);
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        ornekZamanlayici = setInterval(() => ornekCiz(i = (i + 1) % ORNEK.length), 1200);
+      }
+      al("ilkBasla").focus({ preventScroll: true });
+    } else {
+      ilkGoruldu = true;
+      yaz("sm_ilk_yardim", "1");
+      // Gizlenen düğmede odak kalmasın; bağlı klavye yine tahtaya yazar
+      if (ilk.contains(document.activeElement)) document.activeElement.blur();
+    }
+  }
+  al("ilkBasla").addEventListener("click", () => ilkYardimAc(false));
+  al("ilkDaha").addEventListener("click", () => { ilkYardimAc(false); yardimAc(true); });
+  ilk.addEventListener("click", (e) => { if (e.target === ilk) ilkYardimAc(false); });   // dışarı dokunuş
+
+  // Odak açık kartın görünen düğmeleri arasında döner (aria-modal)
+  const odakDondur = (kap, e) => {
+    const ogeler = [...kap.querySelectorAll("button:not([hidden])")];
+    const sira = ogeler.indexOf(document.activeElement);
+    const sonraki = e.shiftKey ? (sira <= 0 ? ogeler.length - 1 : sira - 1) : (sira + 1) % ogeler.length;
+    e.preventDefault();
+    ogeler[sonraki].focus();
+  };
+
+  // Ana ekran, yardım, menü ya da ilk giriş kartı açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
   document.addEventListener("keydown", (e) => {
     if (yardimAcik()) { e.stopPropagation(); if (e.key === "Escape") yardimAc(false); }
-    else if (menuAcik()) {
+    else if (menuAcik() || ilkAcik()) {
       e.stopPropagation();
-      if (e.key === "Escape") menuAc(false);
-      if (e.key === "Tab") {                       // odak menünün içinde döner (aria-modal)
-        const ogeler = [...menu.querySelectorAll("button:not([hidden])")];
-        const sira = ogeler.indexOf(document.activeElement);
-        const sonraki = e.shiftKey ? (sira <= 0 ? ogeler.length - 1 : sira - 1) : (sira + 1) % ogeler.length;
-        e.preventDefault();
-        ogeler[sonraki].focus();
-      }
+      if (e.key === "Escape") menuAcik() ? menuAc(false) : ilkYardimAc(false);
+      if (e.key === "Tab") odakDondur(menuAcik() ? menu : ilk, e);
     }
     else if (ekran !== "oyun") e.stopPropagation();
   }, true);

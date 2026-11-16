@@ -33,9 +33,11 @@ before(async () => {
 });
 after(async () => { await tarayici?.close(); sunucu?.close(); });
 
-// Sayfayı açar; hataları, uyarıları ve yapılan her isteği toplar
-async function ac(baglam) {
+// Sayfayı açar; hataları, uyarıları ve yapılan her isteği toplar. İlk giriş kartı yalnızca onu
+// deneyen testlerde açılır (ilkYardim: true); öbürlerinde görülmüş sayılır.
+async function ac(baglam, { ilkYardim = false } = {}) {
   const kayit = { hatalar: [], uyarilar: [], disIstekler: [] };
+  if (!ilkYardim) await baglam.addInitScript(() => localStorage.setItem("sm_ilk_yardim", "1"));
   baglam.on("request", (i) => { if (!i.url().startsWith(ADRES)) kayit.disIstekler.push(i.url()); });
   const sayfa = await baglam.newPage();
   sayfa.on("pageerror", (e) => kayit.hatalar.push(e.message));
@@ -739,14 +741,14 @@ test("gelir kancası: StoreKit doğrulaması takılırsa 5 sn sonra reklam akı�
  * Arayüz Capacitor köprüsü gerektirmez. Yazma ekran tuşlarına dokunarak (bas) ya da bağlı
  * klavye olaylarıyla (yaz). iOS'taki gerçek yerleşim simülatörde ölçülür (araclar/otomatik-oyna.js). */
 
-async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {} } = {}) {
+async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {}, ilkYardim = false } = {}) {
   const baglam = await tarayici.newContext(secenek);
   await baglam.addInitScript((k) => {
     if (sessionStorage.getItem("__kuruldu")) return;      // yalnızca ilk açılışta: yenileme kayıtları ezmesin
     sessionStorage.setItem("__kuruldu", "1");
     for (const [ad, deger] of Object.entries(k)) localStorage.setItem(ad, deger);
   }, kayitlar);
-  const { sayfa, kayit } = await ac(baglam);
+  const { sayfa, kayit } = await ac(baglam, { ilkYardim });
   return { baglam, sayfa, kayit };
 }
 // Öge gerçekten görünüyor mu (display, visibility ve boyut)
@@ -1803,6 +1805,110 @@ test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'd
     assert.ok(Math.abs((k.ust + k.alt) / 2 - viewport.height / 2) < 2, `${ad}: kart dikeyde ortada olmalı (${k.ust}–${k.alt})`);
     assert.ok(k.en <= 340 && k.sol >= 16 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart kenarlardan en az 16 px içeride (${JSON.stringify(k)})`);
     assert.equal(await sayfa.evaluate(() => { const e = document.querySelector("#menu .menu"); return e.scrollHeight <= e.clientHeight; }), true, `${ad}: kartın içi kaymamalı`);
+    assert.ok(await tasmaYok(sayfa), `${ad}: taşma`);
+    assert.deepEqual(kayit.hatalar, []);
+    await baglam.close();
+  }
+});
+
+/* ---------- İlk giriş kartı (sahip isteği, 16 Kasım 2026) ---------- */
+const ilkKart = (sayfa) => sayfa.evaluate(() => ({ acik: !document.getElementById("ilkYardim").classList.contains("hidden"),
+  gizli: document.getElementById("ilkYardim").getAttribute("aria-hidden"), odak: document.activeElement.id,
+  kayit: localStorage.getItem("sm_ilk_yardim") }));
+// Örnekteki bloklar; değişen harfin ardında "*"
+const ornek = (sayfa) => sayfa.evaluate(() => [...document.querySelectorAll("#ilkOrnek .tile")]
+  .map((t) => t.textContent + (t.classList.contains("changed") ? "*" : "")).join(""));
+
+test("uygulama arayüzü: ilk oyun girişinde \"nasıl oynanır\" kartı; örnek adım adım değişir; açıkken tuşlar yazmaz, dışarı dokunuş kapatır", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ ilkYardim: true });
+  await anaEkran(sayfa);
+  assert.equal((await ilkKart(sayfa)).acik, false, "ana ekranda açılmaz");
+  await oyunaGir(sayfa);
+  assert.deepEqual(await ilkKart(sayfa), { acik: true, gizli: "false", odak: "ilkBasla", kayit: null }, "açılınca odak Başla'da");
+  const metin = (await sayfa.textContent("#ilkYardim")).replace(/\s+/g, " ");
+  for (const parca of ["Her adımda tek harf değiştir.", "Her adım gerçek bir kelime olmalı.", "Hedef kelimeye ulaş.",
+    "KAL → KOL → KOY → SOY", "Günün Bulmacası", "Herkese aynı bulmaca, her gün yenisi.", "Serbest Oyun", "İstediğin kadar bulmaca çöz."]) {
+    assert.ok(metin.includes(parca), `kartta yok: ${parca}`);
+  }
+  assert.equal(await sayfa.getAttribute("#ilkYardim .ilk-ornek", "aria-label"), "Örnek: KAL, KOL, KOY, SOY. Her adımda bir harf değişir.");
+  // Harfler adım adım değişir, değişen harf işaretlenir; hedefle aynı yerdeki harf yeşil
+  assert.equal(await ornek(sayfa), "KAL");
+  for (const [kelime, beklenen] of [["KOL", "KO*L"], ["KOY", "KOY*"], ["SOY", "S*OY"], ["KAL", "KAL"]]) {
+    await sayfa.waitForFunction((k) => document.getElementById("ilkOrnek").textContent === k, kelime, { timeout: 3000 });
+    assert.equal(await ornek(sayfa), beklenen);
+  }
+  assert.equal(await sayfa.evaluate(() => document.querySelectorAll("#ilkOrnek .green").length), 0);
+  await sayfa.waitForFunction(() => document.getElementById("ilkOrnek").textContent === "KOY", null, { timeout: 3000 });
+  assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll("#ilkOrnek .tile")].map((t) => t.classList.contains("green"))),
+    [false, true, true], "SOY'la aynı yerdeki O ve Y yeşil");
+  assert.equal(await sayfa.textContent("#ilkZincir .simdi"), "KOY", "zincirde o anki kelime belirgin");
+  // Odak kartta döner; bağlı klavye tahtaya yazmaz
+  const odaklar = [];
+  for (const tus of ["Tab", "Tab", "Shift+Tab"]) { await sayfa.keyboard.press(tus); odaklar.push((await ilkKart(sayfa)).odak); }
+  assert.deepEqual(odaklar, ["ilkDaha", "ilkBasla", "ilkDaha"]);
+  await sayfa.keyboard.type("ab");
+  assert.equal((await durum(sayfa)).tampon, "");
+  assert.deepEqual(await kucukHedefler(sayfa, "#ilkYardim button"), [], "düğmeler en az 44 px");
+  // Ekran tuşuna dokunuş perdeye gider: yazmaz, kartı kapatır (dışarı dokunuş)
+  const haklar = await sayfa.evaluate(() => localStorage.getItem("sm_haklar"));
+  await tusaDokun(sayfa, "A");
+  assert.deepEqual(await ilkKart(sayfa), { acik: false, gizli: "true", odak: "", kayit: "1" });
+  const d = await durum(sayfa);
+  assert.deepEqual([d.tampon, d.zincir.length, d.ekran], ["", 1, "oyun"], "kart oyunu değiştirmez");
+  assert.equal(await sayfa.evaluate(() => localStorage.getItem("sm_haklar")), haklar, "kart hak harcamaz");
+  // Kapanınca örnek durur
+  const simdi = await ornek(sayfa);
+  await sayfa.waitForTimeout(1500);
+  assert.equal(await ornek(sayfa), simdi, "kapalı kartta zamanlayıcı sürmemeli");
+  assert.match(readFileSync(join(WWW, "gizlilik.html"), "utf8"), /\(sm_ilk_yardim\)/, "gizlilik metni kaydı saymalı");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("uygulama arayüzü: ilk giriş kartı bir kez — Başla, Escape ya da Daha fazla kapatır; öbür modda ve yeniden açılışta çıkmaz", async () => {
+  const kapatanlar = [["Başla", (s) => s.tap("#ilkBasla")], ["Escape", (s) => s.keyboard.press("Escape")], ["Daha fazla", (s) => s.tap("#ilkDaha")]];
+  for (const [ad, kapat] of kapatanlar) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ ilkYardim: true });
+    await oyunaGir(sayfa, "free");                       // hangi mod önce girilirse
+    assert.equal((await ilkKart(sayfa)).acik, true, `${ad}: serbestte ilk girişte açılmalı`);
+    await kapat(sayfa);
+    const k = await ilkKart(sayfa);
+    assert.deepEqual([k.acik, k.kayit], [false, "1"], `${ad}: kapanır ve görüldü yazılır`);
+    const yardim = await sayfa.evaluate(() => document.body.classList.contains("yardim"));
+    assert.equal(yardim, ad === "Daha fazla", `${ad}: yardım penceresi yalnızca Daha fazla ile açılır`);
+    if (yardim) {
+      assert.equal(k.odak, "btnYardimKapat", "yardımda odak kapatma düğmesinde");
+      await sayfa.keyboard.press("Escape");
+    } else assert.equal(k.odak, "", `${ad}: odak gizlenen düğmede kalmaz`);
+    assert.equal((await durum(sayfa)).ekran, "oyun");
+    await anaya(sayfa);
+    await oyunaGir(sayfa, "daily");
+    assert.equal((await ilkKart(sayfa)).acik, false, `${ad}: öbür modda yeniden açılmamalı`);
+    await sayfa.reload();
+    await oyunaGir(sayfa, "free");
+    assert.equal((await ilkKart(sayfa)).acik, false, `${ad}: yeniden açılışta çıkmamalı`);
+    assert.deepEqual(kayit.hatalar, []);
+    await baglam.close();
+  }
+});
+
+test("uygulama arayüzü: ilk giriş kartı hareketi azaltta durağan; iki ekran boyunda ortada, içi kaymaz", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, reducedMotion: "reduce" }, ilkYardim: true });
+  await oyunaGir(sayfa);
+  await sayfa.waitForTimeout(2800);
+  assert.equal(await ornek(sayfa), "KAL", "hareketi azaltta harfler değişmemeli");
+  assert.equal(await sayfa.evaluate(() => document.querySelectorAll("#ilkOrnek .pop").length), 0);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+  for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport }, ilkYardim: true });
+    await oyunaGir(sayfa, "free");
+    await sayfa.waitForTimeout(300);                     // açılış geçişi biter
+    const k = await kutu(sayfa, "#ilkYardim .menu");
+    const ad = `${viewport.width}×${viewport.height}`;
+    assert.ok(Math.abs((k.sol + k.sag) / 2 - viewport.width / 2) < 1, `${ad}: kart yatayda ortada olmalı`);
+    assert.ok(k.en <= 340 && k.sol >= 16 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart kenarlardan içeride (${JSON.stringify(k)})`);
+    assert.equal(await sayfa.evaluate(() => { const e = document.querySelector("#ilkYardim .menu"); return e.scrollHeight <= e.clientHeight; }), true, `${ad}: kartın içi kaymamalı`);
     assert.ok(await tasmaYok(sayfa), `${ad}: taşma`);
     assert.deepEqual(kayit.hatalar, []);
     await baglam.close();
