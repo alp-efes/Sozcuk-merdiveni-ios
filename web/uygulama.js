@@ -399,7 +399,7 @@
   let ornekZamanlayici = null;
   const ilkAcik = () => !ilk.classList.contains("hidden");
   const ornekCiz = (i) => {
-    const kelime = ORNEK[i], onceki = ORNEK[i - 1], hedef = ORNEK.at(-1);
+    const kelime = ORNEK[i], onceki = ORNEK[i - 1], hedef = ORNEK[ORNEK.length - 1];
     [...al("ilkOrnek").children].forEach((t, j) => {
       const degisti = !!onceki && onceki[j] !== kelime[j];
       t.textContent = kelime[j];
