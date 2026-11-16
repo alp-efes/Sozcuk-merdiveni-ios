@@ -149,6 +149,13 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca `plusSatinAl` veriyorsa). Alt bilgi
   (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
+- **Oyuna ilk girişte bir kez kısa "nasıl oynanır" kartı** (`#ilkYardim`, `arayuz.mjs` → `ILK_YARDIM`; sahip
+  isteği, 16 Kasım 2026). Ana ekranda değil, ilk oyun girişinde (günlük ya da serbest) açılır; menünün kartı ve
+  perdesi. Kurallar, KAL → KOL → KOY → SOY örneği (harfler `uygulama.js` zamanlayıcısıyla adım adım değişir,
+  değişen harf çizgili, yerine oturan yeşil; hareketi azaltta durağan), iki oyun türü; "Başla" kapatır,
+  "Daha fazla" yardım penceresini açar. Escape ve dışarı dokunuş da kapatır; açılınca odak "Başla"da, Tab kartta
+  döner, açıkken ekran tuşları ve bağlı klavye yazmaz. Kapanınca `sm_ilk_yardim` yazılır (oyunu, hakları
+  değiştirmez); güncelleyen eski oyuncular da bir kez görür. Çözüm penceresi açılırsa kart kapanır.
 
 **İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 
@@ -233,7 +240,7 @@ değildir:** imzasız, Debug, iOS Simülatörü. Ekran görüntüleri sabit adre
 `ios/App/App/public`'e eklenir; her `cap sync` o klasörü yeniden yazıp siler
 (TestFlight arşivden önce eşitler). Yerelde `simulator.sh`'tan sonra `cap sync`
 yapmadan Xcode'da arşivlemeyin: betik uygulamaya girer. Betik oyuncunun yolundan gider
-(ana ekranda "Oyna", ekran klavyesinin tuşları ve `#btnGonder`, menüden "Nasıl oynanır?"); site `index.html`'de
+(ana ekranda "Oyna", ilk giriş kartında "Başla", ekran klavyesinin tuşları ve `#btnGonder`, menüden "Nasıl oynanır?"); site `index.html`'de
 `<script src="yerel.js"></script>` satırı ya da bu ögeler değişirse iş akışı kırılır,
 tarayıcı testi de. Oyun ekranını ölçer (`SM-OTOMATIK: bilgi …`, iş günlüğünde görünür):
 telefonun klavyesi hiçbir ekranda açılmamalı, eylem sırası ekrana sığmalı.

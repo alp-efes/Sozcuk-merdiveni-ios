@@ -372,6 +372,34 @@ body:not(.yardim) .info { display: none; }
 [aria-checked="true"] > .anahtar { background: var(--green); border-color: var(--green); }
 [aria-checked="true"] > .anahtar::after { background: var(--surface); transform: translateX(18px); }
 
+/* ---------- İlk giriş kartı: menünün kartı ve perdesi (.menu-perde, .menu) ----------
+   Örnekteki blokları uygulama.js değiştirir; değişen harfin çizgisi (.changed), yeşili ve
+   zıplaması (.pop) sitenin merdiveninden gelir. Hareketi azaltta zamanlayıcı hiç başlamaz. */
+.ilk-yardim h2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  text-align: center;
+}
+.ilk-kurallar { padding-left: var(--space-5); line-height: var(--lh-snug); }
+.ilk-kurallar li + li { margin-top: var(--space-1); }
+.ilk-ornek {
+  --tile: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-2);
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.ilk-zincir { font-size: var(--fs-sm); color: var(--text-dim); letter-spacing: var(--track-sm); }
+.ilk-zincir .simdi { color: var(--text); font-weight: var(--fw-bold); }
+.ilk-modlar { font-size: var(--fs-sm); line-height: var(--lh-snug); }
+.ilk-modlar dt { font-weight: var(--fw-bold); }
+.ilk-modlar dd { color: var(--text-dim); }
+.ilk-modlar dd + dt { margin-top: var(--space-2); }
+
 /* ---------- Çözüm penceresi: en kısa yol (uygulama.js) ---------- */
 .modal [hidden] { display: none; }
 .modal #btnEnKisa { margin: 0 0 var(--space-3); }

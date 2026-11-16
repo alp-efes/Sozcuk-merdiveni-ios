@@ -90,6 +90,29 @@ export const MENU = `<div class="modal-overlay menu-perde hidden" id="menu" role
     </div>
   </div>`;
 
+// İlk oyun girişinde bir kez açılan kısa "nasıl oynanır" kartı (sahip isteği, 16 Kasım 2026): menünün kartı
+// ve perdesi. Örnekteki harfleri uygulama.js adım adım değiştirir (hareketi azaltta durur).
+export const ILK_YARDIM = `<div class="modal-overlay menu-perde hidden" id="ilkYardim" role="dialog" aria-modal="true" aria-labelledby="ilkYardimBaslik" aria-hidden="true">
+    <div class="menu ilk-yardim">
+      <h2 id="ilkYardimBaslik">Nasıl oynanır?</h2>
+      <ul class="ilk-kurallar">
+        <li>Her adımda tek harf değiştir.</li>
+        <li>Her adım gerçek bir kelime olmalı.</li>
+        <li>Hedef kelimeye ulaş.</li>
+      </ul>
+      <div class="ilk-ornek" role="img" aria-label="Örnek: KAL, KOL, KOY, SOY. Her adımda bir harf değişir.">
+        <div class="word-row" id="ilkOrnek"><div class="tile filled">K</div><div class="tile filled">A</div><div class="tile filled">L</div></div>
+        <p class="ilk-zincir" id="ilkZincir"><span>KAL</span> → <span>KOL</span> → <span>KOY</span> → <span>SOY</span></p>
+      </div>
+      <dl class="ilk-modlar">
+        <dt>Günün Bulmacası</dt><dd>Herkese aynı bulmaca, her gün yenisi.</dd>
+        <dt>Serbest Oyun</dt><dd>İstediğin kadar bulmaca çöz.</dd>
+      </dl>
+      <button class="btn-primary" id="ilkBasla" type="button">Başla</button>
+      <button class="ana-nasil" id="ilkDaha" type="button">Daha fazla</button>
+    </div>
+  </div>`;
+
 // Ekran klavyesinin altındaki eylem sırası: ortada büyük Gönder; Geri al (solda) ve İpucu (sağda)
 // sitenin durum satırından uygulama.js ile buraya taşınır, kalan hak rozetleriyle birlikte
 export const EYLEMLER = `<div class="eylemler" id="eylemler" role="group" aria-label="Eylemler">

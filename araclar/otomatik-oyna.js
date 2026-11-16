@@ -13,7 +13,7 @@ window.SM_OTOMATIK = true;
  * içine "onay-<aşama>.txt" dosyasını yazana dek o ekranda bekler. Böylece
  * çıktı ne kadar gecikirse geciksin her görüntü doğru aşamayı gösterir.
  * Aşamalar: ana, oyun, hamle, cozum, nasil (hata olursa "hata …").
- * Oyuncunun yolundan gider: ana ekranda "Oyna"ya basar, kelimeleri oyunun ekran
+ * Oyuncunun yolundan gider: ana ekranda "Oyna"ya basar, ilk giriş kartını "Başla" ile kapatır, kelimeleri oyunun ekran
  * klavyesine basarak yazar ve Gönder'e basar. "SM-OTOMATIK: bilgi …" satırı oyun
  * ekranının ölçülerini günlüğe yazar. Telefonun klavyesi hiçbir ekranda açılmamalıdır.
  *
@@ -120,6 +120,8 @@ window.SM_OTOMATIK = true;
       throw new Error("günün bulmacası açık değil");
     }
     if (oyun.chain.length !== 1 || oyun.over) throw new Error("oyun ilk açılış durumunda değil");
+    // İlk girişte "nasıl oynanır" kartı açılır; oyuncu gibi "Başla" ile kapatılır
+    if (!document.getElementById("ilkYardim").classList.contains("hidden")) document.getElementById("ilkBasla").click();
     await uyu(1500);
     // Ekran tek parça: giriş satırı, ekran klavyesi ve eylem sırası kaydırmadan görünür
     isaret(`bilgi gorunen=${Math.round(vv.height)} tam=${Math.round(tamBoy)} kayma=${Math.round(scrollY)} ` +
