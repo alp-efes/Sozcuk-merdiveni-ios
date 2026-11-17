@@ -45,6 +45,11 @@ const METIN_ADRESLERI = new Set([
   "http://www.apache.org/", "http://www.apache.org/licenses/", "http://www.apache.org/licenses/LICENSE-2.0",
   "https://github.com/noirblancrouge/YoungSerif", "https://scripts.sil.org/OFL",
 ]);
+// Tek bilinçli istisna (sahip kararı, 17 Kasım 2026, #47): anlam balonundaki "TDK'da aç" bağlantısının
+// ön eki, yalnızca app.js'te. Bağlantı harici tarayıcıda açılır (Capacitor varsayılanı); web görünümü yüklemez.
+const TDK_ON_EKI = "https://sozluk.gov.tr/kelime/";
+// Gerçek denetim de darlık testi de bu tek yüklemi kullanır
+const tdkIstisnasi = (ad, adres) => ad === "app.js" && adres === TDK_ON_EKI;
 // Uygulamanın kendi sayfaları: yalnızca paketteki stil dosyası ve yazı tipleri yüklenir
 const SAYFA_CSP = "default-src 'none'; style-src 'self' capacitor://localhost; font-src 'self' capacitor://localhost; base-uri 'none'; form-action 'none'";
 
@@ -53,7 +58,7 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
     if (ad.endsWith(".woff2")) continue;    // ikili yazı tipi dosyası; siteyle aynı olduğu yukarıda denetlenir
     const metin = oku(KOK, "www", ad);
     for (const adres of metin.match(/https?:\/\/[^\s"'<>()]+/g) || []) {
-      assert.ok(METIN_ADRESLERI.has(adres.replace(/[.,;]+$/, "")), `${ad}: izinsiz adres ${adres}`);
+      assert.ok(METIN_ADRESLERI.has(adres.replace(/[.,;]+$/, "")) || tdkIstisnasi(ad, adres), `${ad}: izinsiz adres ${adres}`);
     }
     assert.doesNotMatch(metin, /gstatic|googlesyndication|googletagmanager|google-analytics|firebasejs|doubleclick/i,
                         `${ad}: reklam/analitik kalıntısı`);
@@ -81,6 +86,18 @@ test("paketteki hiçbir dosya dış adres, reklam ya da analitik içermez", () =
   }
   assert.ok(index.includes('<a href="lisanslar.html">'), "oyundan lisanslara bağlantı yok");
   assert.ok(oku(KOK, "www", "gizlilik.html").includes('<a href="lisanslar.html">'), "gizlilikten lisanslara bağlantı yok");
+});
+
+test("TDK istisnası dardır: yalnızca app.js'te, yalnızca kelime ön eki; başka adres ya da dosya kırar", () => {
+  const izinli = tdkIstisnasi;
+  assert.ok(izinli("app.js", "https://sozluk.gov.tr/kelime/"));
+  for (const [ad, adres] of [["app.js", "https://sozluk.gov.tr/"], ["app.js", "https://sozluk.gov.tr/kelime/ev"],
+    ["app.js", "https://ornek.test/kelime/"], ["yerel.js", TDK_ON_EKI], ["index.html", TDK_ON_EKI]]) {
+    assert.ok(!izinli(ad, adres), `${ad}: ${adres} izinli sayılmamalı`);
+  }
+  assert.doesNotMatch(CSP, /sozluk\.gov\.tr/, "CSP'ye TDK eklenmemeli: bağlantı navigasyondur, istek değil");
+  // Uygulamada bu bağlantı için yerel kod yok: Capacitor varsayılanı harici tarayıcı (WebViewDelegationHandler)
+  assert.doesNotMatch(oku(KOK, "web", "yerel.js") + oku(KOK, "web", "uygulama.js"), /sozluk\.gov\.tr/, "TDK adresi yalnızca sitenin app.js'inde olmalı");
 });
 
 test("lisanslar sayfası pakete giren yazılımların lisanslarını aynen içerir", () => {

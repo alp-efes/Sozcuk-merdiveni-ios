@@ -17,6 +17,11 @@ Kod yorumları, belgeler, commit mesajları ve kullanıcıya görünen her metin
 Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek günceller:
 
 - **Web görünümü yalnızca paketten yükler; ağ yalnızca yerel reklam ve satın alma SDK'larının.**
+  Tek istisna (sahip onaylı, 17 Kasım 2026, #47): anlam balonundaki "TDK'da aç" bağlantısı
+  (`https://sozluk.gov.tr/kelime/<kelime>`, `target="_blank"`). Capacitor bunu web görünümünde yüklemez, harici (varsayılan) tarayıcıya
+  verir (`WebViewDelegationHandler.swift`: ana çerçeve dışı gezinmede `UIApplication.shared.open` + `.cancel`;
+  yeni pencerede `createWebViewWith` → `open`, `nil`). Yerel kod yok, CSP değişmez; `SFSafariViewController`/uygulama içi
+  tarayıcı KULLANILMAZ (App Store yaş anketi "Unrestricted Web Access = Hayır"). `paket.test.mjs` yalnızca `app.js`'te bu ön eke izin verir.
   Reklam (Google) ve StoreKit (Apple) trafiği yerel taraftadır; CSP `default-src 'none'`
   kalır. Uzak `words.json`, uzak içerik, Google/Apple dışı hizmet ve analitik yok. Bunlardan
   biri gizlilik etiketini, `PrivacyInfo.xcprivacy`'yi ve `web/gizlilik.html`'i değiştirir
@@ -77,6 +82,9 @@ bilerek güncelleyin. Denetimi gevşetmeyin.
 için eklentilere `window.Capacitor.Plugins.<Ad>` ile erişilir (köprü bunu yerel
 tarafta kendisi kurar). Bağlanılan her nokta `paket.test.mjs` içinde aranır.
 Kabul edilen her kelimede hafif dokunuş verir (`accept` → `Haptics.impact`).
+
+**Anlam balonu (site #49) uygulamada çalışır:** `anlam.json` `AYNEN`'dedir (zorunlu; site deposunda yoksa eşitleme durur, sessizce atlanmaz:
+anlamsız uygulama göndermemek için). TDK bağlantısı yukarıdaki istisnadır; `gizlilik.html` bunu söyler.
 
 **Uygulama arayüzü siteden farklıdır (sahip kararı, 13 Kasım 2026); site aynı kalır.**
 `araclar/arayuz.mjs` işaretlemeyi tutar, `web-esitle.mjs` onu sitenin `index.html`'ine
@@ -316,3 +324,6 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
    yer bulması; (d) ana ekran çubuğu ile Gönder'in arasında yeterli boşluk; (e) VoiceOver'da
    "Noktasız I" / "Noktalı İ" ve devre dışı Q, W, X'in okunuşu; (g) menü kapanınca `blur()` sonrası
    bağlı klavyede Tab sırası WKWebView'de Chromium'daki gibi mi (iPad/TestFlight'ta bakılacak).
+8. TDK bağlantısı (17 Kasım 2026): yalnızca Chromium'da denendi. Cihazda "TDK'da aç"ın uygulama dışında, kullanıcının
+   varsayılan tarayıcısında açıldığı ve oyunun yerinde kaldığı TestFlight'ta bakılacak (Capacitor 8.6.2
+   `WebViewDelegationHandler` `createWebViewWith` → `UIApplication.shared.open`).
