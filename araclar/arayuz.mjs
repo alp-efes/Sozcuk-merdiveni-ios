@@ -56,6 +56,7 @@ export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
       <button class="btn-primary" id="btnGunluk" type="button">Oyna</button>
       <p class="kart-alt" id="gunlukSonraki" hidden>Yeni bulmaca <strong id="anaGeriSayim">--:--:--</strong> sonra</p>
       ${SERI}
+      <button class="ana-nasil" id="btnIstatistik" type="button">İstatistiklerim</button>
     </div>
     <div class="kart" role="group" aria-labelledby="kartSerbestBaslik">
       <h2 id="kartSerbestBaslik">Serbest Oyun</h2>
@@ -97,6 +98,36 @@ export const MENU = `<div class="modal-overlay menu-perde hidden" id="menu" role
       ${menuOge("menuTitresim", '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 9v6M21 9v6"/>', "Titreşim", true)}
       ${menuOge("menuSes", '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', "Ses", true)}
       ${menuOge("menuYazi", '<path d="m3 19 5-14 5 14M4.8 14h6.4"/><path d="m14 19 3.5-9 3.5 9M15.2 16h4.6"/>', "Büyük yazı", true)}
+    </div>
+  </div>`;
+
+// Kişisel istatistik (yalnızca günün bulmacası; sm_gunluk_* kayıtlarından, cihazda hesaplanır). Menünün kartı
+// ve perdesi, sitenin kapat düğmesi; sayıları, dağılım çubuklarını ve en iyi günü uygulama.js yazar.
+const kutucuk = (id, ad) => `<p class="ist-kutu"><strong id="${id}">0</strong><span>${ad}</span></p>`;
+const dagilim = (ad) => `<li><span class="ist-ad">${ad}</span><span class="ist-cubuk" aria-hidden="true"><i></i></span><span class="ist-adet">0</span></li>`;
+export const ISTATISTIK = `<div class="modal-overlay menu-perde hidden" id="istatistik" role="dialog" aria-modal="true" aria-labelledby="istBaslik" aria-hidden="true">
+    <div class="menu ist">
+      <button class="modal-close" id="istKapat" type="button" aria-label="Kapat">${ikon('<path d="m6 6 12 12m0-12L6 18"/>')}</button>
+      <h2 id="istBaslik">İstatistiklerim</h2>
+      <div class="ist-kutular">
+        ${kutucuk("istCozulen", "günlük çözüldü")}
+        ${kutucuk("istSeri", "günlük seri")}
+        ${kutucuk("istEnUzun", "en uzun seri")}
+        ${kutucuk("istOran", "en kısa yolla")}
+      </div>
+      <p class="ist-bos" id="istBos" hidden>Henüz çözdüğün bir günün bulmacası yok. İlkini çözünce burada görünür.</p>
+      <section class="ist-bolum" id="istDagilimBolum" aria-labelledby="istDagilimBaslik">
+        <h3 id="istDagilimBaslik">En kısa yola uzaklık</h3>
+        <p class="ist-not">Günün bulmacalarını en az adımın kaç fazlasında çözdün</p>
+        <ol class="ist-dagilim" id="istDagilim">${["Tam", "+1", "+2", "+3 ve üstü"].map(dagilim).join("")}</ol>
+        <p class="ist-not" id="istBilinmeyen" hidden></p>
+      </section>
+      <section class="ist-bolum" id="istEnIyiBolum" aria-labelledby="istEnIyiBaslik">
+        <h3 id="istEnIyiBaslik">En iyi gün</h3>
+        <p class="kart-bulmaca" id="istEnIyiBulmaca"></p>
+        <p class="ist-not" id="istEnIyiNot"></p>
+      </section>
+      <p class="ist-not ist-gizlilik">Yalnızca bu cihazda tutulur, kimseyle paylaşılmaz.</p>
     </div>
   </div>`;
 

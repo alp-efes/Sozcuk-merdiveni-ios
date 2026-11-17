@@ -164,6 +164,15 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   (bugün gösterildiyse seri 0); bugün henüz bitmediyse seri dünden sayılır. TRT 18.00'den sonra bugün bitmemiş ve
   seri ≥ 1 ise kartta "Serini korumak için bugün çöz · N saat kaldı" (`#seriUyari`). Bildirim ve izin yok. Kart her
   saniye (`tickCountdown`) tazelenir. Varsayılanlar sahip değiştirebilir.
+- **"İstatistiklerim" penceresi** (10A; `#istatistik`, `arayuz.mjs` → `ISTATISTIK`, menünün kartı ve perdesi; günlük
+  kartındaki `#btnIstatistik` açar). Yalnızca günün bulmacası, `sm_gunluk_*`'tan, cihazda: çözülen gün, şu anki ve
+  en uzun seri, en kısa yolla çözme oranı, en kısa yola uzaklık dağılımı (tam, +1, +2, +3 ve üstü), en iyi gün
+  (en az fazla adım; eşitse uzun bulmaca, sonra yeni gün). Sonuç ilk çözümdür (`steps`, paylaşılanla aynı). Kayıt
+  en az adımı saklamaz: geçmiş günün bulmacası şimdiki `words.json`'dan (`dailyPuzzle` o günün numarasıyla) alınır;
+  kayıttaki zincirin uçları uymuyorsa (sözlük `--yeni` ile yenilenmiş) ya da zincir yoksa o gün oranda ve dağılımda
+  sayılmaz, sayısı yazılır. Serbest oyun özeti yok (yeni kayıt isterdi). Odak kapat düğmesinde, Escape ve dışarı
+  dokunuş kapatır, Tab kartta döner; kapanınca odak açan düğmeye döner. Çubuk genişliği CSSOM ile (`style.width`,
+  CSP'ye takılmaz).
 - **Büyük yazı** (5A; menüde `role="switch"`, `sm_yazi` = `"1"`, kapatınca silinir; `gizlilik.html` sayar).
   `html.buyuk-yazi { font-size: 119% }`: sitenin rem belirteçleri birlikte büyür (gövde 19 px, klavye harfi ~21 px);
   harf blokları ve tuş/düğme boyları px'tir, yerleşim aynı kalır. "Ekran kaymaz", mod adı ve menü testleri büyük

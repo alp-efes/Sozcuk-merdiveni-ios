@@ -11,7 +11,7 @@
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
  *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/ses
  *   - oyuna ilk girişte bir kez kısa, canlı örnekli "nasıl oynanır" kartı
- *   - günlük kartında seri ve son 7 gün; menüde büyük yazı
+ *   - günlük kartında seri ve son 7 gün; "İstatistiklerim" penceresi; menüde büyük yazı
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -207,7 +207,7 @@
     seriCiz();
   };
 
-  /* ---------- Seri: yalnızca günün bulmacası, sm_gunluk_<YYYY-AA-GG> kayıtlarından ----------
+  /* ---------- Seri ve istatistik: yalnızca günün bulmacası, sm_gunluk_<YYYY-AA-GG> kayıtlarından ----------
      Yeni kayıt yazılmaz, hepsi cihazda hesaplanır. Çözülmüş gün app.js'in dailyRecord'undaki gibi steps ≥ 1:
      "Sonucu göster" ile biten gün ({steps: 0, gosterildi: true}) çözülmüş sayılmaz, seriyi bozar. Bugün henüz
      bitmediyse seri dünden sayılır. Günler app.js'in TRT gün anahtarıdır (todayKey). */
@@ -263,6 +263,67 @@
     al("seriUyari").hidden = !uyar;
     al("seriUyari").textContent = uyar ? `Serini korumak için bugün çöz · ${Math.ceil(oyun.msUntilTrtMidnight() / 3600000)} saat kaldı` : "";
   }
+
+  // Geçmiş bir günün bulmacası şimdiki words.json'dan: app.js'in dailyPuzzle'ı o günün numarasıyla çağrılır
+  const gunBulmacasi = (gun) => {
+    const no = Math.round((Date.parse(gun) - WordLadder.GUN_BASLANGIC_UTC) / GUN_MS) + 1;
+    return P.dailyPuzzle.call(Object.assign(Object.create(oyun), { dayNumber: () => no })) || [];
+  };
+  // Kayıt en az adımı saklamaz. Kayıttaki zincirin uçları o günün bulmacasıyla uyuşuyorsa en az adım
+  // bulmacanınkidir; zincir yoksa ya da uyuşmuyorsa (words.json yeniden üretilmiş) o gün sayılmaz.
+  const istatistik = () => {
+    const gunler = cozulenGunler();
+    const { simdi, enUzun } = seriler(gunler);
+    const dagilim = [0, 0, 0, 0];                          // tam, +1, +2, +3 ve üstü
+    let bilinmeyen = 0, enIyi = null;
+    for (const [gun, k] of gunler) {
+      const [bas, hedef, enAz, zorluk] = gunBulmacasi(gun);
+      const zincir = Array.isArray(k.chain) ? k.chain : [];
+      if (!(enAz > 0) || zincir[0] !== bas || zincir.at(-1) !== hedef || k.steps < enAz) { bilinmeyen++; continue; }
+      const fark = k.steps - enAz;                         // ilk çözüm (paylaşılan sonuç)
+      dagilim[Math.min(fark, 3)]++;
+      // En iyi gün: en az fazla adım; eşitse daha uzun bulmaca, o da eşitse daha yeni gün
+      if (!enIyi || fark < enIyi.fark || (fark === enIyi.fark && (enAz > enIyi.enAz || (enAz === enIyi.enAz && gun > enIyi.gun)))) {
+        enIyi = { gun, bas, hedef, enAz, zorluk, fark, adim: k.steps };
+      }
+    }
+    return { cozulen: gunler.size, simdi, enUzun, dagilim, bilinmeyen, enIyi };
+  };
+
+  const ist = al("istatistik");
+  const istAcik = () => !ist.classList.contains("hidden");
+  const istCiz = () => {
+    const s = istatistik(), bilinen = s.dagilim.reduce((a, b) => a + b, 0), enCok = Math.max(...s.dagilim);
+    al("istCozulen").textContent = s.cozulen;
+    al("istSeri").textContent = s.simdi;
+    al("istEnUzun").textContent = s.enUzun;
+    al("istOran").textContent = bilinen ? `%${Math.round(100 * s.dagilim[0] / bilinen)}` : "–";
+    al("istBos").hidden = s.cozulen > 0;
+    al("istDagilimBolum").hidden = !s.cozulen;
+    [...al("istDagilim").children].forEach((satir, i) => {
+      satir.querySelector(".ist-adet").textContent = s.dagilim[i];
+      satir.querySelector("i").style.width = `${enCok ? (100 * s.dagilim[i]) / enCok : 0}%`;   // CSSOM: CSP'ye takılmaz
+    });
+    al("istBilinmeyen").hidden = !s.bilinmeyen;
+    al("istBilinmeyen").textContent = `${s.bilinmeyen} gün sayılmadı: o günlerin en az adımı bilinmiyor (bulmaca listesi güncellenmiş).`;
+    al("istEnIyiBolum").hidden = !s.enIyi;
+    if (!s.enIyi) return;
+    const e = s.enIyi;
+    const tarih = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", timeZone: "UTC" }).format(Date.parse(e.gun));
+    al("istEnIyiBulmaca").textContent = `${e.bas} → ${e.hedef}`;
+    al("istEnIyiNot").textContent = `${tarih} · ${e.zorluk ? `${e.zorluk} bulmaca, ` : ""}en az ${e.enAz} adım; sen ${e.fark ? "" : "de "}${e.adim} adımda`;
+  };
+  function istAc(ac) {
+    if (ac === istAcik()) return;
+    if (ac) istCiz();
+    ist.classList.toggle("hidden", !ac);
+    ist.setAttribute("aria-hidden", String(!ac));
+    if (ac) { ist.querySelector(".menu").scrollTop = 0; al("istKapat").focus({ preventScroll: true }); }
+    else if (ist.contains(document.activeElement)) al("btnIstatistik").focus({ preventScroll: true });
+  }
+  al("btnIstatistik").addEventListener("click", () => istAc(true));
+  al("istKapat").addEventListener("click", () => istAc(false));
+  ist.addEventListener("click", (e) => { if (e.target === ist) istAc(false); });   // dışarı dokunuş
 
   const yardimAc = (ac) => {
     govde.classList.toggle("yardim", ac);
@@ -516,13 +577,14 @@
     ogeler[sonraki].focus();
   };
 
-  // Ana ekran, yardım, menü ya da ilk giriş kartı açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
+  // Ana ekran, yardım, menü, ilk giriş kartı ya da istatistik açıkken fiziksel klavye (ve Enter) alttaki tahtaya yazmaz
   document.addEventListener("keydown", (e) => {
+    const kart = menuAcik() ? [menu, menuAc] : ilkAcik() ? [ilk, ilkYardimAc] : istAcik() ? [ist, istAc] : null;
     if (yardimAcik()) { e.stopPropagation(); if (e.key === "Escape") yardimAc(false); }
-    else if (menuAcik() || ilkAcik()) {
+    else if (kart) {
       e.stopPropagation();
-      if (e.key === "Escape") menuAcik() ? menuAc(false) : ilkYardimAc(false);
-      if (e.key === "Tab") odakDondur(menuAcik() ? menu : ilk, e);
+      if (e.key === "Escape") kart[1](false);
+      if (e.key === "Tab") odakDondur(kart[0], e);
     }
     else if (ekran !== "oyun") e.stopPropagation();
   }, true);
