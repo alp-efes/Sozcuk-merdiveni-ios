@@ -1,0 +1,35 @@
+# GEÇİCİ TANI (birleştirilmez): TDK bağlantısının iPhone Safari'sinde açılıp açılmadığına bakar.
+# Uygulama derlenmez, gizli bilgi kullanılmaz; simülatörde Safari'ye adres verilip ekran görüntüsü alınır.
+name: TDK tanı
+on:
+  pull_request:
+    paths: [".github/workflows/tdk-tani.yml"]
+permissions:
+  contents: read
+jobs:
+  tani:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Safari'de TDK adresleri
+        run: |
+          set -u
+          mkdir -p ekran
+          udid=$(xcrun simctl list devices available -j | jq -r '[.devices | to_entries[] | select(.key | test("iOS-")) | .value[] | select(.name | test("Pro Max"))] | last | .udid')
+          echo "cihaz: $udid"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          i=0
+          for u in "https://sozluk.gov.tr/kelime/mavi" "https://sozluk.gov.tr/kelime/havi" "https://sozluk.gov.tr/?ara=mavi" "https://sozluk.gov.tr/"; do
+            i=$((i+1))
+            xcrun simctl openurl "$udid" "$u"
+            sleep 25
+            xcrun simctl io "$udid" screenshot "ekran/$i.png"
+            echo "$i $u"
+          done
+          for s in 1 2; do curl -s -o /dev/null -w "curl %{http_code} %{size_download}\n" -A "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" https://sozluk.gov.tr/kelime/mavi; done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: tdk-tani
+          path: ekran
