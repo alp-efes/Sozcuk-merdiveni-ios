@@ -87,6 +87,7 @@ export const MENU = `<div class="modal-overlay menu-perde hidden" id="menu" role
       ${menuOge("menuYardim", '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.8"/><path d="M12 17h.01"/>', "Nasıl oynanır?")}
       ${menuOge("menuTitresim", '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 9v6M21 9v6"/>', "Titreşim", true)}
       ${menuOge("menuSes", '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', "Ses", true)}
+      ${menuOge("menuYazi", '<path d="m3 19 5-14 5 14M4.8 14h6.4"/><path d="m14 19 3.5-9 3.5 9M15.2 16h4.6"/>', "Büyük yazı", true)}
     </div>
   </div>`;
 

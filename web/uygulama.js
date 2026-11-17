@@ -11,6 +11,7 @@
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
  *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/ses
  *   - oyuna ilk girişte bir kez kısa, canlı örnekli "nasıl oynanır" kartı
+ *   - menüde büyük yazı
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -35,6 +36,10 @@
   const oku = (anahtar) => { try { return localStorage.getItem(anahtar); } catch (_) { return null; } };
   const yaz = (anahtar, deger) => { try { localStorage.setItem(anahtar, deger); } catch (_) { /* kayıt tutulamadı */ } };
   const yardimAcik = () => govde.classList.contains("yardim");
+
+  // Büyük yazı (menüdeki anahtar, sm_yazi): kök yazı %119 olur, sitenin rem belirteçleri birlikte büyür (uygulama.css)
+  const kok = document.documentElement;
+  kok.classList.toggle("buyuk-yazi", oku("sm_yazi") === "1");
 
   // Eski sürümün "Türkçe harf şeridi" tercihi: şerit kalktı, kayıt silinir (gizlilik metni artık saymaz)
   try { localStorage.removeItem("sm_serit"); } catch (_) { /* kayıt silinemedi */ }
@@ -331,6 +336,7 @@
   const anahtarlar = () => {
     al("menuTitresim").setAttribute("aria-checked", String(oku("sm_titresim") !== "0"));
     al("menuSes").setAttribute("aria-checked", String(!al("btnMute").classList.contains("muted")));
+    al("menuYazi").setAttribute("aria-checked", String(kok.classList.contains("buyuk-yazi")));
   };
   function menuAc(ac) {
     if (ac === menuAcik()) return;
@@ -388,6 +394,12 @@
     anahtarlar();
   });
   al("menuSes").addEventListener("click", () => { al("btnMute").click(); anahtarlar(); });
+  al("menuYazi").addEventListener("click", () => {
+    const ac = kok.classList.toggle("buyuk-yazi");
+    if (ac) yaz("sm_yazi", "1");
+    else try { localStorage.removeItem("sm_yazi"); } catch (_) { /* kayıt silinemedi */ }
+    anahtarlar();
+  });
 
   /* ---------- İlk giriş kartı (sahip isteği, 16 Kasım 2026) ----------
      Oyun ekranına ilk girişte bir kez: kısa kurallar, canlı örnek, iki oyun türü. Kapanınca

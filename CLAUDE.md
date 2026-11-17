@@ -93,7 +93,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   ilerleme varken sitenin yenile penceresi kendi metniyle onay ister; app.js'te serbest için bu yol yok,
   zinciri `uygulama.js` sıfırlar). Yeniden dene günlükte gizli: `YENIDEN_DENE_GUNLUKTE = false` (sahip
   "günlükte baştan başla olmasın" demişti; yeni isteği soruldu). Altta Nasıl oynanır? ve `role="switch"`
-  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar).
+  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar),
+  Büyük yazı (`sm_yazi`; aşağıda).
   Açılınca odak ilk tuşa gider; Escape ve dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak
   menü düğmesine döner, oyun ekranında orada bırakılmaz (bağlı klavyedeki Boşluk menüyü yeniden açardı; Tab başlıktan sürer). Açıkken perdesi ekran tuşlarını örter, bağlı klavye de tahtaya yazmaz.
   Gecikmeli çözüm penceresi açılırken açık menü kapanır.
@@ -156,6 +157,10 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   "Daha fazla" yardım penceresini açar. Escape ve dışarı dokunuş da kapatır; açılınca odak "Başla"da, Tab kartta
   döner, açıkken ekran tuşları ve bağlı klavye yazmaz. Kapanınca `sm_ilk_yardim` yazılır (oyunu, hakları
   değiştirmez); güncelleyen eski oyuncular da bir kez görür. Çözüm penceresi açılırsa kart kapanır.
+- **Büyük yazı** (5A; menüde `role="switch"`, `sm_yazi` = `"1"`, kapatınca silinir; `gizlilik.html` sayar).
+  `html.buyuk-yazi { font-size: 119% }`: sitenin rem belirteçleri birlikte büyür (gövde 19 px, klavye harfi ~21 px);
+  harf blokları ve tuş/düğme boyları px'tir, yerleşim aynı kalır. "Ekran kaymaz", mod adı ve menü testleri büyük
+  yazıda da koşar (375×667, 390×844, 430×932).
 
 **İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 

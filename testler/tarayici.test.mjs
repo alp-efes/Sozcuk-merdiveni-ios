@@ -1026,9 +1026,9 @@ test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altt
   await baglam.close();
 });
 
-test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en kısa yolu göster sağda, ad düğmelerin altına girmez", async () => {
-  for (const en of [375, 390, 430]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: 844 } } });
+test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en kısa yolu göster sağda, ad düğmelerin altına girmez (büyük yazıda da)", async () => {
+  for (const [en, buyuk] of [375, 390, 430].flatMap((e) => [[e, false], [e, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: 844 } }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     for (const mod of ["daily", "free"]) {
       await oyunaGir(sayfa, mod);
       const o = await sayfa.evaluate(() => {
@@ -1040,9 +1040,10 @@ test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en
         return { yazi: (yazi.left + yazi.right) / 2, sol: yazi.left, sag: yazi.right, menu: r(document.getElementById("btnMenu")).right,
           yardim: r(document.getElementById("btnShowResult")).left, kesik: ad.scrollWidth > ad.clientWidth };
       });
-      assert.ok(Math.abs(o.yazi - en / 2) <= 3, `${en} px ${mod}: mod adı ortada olmalı (merkez ${o.yazi})`);
-      assert.ok(o.sol >= o.menu && o.sag <= o.yardim, `${en} px ${mod}: mod adı düğmelerin altına girmemeli (${JSON.stringify(o)})`);
-      assert.equal(o.kesik, false, `${en} px ${mod}: mod adı kesilmemeli`);
+      const ad = `${en} px${buyuk ? " büyük yazı" : ""} ${mod}`;
+      assert.ok(Math.abs(o.yazi - en / 2) <= 3, `${ad}: mod adı ortada olmalı (merkez ${o.yazi})`);
+      assert.ok(o.sol >= o.menu && o.sag <= o.yardim, `${ad}: mod adı düğmelerin altına girmemeli (${JSON.stringify(o)})`);
+      assert.equal(o.kesik, false, `${ad}: mod adı kesilmemeli`);
       await anaya(sayfa);
     }
     assert.deepEqual(kayit.hatalar, []);
@@ -1050,9 +1051,9 @@ test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en
   }
 });
 
-test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven sürerken ve bitince kendi içinde kayar", async () => {
-  for (const [en, boy] of [[375, 667], [390, 844], [430, 932]]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
+test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven sürerken ve bitince kendi içinde kayar (büyük yazıda da)", async () => {
+  for (const [en, boy, buyuk] of [[375, 667], [390, 844], [430, 932]].flatMap(([e, b]) => [[e, b, false], [e, b, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     await oyunaGir(sayfa);
     const olc = () => sayfa.evaluate(() => {
       const r = (s) => { const k = document.querySelector(s).getBoundingClientRect(); return { ust: Math.round(k.top), alt: Math.round(k.bottom) }; };
@@ -1062,7 +1063,8 @@ test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası 
         tasma: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight || scrollY !== 0 };
     });
     let o = await olc();
-    const ad = `${en}×${boy}`;
+    const ad = `${en}×${boy}${buyuk ? " büyük yazı" : ""}`;
+    assert.equal(await sayfa.evaluate(() => document.documentElement.classList.contains("buyuk-yazi")), buyuk, `${ad}: büyük yazı`);
     assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.tasma], [0, boy, false], `${ad}: oyun ekranı tam sığmalı`);
     assert.ok(o.baslik.ust >= 0 && o.eylem.alt <= boy, `${ad}: başlık ve eylem sırası görünmeli`);
     assert.ok(o.bas.ust >= o.baslik.alt && o.hedef.alt <= o.klavye.ust, `${ad}: başlangıç ve hedef klavyenin üstünde`);
@@ -1080,7 +1082,7 @@ test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası 
     assert.ok(o.son.ust >= o.merdiven.ust - 1 && o.son.alt <= o.giris.ust, `${ad}: uzun merdivende son kelime görünmüyor`);
     assert.ok(o.hedef.alt <= o.klavye.ust, `${ad}: hedef klavyenin üstünde kalmalı`);
     assert.ok(await sayfa.evaluate(() => { const st = document.getElementById("steps"); return st.scrollHeight > st.clientHeight; }), `${ad}: uzun merdiven kendi içinde kaymalı`);
-    if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}.png`) });
+    if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}${buyuk ? "-buyuk" : ""}.png`) });
 
     // Bitince: merdiven yine başlıkla klavye arasında; son adım ve HEDEF görünür, yukarı kaydırılabilir
     for (const kelime of enKisaYol(bas0, await sayfa.evaluate(() => oyun.targetWord))) await yaz(sayfa, kelime);
@@ -1752,20 +1754,20 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   // Günlükte "Baştan başla" yok (sahip kararı): yeni oyun satırı hiç görünmez
   assert.equal(await gorunur(sayfa, "#menuYeniden"), false, "günlükte Yeniden dene görünmemeli (sahibin cevabı bekleniyor)");
   const ogeler = () => sayfa.evaluate(() => [...document.querySelectorAll("#menu button")].filter((e) => !e.hidden).map((e) => e.textContent.trim()));
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Ses", "Büyük yazı"]);
   // Eylemler büyük tuş (en az 52 px, sitenin birincil/ikincil tuşları), ayarlar küçük satır
   assert.deepEqual(await sayfa.evaluate(() => ["btnAna", "menuSerbest"].map((id) => [document.getElementById(id).className,
     Math.round(document.getElementById(id).getBoundingClientRect().height) >= 52])), [["btn-primary", true], ["btn-secondary", true]]);
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll('#menu [role="switch"]')].map((e) => [e.id, e.getAttribute("aria-checked")])),
-    [["menuTitresim", "true"], ["menuSes", "true"]]);
+    [["menuTitresim", "true"], ["menuSes", "true"], ["menuYazi", "false"]]);
   assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), [], "menü satırları en az 44 px");
   assert.ok(await tasmaYok(sayfa));
   // Odak tuzağı: Tab ve Shift+Tab menünün görünen satırları arasında döner
   const odaklar = [];
-  for (let i = 0; i < 5; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
-  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSes", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
+  for (let i = 0; i < 6; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
+  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSes", "menuYazi", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
   await sayfa.keyboard.press("Shift+Tab");
-  assert.equal((await m()).odak, "menuSes", "ilk satırda Shift+Tab sona gitmeli");
+  assert.equal((await m()).odak, "menuYazi", "ilk satırda Shift+Tab sona gitmeli");
   await sayfa.keyboard.press("Tab");
   // Menü açıkken yazılan harf ve ekran tuşu tahtaya gitmez (perde tuşları örter)
   await sayfa.keyboard.type("ab");
@@ -1799,19 +1801,19 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   await sayfa.tap("#btnSerbest");
   await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
   await sayfa.tap("#btnMenu");
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Ses", "Büyük yazı"]);
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
 
-test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'de taşmaz", async () => {
-  for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport } });
+test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'de taşmaz (büyük yazıda da)", async () => {
+  for (const [viewport, buyuk] of [{ width: 390, height: 844 }, { width: 375, height: 667 }].flatMap((v) => [[v, false], [v, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     await oyunaGir(sayfa, "free");
     await sayfa.tap("#btnMenu");
     await sayfa.waitForTimeout(300);                     // açılış geçişi biter
     const k = await kutu(sayfa, "#menu .menu");
-    const ad = `${viewport.width}×${viewport.height}`;
+    const ad = `${viewport.width}×${viewport.height}${buyuk ? " büyük yazı" : ""}`;
     assert.ok(Math.abs((k.sol + k.sag) / 2 - viewport.width / 2) < 1, `${ad}: kart yatayda ortada olmalı`);
     assert.ok(Math.abs((k.ust + k.alt) / 2 - viewport.height / 2) < 2, `${ad}: kart dikeyde ortada olmalı (${k.ust}–${k.alt})`);
     assert.ok(k.en <= 340 && k.sol >= 16 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart kenarlardan en az 16 px içeride (${JSON.stringify(k)})`);
@@ -2102,6 +2104,42 @@ test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden aç
   await sayfa.reload();
   await oyunaGir(sayfa);
   assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "yeniden açılışta ipucu kayboldu ya da hak değişti");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+/* ---------- Büyük yazı (sahip kararı, site issue #47: 5A) ---------- */
+
+test("büyük yazı: menüdeki anahtar kök yazıyı %119 yapar (klavye harfi 18 → ~21 px), sm_yazi'de kalıcı; kapatınca kayıt silinir", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  const olc = () => sayfa.evaluate(() => ({
+    kok: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    tus: parseFloat(getComputedStyle(document.querySelector('#keyboard .key[data-key="A"] .cap')).fontSize),
+    kayit: localStorage.getItem("sm_yazi"), anahtar: document.getElementById("menuYazi").getAttribute("aria-checked") }));
+  await sayfa.tap("#btnMenu");
+  assert.deepEqual(await olc(), { kok: 16, tus: 18, kayit: null, anahtar: "false" });
+  assert.equal(await sayfa.getAttribute("#menuYazi", "role"), "switch");
+  await sayfa.tap("#menuYazi");
+  let o = await olc();
+  assert.deepEqual([o.kok, o.kayit, o.anahtar], [19.04, "1", "true"]);
+  assert.ok(o.tus > 21 && o.tus < 22.5, `klavye harfi ~21-22 px olmalı (${o.tus})`);
+  assert.equal(await gorunur(sayfa, "#menu"), true, "ayar değiştirmek menüyü kapatmaz");
+  assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), []);
+  await sayfa.keyboard.press("Escape");
+  assert.deepEqual(await kucukHedefler(sayfa, "#oyun .icon-btn, #eylemler button"), [], "büyük yazıda oyunda küçük dokunma hedefi");
+  assert.ok(await tasmaYok(sayfa));
+  // Yeniden açılışta kalır
+  await sayfa.reload();
+  await anaEkran(sayfa);
+  assert.equal(await sayfa.evaluate(() => document.documentElement.classList.contains("buyuk-yazi")), true, "büyük yazı yeniden açılışta kayboldu");
+  assert.deepEqual(await kucukHedefler(sayfa, "#ana button, #ana a"), [], "büyük yazıda ana ekranda küçük dokunma hedefi");
+  assert.ok(await tasmaYok(sayfa), "büyük yazıda ana ekranda taşma");
+  await oyunaGir(sayfa);
+  await sayfa.tap("#btnMenu");
+  assert.equal((await olc()).anahtar, "true");
+  await sayfa.tap("#menuYazi");
+  assert.deepEqual(await olc(), { kok: 16, tus: 18, kayit: null, anahtar: "false" });
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });

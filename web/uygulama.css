@@ -19,6 +19,11 @@ html, body {
 /* Bağlantıya uzun basınca açılan sistem önizlemesi oyunda gereksiz */
 body { -webkit-touch-callout: none; }
 
+/* ---------- Büyük yazı (menü → sm_yazi; uygulama.js) ----------
+   Kök %119: sitenin rem belirteçleri birlikte büyür (gövde 16 → 19 px, klavye harfi 18 → 21,4 px).
+   Harf blokları, tuş ve düğme boyları px'tir: oyun ekranının yerleşimi aynı kalır. */
+html.buyuk-yazi { font-size: 119%; }
+
 /* ---------- Uygulama işareti (merdiven ve üç blok) ---------- */
 .isaret { display: block; }
 .i-cita    { fill: var(--wood-light); }
