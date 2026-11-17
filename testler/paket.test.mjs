@@ -163,6 +163,8 @@ test("sözlük kaynağı atfı uygulamada Lisanslar sayfasına bağlanır; başk
   assert.doesNotMatch(cikti.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, ""), /https?:/, "dış adres pakete girmiş");
   assert.throws(() => donustur(atifli.replace("Zemberek-NLP</a>", "Zemberek</a>")), /index\.html/, "başka metinli dış bağlantı durmalı");
   assert.throws(() => donustur(atifli + atif), /index\.html/, "iki kez atıf durmalı");
+  assert.throws(() => donustur(atifli.replace('zemberek-nlp"', 'zemberek-nlp.evil.example"')), /index\.html/, "başka adresli Zemberek bağlantısı durmalı");
+  assert.throws(() => donustur(atifli.replace('LICENSE-2.0"', 'LICENSE-2.0.evil.example"')), /index\.html/, "başka adresli Apache bağlantısı durmalı");
 });
 
 test("paylaşım metninde Unicode adres, makine alanlarında punycode", () => {
