@@ -792,8 +792,10 @@ test("uygulama: kelimeye dokununca anlam balonu açılır; TDK bağlantısı do�
   const anlam = await sayfa.textContent(".balon-anlam");
   assert.ok(anlam && anlam !== "Henüz anlamı yok", `${kelime} için anlam paketten gelmedi: ${anlam}`);
   const tdk = sayfa.locator(".balon-tdk");
-  // Türkçe küçük harf: İ → i, I → ı (JS varsayılanı "i̇" üretirdi); ek olarak kodlama
-  const beklenen = (k) => "https://sozluk.gov.tr/kelime/" + encodeURIComponent(k.toLocaleLowerCase("tr"));
+  // Türkçe küçük harf: İ → i, I → ı (JS varsayılanı "i̇" üretirdi); ek olarak kodlama.
+  // TDK'da kendi maddesi olmayan fiil kökü mastara gider (anlam.json → tdk; ERİT → eritmek)
+  const tdkMadde = JSON.parse(readFileSync(join(WWW, "anlam.json"), "utf8")).tdk || {};
+  const beklenen = (k) => "https://sozluk.gov.tr/kelime/" + encodeURIComponent(tdkMadde[k] || k.toLocaleLowerCase("tr"));
   assert.equal(await tdk.getAttribute("href"), beklenen(kelime));
   assert.equal(await sayfa.evaluate(() => encodeURIComponent("IĞDIR".toLocaleLowerCase("tr"))), "%C4%B1%C4%9Fd%C4%B1r");
   assert.equal(await sayfa.evaluate(() => encodeURIComponent("İKİ".toLocaleLowerCase("tr"))), "iki");
