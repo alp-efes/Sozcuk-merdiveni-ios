@@ -777,6 +777,37 @@ const kucukHedefler = (sayfa, secici) => sayfa.evaluate((s) => [...document.quer
 const tasmaYok = (sayfa) => sayfa.evaluate(() => document.documentElement.scrollWidth <= innerWidth && scrollX === 0 && scrollY === 0);
 const sil = async (sayfa, adet = 6) => { for (let i = 0; i < adet; i++) await sayfa.keyboard.press("Backspace"); };
 
+// Anlam balonu (site: anlam.json paketten gelir) ve "TDK'da aç": bağlantı yeni pencere ister;
+// iOS'ta Capacitor bunu harici (varsayılan) tarayıcıya verir (createWebViewWith → UIApplication.open), web görünümü yüklemez.
+test("uygulama: kelimeye dokununca anlam balonu açılır; TDK bağlantısı doğru adrese gider, oyun sayfası yerinde kalır", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  const istekler = [];
+  await baglam.route("https://sozluk.gov.tr/**", (r) => { istekler.push(r.request().url()); return r.fulfill({ status: 200, body: "tdk" }); });
+  await oyunaGir(sayfa);
+  const kelime = await sayfa.evaluate(() => oyun.chain[0]);
+  await sayfa.tap(`.word-row[data-kelime="${kelime}"]`);
+  await sayfa.waitForSelector(".balon .balon-anlam");
+  const anlam = await sayfa.textContent(".balon-anlam");
+  assert.ok(anlam && anlam !== "Henüz anlamı yok", `${kelime} için anlam paketten gelmedi: ${anlam}`);
+  const tdk = sayfa.locator(".balon-tdk");
+  // Türkçe küçük harf: İ → i, I → ı (JS varsayılanı "i̇" üretirdi); ek olarak kodlama
+  const beklenen = (k) => "https://sozluk.gov.tr/kelime/" + encodeURIComponent(k.toLocaleLowerCase("tr"));
+  assert.equal(await tdk.getAttribute("href"), beklenen(kelime));
+  assert.equal(await sayfa.evaluate(() => encodeURIComponent("IĞDIR".toLocaleLowerCase("tr"))), "%C4%B1%C4%9Fd%C4%B1r");
+  assert.equal(await sayfa.evaluate(() => encodeURIComponent("İKİ".toLocaleLowerCase("tr"))), "iki");
+  assert.equal(await tdk.getAttribute("target"), "_blank");
+  assert.match(await tdk.getAttribute("rel"), /noopener/);
+  const adres = sayfa.url();
+  const [yeni] = await Promise.all([baglam.waitForEvent("page"), tdk.tap()]);
+  await yeni.waitForURL(beklenen(kelime));
+  assert.ok(istekler.includes(beklenen(kelime)), "TDK adresi istenmedi");
+  assert.equal(sayfa.url(), adres, "oyun sayfası başka yere gitmemeli");
+  assert.ok(await sayfa.evaluate(() => document.body.dataset.ekran === "oyun" && !!document.querySelector(".balon")), "oyun ve balon yerinde kalmalı");
+  assert.deepEqual(kayit.hatalar ?? [], [], "sayfa hatası ya da CSP ihlali");
+  await yeni.close();
+  await baglam.close();
+});
+
 test("uygulama arayüzü: açılış ekranı sözlük yüklenene dek durur, ardından iki seçenekli ana ekran gelir", async () => {
   const baglam = await tarayici.newContext(TELEFON);
   // Sözlük bekletilir: açılış ekranı o sırada görünür olmalı
