@@ -157,6 +157,7 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 - **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
   notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca `plusSatinAl` veriyorsa). Alt bilgi
   (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
+- **Isındın / Soğudun göstergesi (`#yakin`, site #48) durum satırının sağ ucunda** (`uygulama.css`, `order`): sitede durum satırının altına asılır; uygulamada geri al/ipucu satırda olmadığı için adım bilgisiyle aynı satırda durur, satır kaymaz (testli).
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 - **Oyuna ilk girişte bir kez kısa "nasıl oynanır" kartı** (`#ilkYardim`, `arayuz.mjs` → `ILK_YARDIM`; sahip
   isteği, 16 Kasım 2026). Ana ekranda değil, ilk oyun girişinde (günlük ya da serbest) açılır; menünün kartı ve

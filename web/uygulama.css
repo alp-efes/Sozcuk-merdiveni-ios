@@ -280,6 +280,9 @@ body:not([data-ekran="ana"]) .ana { display: none; }
 /* Durum satırındaki etiketsiz geri sayım dar ekranda anlaşılmıyor; uygulamada geri sayım
    ana ekrandaki kartta ve çözüm penceresinde yazıyla birlikte durur */
 .status .daily-timer { display: none; }
+/* Isındın / Soğudun (site #48): sitede durum satırının altındaki şeride asılı; uygulamada geri al ve
+   ipucu durum satırında olmadığı için yer var, "1 adım · en az 5" ile aynı satırın sağ ucunda durur */
+.app .status .yakin { position: static; order: 9; align-self: center; }   /* boş .status-actions'tan sonra: en sağ */
 
 /* Ekran klavyesi: Türkçe Q (uygulama.js → WordLadder.LAYOUT). 24 sütunlu ızgara: 1. sıra 12 harf,
    2. sıra yarım tuş içeride, 3. sırada Sil sağ uçta İ'nin hizasında biter. Tuş ve kapak sitenin. */

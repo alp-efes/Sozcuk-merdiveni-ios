@@ -1059,6 +1059,29 @@ test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altt
   await baglam.close();
 });
 
+test("uygulama arayüzü: Isındın/Soğudun durum satırında, adım bilgisiyle aynı satırın sağ ucunda; durum satırı kaymaz", async () => {
+  for (const [en, boy] of [[375, 667], [390, 844]]) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
+    await oyunaGir(sayfa);
+    const satir = () => sayfa.evaluate(() => { const r = document.querySelector(".status").getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; });
+    const once = await satir();
+    const bas = await sayfa.evaluate(() => oyun.startWord);
+    await yaz(sayfa, enKisaYol(bas, await sayfa.evaluate(() => oyun.targetWord))[0]);
+    const o = await sayfa.evaluate(() => {
+      const y = document.getElementById("yakin").getBoundingClientRect(), s = document.querySelector(".status").getBoundingClientRect(),
+        a = document.getElementById("stepInfo").getBoundingClientRect();
+      return { metin: document.getElementById("yakin").textContent, sag: Math.round(s.right - y.right), ust: y.top >= s.top - 1 && y.bottom <= s.bottom + 1,
+        ayniSatir: Math.abs((y.top + y.bottom) / 2 - (a.top + a.bottom) / 2) <= 4, gutter: Math.round(innerWidth - s.right) };
+    });
+    assert.ok(o.metin, `${en}×${boy}: gösterge görünmeli`);
+    assert.ok(o.ust && o.ayniSatir, `${en}×${boy}: gösterge durum satırında ve adım bilgisiyle aynı hizada olmalı (${JSON.stringify(o)})`);
+    assert.ok(o.sag <= 20, `${en}×${boy}: gösterge satırın sağ ucunda olmalı (${JSON.stringify(o)})`);
+    assert.deepEqual(await satir(), once, `${en}×${boy}: gösterge çıkınca durum satırı kaymamalı`);
+    assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+    await baglam.close();
+  }
+});
+
 test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en kısa yolu göster sağda, ad düğmelerin altına girmez (büyük yazıda da)", async () => {
   for (const [en, buyuk] of [375, 390, 430].flatMap((e) => [[e, false], [e, true]])) {
     const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: 844 } }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
