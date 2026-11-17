@@ -150,6 +150,21 @@ test("site temizlik betiğini kaldırsa da dönüşüm çalışır, betik pakete
   assert.doesNotThrow(() => donustur(betiksiz));
 });
 
+test("sözlük kaynağı atfı uygulamada Lisanslar sayfasına bağlanır; başka dış adres yine durdurur", () => {
+  const atif = '<p>Kelimeler <a href="https://github.com/ahmetaa/zemberek-nlp" target="_blank" rel="noopener noreferrer">Zemberek-NLP</a> ' +
+    '(<a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache 2.0</a>)</p>';
+  // Site atfı zaten içeriyorsa önce bağlantısız hâle getir; deneme girdisinde tam bir kez olsun
+  const yalin = siteIndex.replace(/<a href="https:\/\/(?:github\.com\/ahmetaa\/zemberek-nlp|www\.apache\.org\/licenses\/LICENSE-2\.0)"[^>]*>([^<]*)<\/a>/g, "$1");
+  const atifli = yalin.replace('<p class="legend">', atif + '<p class="legend">');
+  assert.notEqual(atifli, yalin, "deneme girdisi siteden farklı olmalı");
+  const cikti = donustur(atifli);
+  assert.match(cikti, /<a href="lisanslar\.html">Zemberek-NLP<\/a>/);
+  assert.match(cikti, /<a href="lisanslar\.html">Apache 2\.0<\/a>/);
+  assert.doesNotMatch(cikti.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, ""), /https?:/, "dış adres pakete girmiş");
+  assert.throws(() => donustur(atifli.replace("Zemberek-NLP</a>", "Zemberek</a>")), /index\.html/, "başka metinli dış bağlantı durmalı");
+  assert.throws(() => donustur(atifli + atif), /index\.html/, "iki kez atıf durmalı");
+});
+
 test("paylaşım metninde Unicode adres, makine alanlarında punycode", () => {
   const yerel = oku(KOK, "web/yerel.js");
   assert.match(yerel, /const SITE = "https:\/\/sözcükyolu\.com\/";/, "paylaşım adresi Unicode olmalı");

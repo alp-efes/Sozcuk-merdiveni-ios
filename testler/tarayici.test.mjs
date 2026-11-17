@@ -65,6 +65,15 @@ function enKisaYol(bas, hedef) {
   return yol;
 }
 
+// Bir bulmacanın birden çok en kısa yolu olabilir: oyunun gösterdiği yol, testin bulduğuyla aynı
+// olmak zorunda değil. Yol geçerli bir en kısa yol mu: aynı uzunluk, her adım sözlükte ve tek harf farklı.
+function enKisaMi(zincir, bas, hedef) {
+  const kelimeler = new Set(JSON.parse(readFileSync(join(WWW, "words.json"), "utf8"))[String(bas.length)].words);
+  const komsu = (a, b) => [...a].filter((h, i) => h !== b[i]).length === 1;
+  return zincir[0] === bas && zincir.at(-1) === hedef && zincir.length === enKisaYol(bas, hedef).length + 1 &&
+    zincir.slice(1).every((k, i) => kelimeler.has(k) && komsu(zincir[i], k));
+}
+
 // Açılış ekranı geçer, ana ekran gelir
 const anaEkran = (sayfa) => sayfa.waitForSelector('body[data-ekran="ana"] #btnGunluk');
 // Ana ekrandan oyuna
@@ -1343,7 +1352,8 @@ test("uygulama arayüzü: en kısa yolu göster başlığın sağ üstünde, 0 a
     kayit: JSON.parse(localStorage.getItem("sm_gunluk_" + oyun.todayKey())) }));
   assert.deepEqual([son.bitti, son.gosterildi], [true, true]);
   assert.equal(son.kayit.steps, 0, "günlükte çözüm kaydı oluşmamalı");
-  assert.deepEqual(await sayfa.evaluate(() => oyun.chain), [bas, ...enKisaYol(bas, hedef)], "bir en kısa yol basılmalı");
+  const basilan = await sayfa.evaluate(() => oyun.chain);
+  assert.ok(enKisaMi(basilan, bas, hedef), `bir en kısa yol basılmalı (${basilan.join(" → ")})`);
   // Bitmiş oyunda gösterilecek yol yok: düğme görünmez ama yerini tutar, başlık kaymaz
   assert.deepEqual(await sayfa.evaluate(() => { const b = document.getElementById("btnShowResult"); return [getComputedStyle(b).visibility, b.getBoundingClientRect().width]; }), ["hidden", 44]);
   // Ana ekran kartı "çözüm gösterildi"yi okur: ne "adım attın" ne "Oyna"
@@ -1386,7 +1396,8 @@ test("uygulama arayüzü: çözüm penceresinde en kısa yol yalnızca fazla ad�
   const once = await kayitOku();
   await sayfa.tap("#btnEnKisa");
   const bas = await sayfa.evaluate(() => oyun.startWord);
-  assert.equal(await sayfa.textContent("#enKisaYol"), [bas, ...yol].join(" → "), "bir en kısa yol kelime kelime yazılmalı");
+  const yazilan = (await sayfa.textContent("#enKisaYol")).split(" → ");
+  assert.ok(enKisaMi(yazilan, bas, await sayfa.evaluate(() => oyun.targetWord)), `bir en kısa yol kelime kelime yazılmalı (${yazilan.join(" → ")})`);
   assert.ok(await gorunur(sayfa, "#enKisaYol"));
   assert.equal(await sayfa.evaluate(() => document.activeElement.id), "enKisaYol", "odak yol metnine geçmeli (VoiceOver okusun)");
   assert.equal(await gorunur(sayfa, "#btnEnKisa"), false);
