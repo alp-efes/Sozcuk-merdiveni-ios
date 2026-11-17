@@ -101,7 +101,8 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   ilerleme varken sitenin yenile penceresi kendi metniyle onay ister; app.js'te serbest için bu yol yok,
   zinciri `uygulama.js` sıfırlar). Yeniden dene günlükte gizli: `YENIDEN_DENE_GUNLUKTE = false` (sahip
   "günlükte baştan başla olmasın" demişti; yeni isteği soruldu). Altta Nasıl oynanır? ve `role="switch"`
-  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar).
+  ayarlar: Titreşim (`sm_titresim`; `yerel.js` her `Haptics` çağrısında bakar), Ses (`#btnMute`'a basar),
+  Büyük yazı (`sm_yazi`; aşağıda).
   Açılınca odak ilk tuşa gider; Escape ve dışarı dokunuş kapatır, Tab menünün içinde döner; kapanınca odak
   menü düğmesine döner, oyun ekranında orada bırakılmaz (bağlı klavyedeki Boşluk menüyü yeniden açardı; Tab başlıktan sürer). Açıkken perdesi ekran tuşlarını örter, bağlı klavye de tahtaya yazmaz.
   Gecikmeli çözüm penceresi açılırken açık menü kapanır.
@@ -156,6 +157,7 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
 - **Plus kartı ana ekrandadır** (sitenin `#plusBox`'ı taşınır: satın al, geri yükle, cayma
   notu); görünürlüğünü `app.js` `renderPlus` yönetir (yalnızca kanca `plusSatinAl` veriyorsa). Alt bilgi
   (Gizlilik, Lisanslar, "Reklam Tercihleri") da ana ekranın altındadır; `gizlilik.html` böyle tarif eder.
+- **Isındın / Soğudun göstergesi (`#yakin`, site #48) durum satırının sağ ucunda** (`uygulama.css`, `order`): sitede durum satırının altına asılır; uygulamada geri al/ipucu satırda olmadığı için adım bilgisiyle aynı satırda durur, satır kaymaz (testli).
 - **"Nasıl oynanır?" pencere olarak açılır** (`body.yardim`); açıkken alttaki ekran gizlidir.
 - **Oyuna ilk girişte bir kez kısa "nasıl oynanır" kartı** (`#ilkYardim`, `arayuz.mjs` → `ILK_YARDIM`; sahip
   isteği, 16 Kasım 2026). Ana ekranda değil, ilk oyun girişinde (günlük ya da serbest) açılır; menünün kartı ve
@@ -164,6 +166,28 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   "Daha fazla" yardım penceresini açar. Escape ve dışarı dokunuş da kapatır; açılınca odak "Başla"da, Tab kartta
   döner, açıkken ekran tuşları ve bağlı klavye yazmaz. Kapanınca `sm_ilk_yardim` yazılır (oyunu, hakları
   değiştirmez); güncelleyen eski oyuncular da bir kez görür. Çözüm penceresi açılırsa kart kapanır.
+- **Günlük kartında seri** (sahip kararı 2A, site issue #47, 17 Kasım 2026). Sayı ("4 günlük seri") ve son 7 günün
+  kareleri (çözülen yeşil, çözülmeyen boş, bugün kiremit çerçeveli; şerit `role="img"`, günler `aria-label`'da metinle).
+  Yalnızca mevcut `sm_gunluk_<YYYY-AA-GG>` kayıtlarından, TRT günüyle (`todayKey`); yeni kayıt yok. Çözülmüş gün
+  `steps ≥ 1` (`dailyRecord` gibi): "Sonucu göster" ile biten gün (`{steps: 0, gosterildi: true}`) seriyi bozar
+  (bugün gösterildiyse seri 0); bugün henüz bitmediyse seri dünden sayılır. TRT 18.00'den sonra bugün bitmemiş ve
+  seri ≥ 1 ise kartta "Serini korumak için bugün çöz · N saat kaldı" (`#seriUyari`). Bildirim ve izin yok. Metin ve
+  sayaç tek sabitte, `uygulama.js` → `SERI_UYARI` (sahip kararı bekliyor; `null` uyarıyı kaldırır). Kart ana ekran
+  açılınca ve TRT saati değişince (`tickCountdown`) yeniden çizilir; her saniye kayıt okunmaz. Geçersiz tarihli
+  (`2026-13-45`, `2026-02-30`) ya da `steps`'i tam sayı olmayan kayıt sayılmaz. Varsayılanlar sahip değiştirebilir.
+- **"İstatistiklerim" penceresi** (10A; `#istatistik`, `arayuz.mjs` → `ISTATISTIK`, menünün kartı ve perdesi; günlük
+  kartındaki `#btnIstatistik` açar). Yalnızca günün bulmacası, `sm_gunluk_*`'tan, cihazda: çözülen gün, şu anki ve
+  en uzun seri, en kısa yolla çözme oranı, en kısa yola uzaklık dağılımı (tam, +1, +2, +3 ve üstü), en iyi gün
+  (en az fazla adım; eşitse uzun bulmaca, sonra yeni gün). Sonuç ilk çözümdür (`steps`, paylaşılanla aynı). Kayıt
+  en az adımı saklamaz: geçmiş günün bulmacası şimdiki `words.json`'dan (`dailyPuzzle` o günün numarasıyla) alınır;
+  kayıttaki zincirin uçları uymuyorsa (sözlük `--yeni` ile yenilenmiş) ya da zincir yoksa o gün oranda ve dağılımda
+  sayılmaz, sayısı yazılır. Serbest oyun özeti yok (yeni kayıt isterdi). Odak kapat düğmesinde, Escape ve dışarı
+  dokunuş kapatır, Tab kartta döner; kapanınca odak açan düğmeye döner. Çubuk genişliği CSSOM ile (`style.width`,
+  CSP'ye takılmaz).
+- **Büyük yazı** (5A; menüde `role="switch"`, `sm_yazi` = `"1"`, kapatınca silinir; `gizlilik.html` sayar).
+  `html.buyuk-yazi { font-size: 119% }`: sitenin rem belirteçleri birlikte büyür (gövde 19 px, klavye harfi ~21 px);
+  harf blokları ve tuş/düğme boyları px'tir, yerleşim aynı kalır. "Ekran kaymaz", mod adı ve menü testleri büyük
+  yazıda da koşar (375×667, 390×844, 430×932).
 
 **İlk sürüm Plus'suz (sahip kararı, 14 Kasım 2026):** `web/yerel.js` → `PLUS_ACIK = false` kancadan `plusSatinAl`/`plusGeriYukle`/`plusFiyat`'ı çıkarır, `plusMu` hep false'tur, StoreKit'ten Plus sorulmaz; site `app.js` Plus'a yalnızca kanca `plusSatinAl` veriyorsa değinir. `SatinAlma.swift` yerinde (vitrin için de gerekli); `web/gizlilik.html` Plus'tan söz etmez (Plus açılırken geri konur, testler bayrağı açıp dener). **Geçici: `REKLAM_YOKSA_ODUL = true`** (`web/yerel.js`) ödüllü reklam yüklenemez ya da gösterilemezse +1 hak verir (AdMob onayı gelene dek oyuncu takılmasın); yarıda kapatılan reklam ödül vermez. AdMob onaylanınca `false` yapılır.
 

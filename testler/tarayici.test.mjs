@@ -750,8 +750,10 @@ test("gelir kancası: StoreKit doğrulaması takılırsa 5 sn sonra reklam akı�
  * Arayüz Capacitor köprüsü gerektirmez. Yazma ekran tuşlarına dokunarak (bas) ya da bağlı
  * klavye olaylarıyla (yaz). iOS'taki gerçek yerleşim simülatörde ölçülür (araclar/otomatik-oyna.js). */
 
-async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {}, ilkYardim = false } = {}) {
+// saat: sabit "şimdi" (Date; zamanlayıcılar normal işler), ör. TRT 20.00 için "2026-11-17T20:00:00+03:00"
+async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {}, ilkYardim = false, saat } = {}) {
   const baglam = await tarayici.newContext(secenek);
+  if (saat) await baglam.clock.setFixedTime(new Date(saat));
   await baglam.addInitScript((k) => {
     if (sessionStorage.getItem("__kuruldu")) return;      // yalnızca ilk açılışta: yenileme kayıtları ezmesin
     sessionStorage.setItem("__kuruldu", "1");
@@ -1057,9 +1059,32 @@ test("uygulama arayüzü: Gönder ortada, Geri al ve İpucu iki yanında en altt
   await baglam.close();
 });
 
-test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en kısa yolu göster sağda, ad düğmelerin altına girmez", async () => {
-  for (const en of [375, 390, 430]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: 844 } } });
+test("uygulama arayüzü: Isındın/Soğudun durum satırında, adım bilgisiyle aynı satırın sağ ucunda; durum satırı kaymaz", async () => {
+  for (const [en, boy] of [[375, 667], [390, 844]]) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
+    await oyunaGir(sayfa);
+    const satir = () => sayfa.evaluate(() => { const r = document.querySelector(".status").getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; });
+    const once = await satir();
+    const bas = await sayfa.evaluate(() => oyun.startWord);
+    await yaz(sayfa, enKisaYol(bas, await sayfa.evaluate(() => oyun.targetWord))[0]);
+    const o = await sayfa.evaluate(() => {
+      const y = document.getElementById("yakin").getBoundingClientRect(), s = document.querySelector(".status").getBoundingClientRect(),
+        a = document.getElementById("stepInfo").getBoundingClientRect();
+      return { metin: document.getElementById("yakin").textContent, sag: Math.round(s.right - y.right), ust: y.top >= s.top - 1 && y.bottom <= s.bottom + 1,
+        ayniSatir: Math.abs((y.top + y.bottom) / 2 - (a.top + a.bottom) / 2) <= 4, gutter: Math.round(innerWidth - s.right) };
+    });
+    assert.ok(o.metin, `${en}×${boy}: gösterge görünmeli`);
+    assert.ok(o.ust && o.ayniSatir, `${en}×${boy}: gösterge durum satırında ve adım bilgisiyle aynı hizada olmalı (${JSON.stringify(o)})`);
+    assert.ok(o.sag <= 20, `${en}×${boy}: gösterge satırın sağ ucunda olmalı (${JSON.stringify(o)})`);
+    assert.deepEqual(await satir(), once, `${en}×${boy}: gösterge çıkınca durum satırı kaymamalı`);
+    assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali");
+    await baglam.close();
+  }
+});
+
+test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en kısa yolu göster sağda, ad düğmelerin altına girmez (büyük yazıda da)", async () => {
+  for (const [en, buyuk] of [375, 390, 430].flatMap((e) => [[e, false], [e, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: 844 } }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     for (const mod of ["daily", "free"]) {
       await oyunaGir(sayfa, mod);
       const o = await sayfa.evaluate(() => {
@@ -1071,9 +1096,10 @@ test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en
         return { yazi: (yazi.left + yazi.right) / 2, sol: yazi.left, sag: yazi.right, menu: r(document.getElementById("btnMenu")).right,
           yardim: r(document.getElementById("btnShowResult")).left, kesik: ad.scrollWidth > ad.clientWidth };
       });
-      assert.ok(Math.abs(o.yazi - en / 2) <= 3, `${en} px ${mod}: mod adı ortada olmalı (merkez ${o.yazi})`);
-      assert.ok(o.sol >= o.menu && o.sag <= o.yardim, `${en} px ${mod}: mod adı düğmelerin altına girmemeli (${JSON.stringify(o)})`);
-      assert.equal(o.kesik, false, `${en} px ${mod}: mod adı kesilmemeli`);
+      const ad = `${en} px${buyuk ? " büyük yazı" : ""} ${mod}`;
+      assert.ok(Math.abs(o.yazi - en / 2) <= 3, `${ad}: mod adı ortada olmalı (merkez ${o.yazi})`);
+      assert.ok(o.sol >= o.menu && o.sag <= o.yardim, `${ad}: mod adı düğmelerin altına girmemeli (${JSON.stringify(o)})`);
+      assert.equal(o.kesik, false, `${ad}: mod adı kesilmemeli`);
       await anaya(sayfa);
     }
     assert.deepEqual(kayit.hatalar, []);
@@ -1081,9 +1107,9 @@ test("uygulama arayüzü: başlıkta mod adı ekranın ortasında; ☰ solda, en
   }
 });
 
-test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven sürerken ve bitince kendi içinde kayar", async () => {
-  for (const [en, boy] of [[375, 667], [390, 844], [430, 932]]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } } });
+test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası kaydırmasız sığar; uzun merdiven sürerken ve bitince kendi içinde kayar (büyük yazıda da)", async () => {
+  for (const [en, boy, buyuk] of [[375, 667], [390, 844], [430, 932]].flatMap(([e, b]) => [[e, b, false], [e, b, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport: { width: en, height: boy } }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     await oyunaGir(sayfa);
     const olc = () => sayfa.evaluate(() => {
       const r = (s) => { const k = document.querySelector(s).getBoundingClientRect(); return { ust: Math.round(k.top), alt: Math.round(k.bottom) }; };
@@ -1093,7 +1119,8 @@ test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası 
         tasma: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight || scrollY !== 0 };
     });
     let o = await olc();
-    const ad = `${en}×${boy}`;
+    const ad = `${en}×${boy}${buyuk ? " büyük yazı" : ""}`;
+    assert.equal(await sayfa.evaluate(() => document.documentElement.classList.contains("buyuk-yazi")), buyuk, `${ad}: büyük yazı`);
     assert.deepEqual([o.kabuk.ust, o.kabuk.alt, o.tasma], [0, boy, false], `${ad}: oyun ekranı tam sığmalı`);
     assert.ok(o.baslik.ust >= 0 && o.eylem.alt <= boy, `${ad}: başlık ve eylem sırası görünmeli`);
     assert.ok(o.bas.ust >= o.baslik.alt && o.hedef.alt <= o.klavye.ust, `${ad}: başlangıç ve hedef klavyenin üstünde`);
@@ -1111,7 +1138,7 @@ test("uygulama arayüzü: üç ekran boyunda merdiven, klavye ve eylem sırası 
     assert.ok(o.son.ust >= o.merdiven.ust - 1 && o.son.alt <= o.giris.ust, `${ad}: uzun merdivende son kelime görünmüyor`);
     assert.ok(o.hedef.alt <= o.klavye.ust, `${ad}: hedef klavyenin üstünde kalmalı`);
     assert.ok(await sayfa.evaluate(() => { const st = document.getElementById("steps"); return st.scrollHeight > st.clientHeight; }), `${ad}: uzun merdiven kendi içinde kaymalı`);
-    if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}.png`) });
+    if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, `7-uzun-merdiven-${en}x${boy}${buyuk ? "-buyuk" : ""}.png`) });
 
     // Bitince: merdiven yine başlıkla klavye arasında; son adım ve HEDEF görünür, yukarı kaydırılabilir
     for (const kelime of enKisaYol(bas0, await sayfa.evaluate(() => oyun.targetWord))) await yaz(sayfa, kelime);
@@ -1783,20 +1810,20 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   // Günlükte "Baştan başla" yok (sahip kararı): yeni oyun satırı hiç görünmez
   assert.equal(await gorunur(sayfa, "#menuYeniden"), false, "günlükte Yeniden dene görünmemeli (sahibin cevabı bekleniyor)");
   const ogeler = () => sayfa.evaluate(() => [...document.querySelectorAll("#menu button")].filter((e) => !e.hidden).map((e) => e.textContent.trim()));
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Nasıl oynanır?", "Titreşim", "Ses", "Büyük yazı"]);
   // Eylemler büyük tuş (en az 52 px, sitenin birincil/ikincil tuşları), ayarlar küçük satır
   assert.deepEqual(await sayfa.evaluate(() => ["btnAna", "menuSerbest"].map((id) => [document.getElementById(id).className,
     Math.round(document.getElementById(id).getBoundingClientRect().height) >= 52])), [["btn-primary", true], ["btn-secondary", true]]);
   assert.deepEqual(await sayfa.evaluate(() => [...document.querySelectorAll('#menu [role="switch"]')].map((e) => [e.id, e.getAttribute("aria-checked")])),
-    [["menuTitresim", "true"], ["menuSes", "true"]]);
+    [["menuTitresim", "true"], ["menuSes", "true"], ["menuYazi", "false"]]);
   assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), [], "menü satırları en az 44 px");
   assert.ok(await tasmaYok(sayfa));
   // Odak tuzağı: Tab ve Shift+Tab menünün görünen satırları arasında döner
   const odaklar = [];
-  for (let i = 0; i < 5; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
-  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSes", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
+  for (let i = 0; i < 6; i++) { await sayfa.keyboard.press("Tab"); odaklar.push((await m()).odak); }
+  assert.deepEqual(odaklar, ["menuSerbest", "menuYardim", "menuTitresim", "menuSes", "menuYazi", "btnAna"], "Tab menüde dönmeli, gizli tuşa gitmemeli");
   await sayfa.keyboard.press("Shift+Tab");
-  assert.equal((await m()).odak, "menuSes", "ilk satırda Shift+Tab sona gitmeli");
+  assert.equal((await m()).odak, "menuYazi", "ilk satırda Shift+Tab sona gitmeli");
   await sayfa.keyboard.press("Tab");
   // Menü açıkken yazılan harf ve ekran tuşu tahtaya gitmez (perde tuşları örter)
   await sayfa.keyboard.type("ab");
@@ -1830,19 +1857,19 @@ test("uygulama arayüzü: menü açılır/kapanır (Escape, dışarı dokunuş);
   await sayfa.tap("#btnSerbest");
   await sayfa.waitForFunction(() => document.body.dataset.ekran === "oyun");
   await sayfa.tap("#btnMenu");
-  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Ses"]);
+  assert.deepEqual(await ogeler(), ["Ana menüye dön", "Serbest oyun", "Yeniden dene", "Nasıl oynanır?", "Titreşim", "Ses", "Büyük yazı"]);
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
 });
 
-test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'de taşmaz", async () => {
-  for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
-    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport } });
+test("uygulama arayüzü: menü ekranın ortasında yüzen karttır; iPhone SE'de taşmaz (büyük yazıda da)", async () => {
+  for (const [viewport, buyuk] of [{ width: 390, height: 844 }, { width: 375, height: 667 }].flatMap((v) => [[v, false], [v, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
     await oyunaGir(sayfa, "free");
     await sayfa.tap("#btnMenu");
     await sayfa.waitForTimeout(300);                     // açılış geçişi biter
     const k = await kutu(sayfa, "#menu .menu");
-    const ad = `${viewport.width}×${viewport.height}`;
+    const ad = `${viewport.width}×${viewport.height}${buyuk ? " büyük yazı" : ""}`;
     assert.ok(Math.abs((k.sol + k.sag) / 2 - viewport.width / 2) < 1, `${ad}: kart yatayda ortada olmalı`);
     assert.ok(Math.abs((k.ust + k.alt) / 2 - viewport.height / 2) < 2, `${ad}: kart dikeyde ortada olmalı (${k.ust}–${k.alt})`);
     assert.ok(k.en <= 340 && k.sol >= 16 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart kenarlardan en az 16 px içeride (${JSON.stringify(k)})`);
@@ -2135,4 +2162,231 @@ test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden aç
   assert.deepEqual(await ac(), { h: ipucu, cerceve: 1, hak: 4 }, "yeniden açılışta ipucu kayboldu ya da hak değişti");
   assert.deepEqual(kayit.hatalar, []);
   await baglam.close();
+});
+
+/* ---------- Seri, büyük yazı, istatistiklerim (sahip kararları, site issue #47: 2A, 5A, 10A) ----------
+ * Seri ve istatistik yalnızca sm_gunluk_<YYYY-AA-GG> kayıtlarından hesaplanır; yeni kayıt yalnızca sm_yazi. */
+
+// O TRT gününün bulmacası, app.js'ten bağımsız: 4 harfli havuz, gün numarası (15 Temmuz 2026 = 1) havuz boyuna göre
+function gunBulmacasi(gun) {
+  const hepsi = JSON.parse(readFileSync(join(WWW, "words.json"), "utf8"))["4"].puzzles;
+  const no = Math.round((Date.parse(gun) - Date.UTC(2026, 6, 15)) / 86400000) + 1;
+  return hepsi[((no % hepsi.length) + hepsi.length) % hepsi.length];
+}
+// O günün çözüm kaydı: en az adımdan `fazla` adım uzun zincir (istatistik yalnızca zincirin uçlarına bakar)
+function cozum(gun, fazla) {
+  const [bas, hedef, enAz] = gunBulmacasi(gun);
+  return JSON.stringify({ steps: enAz + fazla, grid: "", chain: [bas, ...Array(enAz + fazla - 1).fill("ARA"), hedef] });
+}
+const GOSTERILDI = JSON.stringify({ steps: 0, gosterildi: true });
+const seriOku = (sayfa) => sayfa.evaluate(() => ({
+  sayi: document.getElementById("seriSayi").textContent,
+  // ■ çözüldü, □ çözülmedi, * bugün
+  kareler: [...document.querySelectorAll("#hafta > span")].map((k) => (k.classList.contains("cozuldu") ? "■" : "□") + (k.classList.contains("bugun") ? "*" : "")).join(""),
+  adlar: [...document.querySelectorAll("#hafta small")].map((k) => k.textContent),
+  okunan: document.getElementById("hafta").getAttribute("aria-label"),
+  uyari: document.getElementById("seriUyari").hidden ? null : document.getElementById("seriUyari").textContent,
+}));
+// Kayıtlar oyunda değişir; kart ana ekran açılınca ve TRT saati değişince çizilir. Testte kayıt değişince sayfa yenilenir
+async function seriBekle(sayfa, sayi) {
+  await sayfa.reload();
+  await anaEkran(sayfa);
+  await sayfa.waitForFunction((n) => document.getElementById("seriSayi").textContent === n, sayi);
+}
+
+test("seri: gösterilen gün bozar, bugün çözülmemişse dünden sayılır; ay ve yıl geçişi; son 7 günün şeridi metinle de okunur", async () => {
+  // Bugün 2 Ocak 2027 Cumartesi (TRT öğle). 24–27 Aralık çözüldü, 28'inde sonuç gösterildi, 29'u boş, 30 Aralık–1 Ocak çözüldü
+  const kayitlar = { "sm_gunluk_2026-12-28": GOSTERILDI };
+  for (const g of ["2026-12-24", "2026-12-25", "2026-12-26", "2026-12-27", "2026-12-30", "2026-12-31", "2027-01-01"]) kayitlar[`sm_gunluk_${g}`] = cozum(g, 0);
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar, saat: "2027-01-02T12:00:00+03:00" });
+  await anaEkran(sayfa);
+  assert.deepEqual(await seriOku(sayfa), {
+    sayi: "3", kareler: "■□□■■■□*", uyari: null,
+    adlar: ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Bugün"],
+    okunan: "Son 7 gün: Pazar çözüldü, Pazartesi çözülmedi, Salı çözülmedi, Çarşamba çözüldü, Perşembe çözüldü, Cuma çözüldü, bugün henüz çözülmedi",
+  }, "bugün çözülmemiş: seri dünden (30 Aralık–1 Ocak, yıl geçişi) sayılır; gösterilen gün çözülmüş sayılmaz");
+  assert.equal(await sayfa.textContent(".seri-sayi"), "3 günlük seri");
+  // En uzun seri 24–27 Aralık (4); gösterilen 28 Aralık onu böler
+  await sayfa.tap("#btnIstatistik");
+  assert.deepEqual(await sayfa.evaluate(() => ["istCozulen", "istSeri", "istEnUzun"].map((id) => document.getElementById(id).textContent)), ["7", "3", "4"]);
+  await sayfa.keyboard.press("Escape");
+
+  // Bugün çözülünce seri bugünü de sayar. Kart kayıtları her saniye yeniden okumaz: saat değişmeden aynı kalır
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2027-01-02", k), cozum("2027-01-02", 2));
+  await sayfa.waitForTimeout(1300);
+  assert.equal((await seriOku(sayfa)).sayi, "3", "kart her saniye bütün kayıtları yeniden okumamalı");
+  await seriBekle(sayfa, "4");
+  assert.equal((await seriOku(sayfa)).kareler, "■□□■■■■*");
+  // Bugün "Sonucu göster" ile biterse seri bozulur
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2027-01-02", k), GOSTERILDI);
+  await seriBekle(sayfa, "0");
+  assert.equal((await seriOku(sayfa)).kareler, "■□□■■■□*");
+  // Ay geçişi (30 Kasım → 1 Aralık): bugün 1 Aralık, dün ve önceki gün çözülü
+  await baglam.clock.setFixedTime(new Date("2026-12-01T09:00:00+03:00"));
+  await sayfa.evaluate((k) => { localStorage.clear(); localStorage.setItem("sm_ilk_yardim", "1"); localStorage.setItem("sm_gunluk_2026-11-29", k[0]); localStorage.setItem("sm_gunluk_2026-11-30", k[1]); },
+    [cozum("2026-11-29", 0), cozum("2026-11-30", 1)]);
+  await seriBekle(sayfa, "2");
+  assert.equal((await seriOku(sayfa)).kareler, "□□□□■■□*");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("seri: akşam uyarısı yalnızca TRT 18.00'den sonra (cihaz saat diliminden bağımsız), seri varken ve bugün bitmemişken", async () => {
+  // Cihaz New York saatinde: uyarı TRT'ye göre çıkar
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, timezoneId: "America/New_York" },
+    kayitlar: { "sm_gunluk_2026-11-16": cozum("2026-11-16", 1) }, saat: "2026-11-17T17:59:00+03:00" });
+  await anaEkran(sayfa);
+  const saat = async (t) => { await baglam.clock.setFixedTime(new Date(t)); await sayfa.waitForTimeout(1300); };
+  assert.equal((await seriOku(sayfa)).uyari, null, "17.59: uyarı yok");
+  await saat("2026-11-17T18:00:00+03:00");
+  assert.equal((await seriOku(sayfa)).uyari, "Serini korumak için bugün çöz · 6 saat kaldı");
+  assert.ok(await gorunur(sayfa, "#seriUyari"));
+  if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "8-seri-uyari.png") });
+  await saat("2026-11-17T23:30:00+03:00");
+  assert.equal((await seriOku(sayfa)).uyari, "Serini korumak için bugün çöz · 1 saat kaldı");
+  // Bugün çözülünce ya da sonuç gösterilince uyarı kalkar
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2026-11-17", k), cozum("2026-11-17", 0));
+  await seriBekle(sayfa, "2");
+  assert.equal((await seriOku(sayfa)).uyari, null, "bugün çözüldü");
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2026-11-17", k), GOSTERILDI);
+  await seriBekle(sayfa, "0");
+  assert.equal((await seriOku(sayfa)).uyari, null, "bugün gösterildi: korunacak seri yok");
+  // Seri yokken (dün çözülmemiş) akşam da uyarı yok
+  await sayfa.evaluate(() => { localStorage.removeItem("sm_gunluk_2026-11-17"); localStorage.removeItem("sm_gunluk_2026-11-16"); });
+  await seriBekle(sayfa, "0");
+  assert.deepEqual([(await seriOku(sayfa)).sayi, (await seriOku(sayfa)).uyari], ["0", null]);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("seri ve istatistik: geçersiz tarihli ya da adımı tam sayı olmayan kayıt sayılmaz, hiçbir şeyi kırmaz", async () => {
+  const kayitlar = {
+    "sm_gunluk_2026-11-16": cozum("2026-11-16", 0),
+    "sm_gunluk_2026-13-45": cozum("2026-11-16", 0),                                   // ay ve gün yok
+    "sm_gunluk_0000-00-00": cozum("2026-11-16", 0),
+    "sm_gunluk_2026-02-30": cozum("2026-11-16", 0),                                   // Date 2 Mart'a kaydırırdı
+    "sm_gunluk_2026-11-15": JSON.stringify({ steps: "5", grid: "", chain: [] }),       // adım metin
+    "sm_gunluk_2026-11-14": JSON.stringify({ steps: 2.5, grid: "", chain: [] }),       // adım kesirli
+    "sm_gunluk_2026-11-13": "{bozuk",
+  };
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar, saat: "2026-11-17T20:00:00+03:00" });
+  await anaEkran(sayfa);
+  const s = await seriOku(sayfa);
+  assert.deepEqual([s.sayi, s.kareler, s.uyari], ["1", "□□□□□■□*", "Serini korumak için bugün çöz · 4 saat kaldı"]);
+  await sayfa.tap("#btnIstatistik");
+  assert.deepEqual(await sayfa.evaluate(() => ["istCozulen", "istSeri", "istEnUzun", "istOran"].map((id) => document.getElementById(id).textContent)), ["1", "1", "1", "%100"]);
+  assert.deepEqual(kayit.hatalar, [], "geçersiz kayıt sayfa hatası vermemeli");
+  await baglam.close();
+});
+
+test("büyük yazı: menüdeki anahtar kök yazıyı %119 yapar (klavye harfi 18 → ~21 px), sm_yazi'de kalıcı; kapatınca kayıt silinir", async () => {
+  const { baglam, sayfa, kayit } = await arayuzSayfasi();
+  await oyunaGir(sayfa);
+  const olc = () => sayfa.evaluate(() => ({
+    kok: parseFloat(getComputedStyle(document.documentElement).fontSize),
+    tus: parseFloat(getComputedStyle(document.querySelector('#keyboard .key[data-key="A"] .cap')).fontSize),
+    kayit: localStorage.getItem("sm_yazi"), anahtar: document.getElementById("menuYazi").getAttribute("aria-checked") }));
+  await sayfa.tap("#btnMenu");
+  assert.deepEqual(await olc(), { kok: 16, tus: 18, kayit: null, anahtar: "false" });
+  assert.equal(await sayfa.getAttribute("#menuYazi", "role"), "switch");
+  await sayfa.tap("#menuYazi");
+  let o = await olc();
+  assert.deepEqual([o.kok, o.kayit, o.anahtar], [19.04, "1", "true"]);
+  assert.ok(o.tus > 21 && o.tus < 22.5, `klavye harfi ~21-22 px olmalı (${o.tus})`);
+  assert.equal(await gorunur(sayfa, "#menu"), true, "ayar değiştirmek menüyü kapatmaz");
+  assert.deepEqual(await kucukHedefler(sayfa, "#menu button"), []);
+  await sayfa.keyboard.press("Escape");
+  assert.deepEqual(await kucukHedefler(sayfa, "#oyun .icon-btn, #eylemler button"), [], "büyük yazıda oyunda küçük dokunma hedefi");
+  assert.ok(await tasmaYok(sayfa));
+  // Yeniden açılışta kalır
+  await sayfa.reload();
+  await anaEkran(sayfa);
+  assert.equal(await sayfa.evaluate(() => document.documentElement.classList.contains("buyuk-yazi")), true, "büyük yazı yeniden açılışta kayboldu");
+  assert.deepEqual(await kucukHedefler(sayfa, "#ana button, #ana a"), [], "büyük yazıda ana ekranda küçük dokunma hedefi");
+  assert.ok(await tasmaYok(sayfa), "büyük yazıda ana ekranda taşma");
+  await oyunaGir(sayfa);
+  await sayfa.tap("#btnMenu");
+  assert.equal((await olc()).anahtar, "true");
+  await sayfa.tap("#menuYazi");
+  assert.deepEqual(await olc(), { kok: 16, tus: 18, kayit: null, anahtar: "false" });
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("istatistik: yalnızca günlük kayıtlarından; sayılar, en kısa yol oranı, dağılım ve en iyi gün doğru; hesaplanamayan gün sayılmaz ve belirtilir", async () => {
+  const kayitlar = { sm_ilk_yardim: "1" };
+  const ekle = (gun, deger) => { kayitlar[`sm_gunluk_${gun}`] = deger; };
+  ekle("2026-11-16", cozum("2026-11-16", 0));
+  ekle("2026-11-15", cozum("2026-11-15", 1));
+  ekle("2026-11-14", cozum("2026-11-14", 0));
+  ekle("2026-11-13", GOSTERILDI);                                                        // çözülmedi, seriyi böler
+  ekle("2026-11-12", cozum("2026-11-12", 2));
+  ekle("2026-11-11", cozum("2026-11-11", 5));
+  ekle("2026-11-10", JSON.stringify({ steps: 6, grid: "" }));                            // eski kayıt: zincir yok
+  ekle("2026-11-09", JSON.stringify({ steps: 4, grid: "", chain: ["ABCD", "ARA", "ARA", "ARA", "EFGH"] }));   // uçlar o günün bulmacası değil
+  ekle("2026-11-08", cozum("2026-11-08", 0));
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar, saat: "2026-11-17T12:00:00+03:00" });
+  await anaEkran(sayfa);
+  const anahtarlar = () => sayfa.evaluate(() => Object.keys(localStorage).sort());
+  const once = await anahtarlar();
+  await sayfa.tap("#btnIstatistik");
+  const ist = () => sayfa.evaluate(() => {
+    const m = (id) => document.getElementById(id);
+    const cubuk = [...document.querySelectorAll("#istDagilim i")].map((i) => i.getBoundingClientRect().width);
+    return { acik: !m("istatistik").classList.contains("hidden"), gizli: m("istatistik").getAttribute("aria-hidden"), odak: document.activeElement.id,
+      sayilar: ["istCozulen", "istSeri", "istEnUzun", "istOran"].map((id) => m(id).textContent),
+      dagilim: [...document.querySelectorAll("#istDagilim li")].map((li) => li.textContent), oranlar: cubuk.map((g) => Math.round((100 * g) / cubuk[0])),
+      bilinmeyen: m("istBilinmeyen").hidden ? null : m("istBilinmeyen").textContent, bos: !m("istBos").hidden,
+      enIyi: m("istEnIyiBolum").hidden ? null : [m("istEnIyiBulmaca").textContent, m("istEnIyiNot").textContent] };
+  });
+  // En iyi gün: fazla adım 0 olanlardan en uzun bulmaca, eşitse en yeni gün
+  const [eg, [eb, eh, ea, ez]] = ["2026-11-16", "2026-11-14", "2026-11-08"].map((g) => [g, gunBulmacasi(g)])
+    .sort((a, b) => b[1][2] - a[1][2] || b[0].localeCompare(a[0]))[0];
+  const tarih = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", timeZone: "UTC" }).format(Date.parse(eg));
+  const o = await ist();
+  assert.deepEqual(o, {
+    acik: true, gizli: "false", odak: "istKapat",
+    // 8 çözülen gün (gösterilen sayılmaz); seri 14–16 Kasım (bugün henüz çözülmedi); en uzun 8–12 Kasım; 6 bilinen günün 3'ü tam
+    sayilar: ["8", "3", "5", "%50"],
+    dagilim: ["Tam3", "+11", "+21", "+3 ve üstü1"], oranlar: [100, 33, 33, 33],
+    bilinmeyen: "2 gün sayılmadı: o günlerin en az adımı bilinmiyor (bulmaca listesi güncellenmiş).", bos: false,
+    enIyi: [`${eb} → ${eh}`, `${tarih} · ${ez} bulmaca, en az ${ea} adım; sen de ${ea} adımda`],
+  });
+  assert.ok(await gorunur(sayfa, ".ist-gizlilik"));
+  assert.equal(await sayfa.textContent(".ist-gizlilik"), "Yalnızca bu cihazda tutulur, kimseyle paylaşılmaz.");
+  if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "9-istatistik.png") });
+  // Odak tuzağı: Tab ve Shift+Tab kartın tek düğmesinde kalır; tuşlar tahtaya yazmaz
+  await sayfa.keyboard.press("Tab");
+  await sayfa.keyboard.press("Shift+Tab");
+  assert.equal((await ist()).odak, "istKapat");
+  // Escape kapatır, odak açan düğmeye döner; dışarı dokunuş ve kapat düğmesi de kapatır
+  await sayfa.keyboard.press("Escape");
+  assert.deepEqual([(await ist()).acik, (await ist()).gizli, (await ist()).odak], [false, "true", "btnIstatistik"]);
+  await sayfa.tap("#btnIstatistik");
+  await sayfa.mouse.click(195, 8);
+  assert.equal((await ist()).acik, false, "dışarı dokunuş kapatır");
+  await sayfa.tap("#btnIstatistik");
+  await sayfa.tap("#istKapat");
+  assert.equal((await ist()).acik, false);
+  assert.deepEqual(await anahtarlar(), once, "istatistik hiçbir kayıt yazmaz");
+  assert.deepEqual(kayit.hatalar, [], "sayfa hatası ya da CSP ihlali (çubuk genişliği)");
+  await baglam.close();
+});
+
+test("istatistik: kayıt yokken boş hâl; iki ekran boyunda kart ortada ve taşmaz (büyük yazıda da)", async () => {
+  for (const [viewport, buyuk] of [{ width: 390, height: 844 }, { width: 375, height: 667 }].flatMap((v) => [[v, false], [v, true]])) {
+    const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, viewport }, kayitlar: buyuk ? { sm_yazi: "1" } : {} });
+    await anaEkran(sayfa);
+    await sayfa.tap("#btnIstatistik");
+    await sayfa.waitForTimeout(300);
+    const ad = `${viewport.width}×${viewport.height}${buyuk ? " büyük yazı" : ""}`;
+    assert.deepEqual(await sayfa.evaluate(() => [["istCozulen", "istSeri", "istEnUzun", "istOran"].map((id) => document.getElementById(id).textContent),
+      ...["istBos", "istDagilimBolum", "istEnIyiBolum"].map((id) => document.getElementById(id).hidden)]), [["0", "0", "0", "–"], false, true, true], ad);
+    const k = await kutu(sayfa, "#istatistik .menu");
+    assert.ok(Math.abs((k.sol + k.sag) / 2 - viewport.width / 2) < 1 && k.ust >= 16 && k.alt <= viewport.height - 16, `${ad}: kart ortada, kenarlardan içeride`);
+    assert.deepEqual(await kucukHedefler(sayfa, "#istatistik button"), [], `${ad}: kapat en az 44 px`);
+    assert.ok(await tasmaYok(sayfa), `${ad}: taşma`);
+    assert.deepEqual(kayit.hatalar, []);
+    await baglam.close();
+  }
 });

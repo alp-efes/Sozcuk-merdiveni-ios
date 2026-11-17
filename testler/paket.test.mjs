@@ -251,6 +251,16 @@ test("uygulama.js'in app.js'te bağlandığı noktalar duruyor", () => {
     [/^  dailyPuzzle\(\) \{/m, "dailyPuzzle()"],
     [/^  dailyRecord\(\) \{/m, "dailyRecord()"],
     [/^  dayNumber\(\) \{/m, "dayNumber()"],
+    // Seri ve istatistik (uygulama.js): TRT gün anahtarı, sm_gunluk_<YYYY-AA-GG>, kayıttaki zincir, günün bulmacası
+    [/^  todayKey\(\) \{\n    const d = WordLadder\.trtNow\(\);\n    return `\$\{d\.getUTCFullYear\(\)\}-\$\{String\(d\.getUTCMonth\(\) \+ 1\)\.padStart\(2, "0"\)\}-\$\{String\(d\.getUTCDate\(\)\)\.padStart\(2, "0"\)\}`;/m,
+      "todayKey(): TRT günü, YYYY-AA-GG"],
+    [/localStorage\.setItem\("sm_gunluk_" \+ this\.todayKey\(\), JSON\.stringify\(sonuc\)\)/, "saveDailyRecord: sm_gunluk_ + todayKey()"],
+    [/this\.saveDailyRecord\(\{ \.\.\.this\.lastResult, chain: this\.chain\.slice\(\) \}\)/, "ilk çözüm kaydı zinciri (chain) yazar"],
+    [/^  dailyShown\(\) \{/m, "dailyShown()"],
+    [/^  msUntilTrtMidnight\(\) \{/m, "msUntilTrtMidnight()"],
+    [/^  static trtNow\(\) \{/m, "WordLadder.trtNow"],
+    [/^  static GUN_BASLANGIC_UTC = Date\.UTC\(/m, "WordLadder.GUN_BASLANGIC_UTC"],
+    [/const i = \(\(this\.dayNumber\(\) % hepsi\.length\) \+ hepsi\.length\) % hepsi\.length;/, "dailyPuzzle günü this.dayNumber() ile seçer"],
     [/^  savePref\(anahtar, deger\) \{/m, "savePref()"],
     [/^function muteGame\(mute\) \{/m, "muteGame(): ses tercihi"],
     [/^  static TR_LETTER = /m, "TR_LETTER: Türk alfabesi süzgeci"],
@@ -528,7 +538,7 @@ test("cihazda saklanan her sm_* kayıt adı gizlilik metninde listelidir", () =>
   // yerel.js ve (site yeni bir anahtar eklerse) app.js: gizlilik metni kayıt adlarını sayar
   const adlar = new Set([...oku(KOK, "web", "yerel.js").matchAll(/["'`](sm_[a-z_]+)/g)].map((m) => m[1]));
   for (const [, ad] of oku(KOK, "web", "uygulama.js").matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
-  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses", "sm_serit", "sm_titresim", "sm_ilk_yardim"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
+  for (const ad of ["sm_mod_daily", "sm_mod_free", "sm_ses", "sm_serit", "sm_titresim", "sm_ilk_yardim", "sm_yazi"]) assert.ok(adlar.has(ad), `uygulama.js'te ${ad} bulunamadı: desen bozulmuş olabilir`);
   // Kayıt adları uygulama.js'te birleştirilerek üretilmez: yukarıdaki tarama her adı tam görmeli
   assert.doesNotMatch(oku(KOK, "web", "uygulama.js"), /["'`]sm_[a-z_]*["'`]\s*\+/, "sm_* adı birleştirilerek üretiliyor: gizlilik denetimi göremez");
   for (const [, ad] of siteApp.matchAll(/["'`](sm_[a-z_]+)/g)) adlar.add(ad);
