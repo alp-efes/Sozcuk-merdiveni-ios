@@ -18,7 +18,7 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
 
 - **Web görünümü yalnızca paketten yükler; ağ yalnızca yerel reklam ve satın alma SDK'larının.**
   Tek istisna (sahip onaylı, 17 Kasım 2026, #47): anlam balonundaki "TDK'da aç" bağlantısı
-  (`https://sozluk.gov.tr/kelime/<kelime>`, `target="_blank"`). Capacitor bunu web görünümünde yüklemez, harici Safari'ye
+  (`https://sozluk.gov.tr/kelime/<kelime>`, `target="_blank"`). Capacitor bunu web görünümünde yüklemez, harici (varsayılan) tarayıcıya
   verir (`WebViewDelegationHandler.swift`: ana çerçeve dışı gezinmede `UIApplication.shared.open` + `.cancel`;
   yeni pencerede `createWebViewWith` → `open`, `nil`). Yerel kod yok, CSP değişmez; `SFSafariViewController`/uygulama içi
   tarayıcı KULLANILMAZ (App Store yaş anketi "Unrestricted Web Access = Hayır"). `paket.test.mjs` yalnızca `app.js`'te bu ön eke izin verir.
@@ -301,3 +301,6 @@ reklamların, ATT/UMP pencerelerinin ve gerçek satın almanın çalıştığı 
    yer bulması; (d) ana ekran çubuğu ile Gönder'in arasında yeterli boşluk; (e) VoiceOver'da
    "Noktasız I" / "Noktalı İ" ve devre dışı Q, W, X'in okunuşu; (g) menü kapanınca `blur()` sonrası
    bağlı klavyede Tab sırası WKWebView'de Chromium'daki gibi mi (iPad/TestFlight'ta bakılacak).
+8. TDK bağlantısı (17 Kasım 2026): yalnızca Chromium'da denendi. Cihazda "TDK'da aç"ın uygulama dışında, kullanıcının
+   varsayılan tarayıcısında açıldığı ve oyunun yerinde kaldığı TestFlight'ta bakılacak (Capacitor 8.6.2
+   `WebViewDelegationHandler` `createWebViewWith` → `UIApplication.shared.open`).

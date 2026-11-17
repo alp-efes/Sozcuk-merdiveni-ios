@@ -778,7 +778,7 @@ const tasmaYok = (sayfa) => sayfa.evaluate(() => document.documentElement.scroll
 const sil = async (sayfa, adet = 6) => { for (let i = 0; i < adet; i++) await sayfa.keyboard.press("Backspace"); };
 
 // Anlam balonu (site: anlam.json paketten gelir) ve "TDK'da aç": bağlantı yeni pencere ister;
-// iOS'ta Capacitor bunu harici Safari'ye verir (createWebViewWith → UIApplication.open), web görünümü yüklemez.
+// iOS'ta Capacitor bunu harici (varsayılan) tarayıcıya verir (createWebViewWith → UIApplication.open), web görünümü yüklemez.
 test("uygulama: kelimeye dokununca anlam balonu açılır; TDK bağlantısı doğru adrese gider, oyun sayfası yerinde kalır", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();
   const istekler = [];
