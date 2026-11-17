@@ -87,6 +87,17 @@ export function donustur(html) {
   const analitik = html.match(/firebase|gstatic|trackEvent|type="module"|id="izin|class="izin|cerez-tercihi|sm_izin|Çerez Tercih/i);
   if (analitik) throw new Error(`index.html beklenen yapıda değil: analitik/izin kalıntısı "${analitik[0]}"`);
 
+  // Sözlük kaynağı atfı (site: Zemberek-NLP deposu ve Apache 2.0 metni, dış bağlantı). Uygulamada
+  // iki bağlantı da paketteki Lisanslar sayfasına gider: orada Zemberek'in LICENSE'ı ve Apache 2.0
+  // metni aynen durur. Yalnızca bu iki bağlantı, 0 ya da 1 kez; başka dış adres yine aşağıda durdurur.
+  for (const [desen, ad] of [
+    [/<a href="https:\/\/github\.com\/ahmetaa\/zemberek-nlp"[^>]*>Zemberek-NLP<\/a>/g, "Zemberek-NLP atfı"],
+    [/<a href="https:\/\/www\.apache\.org\/licenses\/LICENSE-2\.0"[^>]*>Apache 2\.0<\/a>/g, "Apache 2.0 atfı"],
+  ]) {
+    if ((html.match(desen) || []).length > 1) throw new Error(`index.html beklenen yapıda değil: birden çok ${ad}`);
+    html = html.replace(desen, (a) => `<a href="lisanslar.html">${a.replace(/^<a [^>]*>|<\/a>$/g, "")}</a>`);
+  }
+
   // Kalan her dış adres, satır içi betik/stil bilinmeyen bir site değişikliğidir;
   // sessizce paketlemek yerine dur. (CSP eklenmeden önce bakılır: o da adres içerir.)
   const yasak = html.match(/https?:|\/\/[a-z0-9]|<iframe|<object|<embed|\son[a-z]+\s*=|\sstyle\s*=|javascript:/i);
