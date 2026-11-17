@@ -2133,8 +2133,12 @@ const seriOku = (sayfa) => sayfa.evaluate(() => ({
   okunan: document.getElementById("hafta").getAttribute("aria-label"),
   uyari: document.getElementById("seriUyari").hidden ? null : document.getElementById("seriUyari").textContent,
 }));
-// Kart her saniye (tickCountdown) tazelenir: kayıt değişince bir sonraki turu bekler
-const seriBekle = (sayfa, sayi) => sayfa.waitForFunction((n) => document.getElementById("seriSayi").textContent === n, sayi);
+// Kayıtlar oyunda değişir; kart ana ekran açılınca ve TRT saati değişince çizilir. Testte kayıt değişince sayfa yenilenir
+async function seriBekle(sayfa, sayi) {
+  await sayfa.reload();
+  await anaEkran(sayfa);
+  await sayfa.waitForFunction((n) => document.getElementById("seriSayi").textContent === n, sayi);
+}
 
 test("seri: gösterilen gün bozar, bugün çözülmemişse dünden sayılır; ay ve yıl geçişi; son 7 günün şeridi metinle de okunur", async () => {
   // Bugün 2 Ocak 2027 Cumartesi (TRT öğle). 24–27 Aralık çözüldü, 28'inde sonuç gösterildi, 29'u boş, 30 Aralık–1 Ocak çözüldü
@@ -2153,8 +2157,10 @@ test("seri: gösterilen gün bozar, bugün çözülmemişse dünden sayılır; a
   assert.deepEqual(await sayfa.evaluate(() => ["istCozulen", "istSeri", "istEnUzun"].map((id) => document.getElementById(id).textContent)), ["7", "3", "4"]);
   await sayfa.keyboard.press("Escape");
 
-  // Bugün çözülünce seri bugünü de sayar
+  // Bugün çözülünce seri bugünü de sayar. Kart kayıtları her saniye yeniden okumaz: saat değişmeden aynı kalır
   await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2027-01-02", k), cozum("2027-01-02", 2));
+  await sayfa.waitForTimeout(1300);
+  assert.equal((await seriOku(sayfa)).sayi, "3", "kart her saniye bütün kayıtları yeniden okumamalı");
   await seriBekle(sayfa, "4");
   assert.equal((await seriOku(sayfa)).kareler, "■□□■■■■*");
   // Bugün "Sonucu göster" ile biterse seri bozulur
@@ -2193,9 +2199,29 @@ test("seri: akşam uyarısı yalnızca TRT 18.00'den sonra (cihaz saat diliminde
   assert.equal((await seriOku(sayfa)).uyari, null, "bugün gösterildi: korunacak seri yok");
   // Seri yokken (dün çözülmemiş) akşam da uyarı yok
   await sayfa.evaluate(() => { localStorage.removeItem("sm_gunluk_2026-11-17"); localStorage.removeItem("sm_gunluk_2026-11-16"); });
-  await sayfa.waitForTimeout(1300);
+  await seriBekle(sayfa, "0");
   assert.deepEqual([(await seriOku(sayfa)).sayi, (await seriOku(sayfa)).uyari], ["0", null]);
   assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("seri ve istatistik: geçersiz tarihli ya da adımı tam sayı olmayan kayıt sayılmaz, hiçbir şeyi kırmaz", async () => {
+  const kayitlar = {
+    "sm_gunluk_2026-11-16": cozum("2026-11-16", 0),
+    "sm_gunluk_2026-13-45": cozum("2026-11-16", 0),                                   // ay ve gün yok
+    "sm_gunluk_0000-00-00": cozum("2026-11-16", 0),
+    "sm_gunluk_2026-02-30": cozum("2026-11-16", 0),                                   // Date 2 Mart'a kaydırırdı
+    "sm_gunluk_2026-11-15": JSON.stringify({ steps: "5", grid: "", chain: [] }),       // adım metin
+    "sm_gunluk_2026-11-14": JSON.stringify({ steps: 2.5, grid: "", chain: [] }),       // adım kesirli
+    "sm_gunluk_2026-11-13": "{bozuk",
+  };
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar, saat: "2026-11-17T20:00:00+03:00" });
+  await anaEkran(sayfa);
+  const s = await seriOku(sayfa);
+  assert.deepEqual([s.sayi, s.kareler, s.uyari], ["1", "□□□□□■□*", "Serini korumak için bugün çöz · 4 saat kaldı"]);
+  await sayfa.tap("#btnIstatistik");
+  assert.deepEqual(await sayfa.evaluate(() => ["istCozulen", "istSeri", "istEnUzun", "istOran"].map((id) => document.getElementById(id).textContent)), ["1", "1", "1", "%100"]);
+  assert.deepEqual(kayit.hatalar, [], "geçersiz kayıt sayfa hatası vermemeli");
   await baglam.close();
 });
 

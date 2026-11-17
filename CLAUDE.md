@@ -162,8 +162,10 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   Yalnızca mevcut `sm_gunluk_<YYYY-AA-GG>` kayıtlarından, TRT günüyle (`todayKey`); yeni kayıt yok. Çözülmüş gün
   `steps ≥ 1` (`dailyRecord` gibi): "Sonucu göster" ile biten gün (`{steps: 0, gosterildi: true}`) seriyi bozar
   (bugün gösterildiyse seri 0); bugün henüz bitmediyse seri dünden sayılır. TRT 18.00'den sonra bugün bitmemiş ve
-  seri ≥ 1 ise kartta "Serini korumak için bugün çöz · N saat kaldı" (`#seriUyari`). Bildirim ve izin yok. Kart her
-  saniye (`tickCountdown`) tazelenir. Varsayılanlar sahip değiştirebilir.
+  seri ≥ 1 ise kartta "Serini korumak için bugün çöz · N saat kaldı" (`#seriUyari`). Bildirim ve izin yok. Metin ve
+  sayaç tek sabitte, `uygulama.js` → `SERI_UYARI` (sahip kararı bekliyor; `null` uyarıyı kaldırır). Kart ana ekran
+  açılınca ve TRT saati değişince (`tickCountdown`) yeniden çizilir; her saniye kayıt okunmaz. Geçersiz tarihli
+  (`2026-13-45`, `2026-02-30`) ya da `steps`'i tam sayı olmayan kayıt sayılmaz. Varsayılanlar sahip değiştirebilir.
 - **"İstatistiklerim" penceresi** (10A; `#istatistik`, `arayuz.mjs` → `ISTATISTIK`, menünün kartı ve perdesi; günlük
   kartındaki `#btnIstatistik` açar). Yalnızca günün bulmacası, `sm_gunluk_*`'tan, cihazda: çözülen gün, şu anki ve
   en uzun seri, en kısa yolla çözme oranı, en kısa yola uzaklık dağılımı (tam, +1, +2, +3 ve üstü), en iyi gün

@@ -212,19 +212,23 @@
      "Sonucu göster" ile biten gün ({steps: 0, gosterildi: true}) çözülmüş sayılmaz, seriyi bozar. Bugün henüz
      bitmediyse seri dünden sayılır. Günler app.js'in TRT gün anahtarıdır (todayKey). */
   const GUN_MS = 86400000;
+  // Akşam seri uyarısı: metin ve sayaç sahip kararını bekliyor (site issue #47). null: uyarı yok; sayac false: saat yazılmaz
+  const SERI_UYARI = { metin: "Serini korumak için bugün çöz", sayac: true };
   // Gün anahtarına n gün ekler (anahtar UTC gece yarısı okunur: yaz saati yok, ay/yıl geçişi Date'in)
   const kaydir = (gun, n) => new Date(Date.parse(gun) + n * GUN_MS).toISOString().slice(0, 10);
   const gunAdi = (gun, weekday) => new Intl.DateTimeFormat("tr-TR", { weekday, timeZone: "UTC" }).format(Date.parse(gun));
-  // Çözülmüş günler: gün anahtarı → kayıt
+  // Gerçek bir takvim günü mü: "2026-13-45" ayrıştırılamaz, "2026-02-30" 2 Mart'a kayar (kaydir fırlatmasın)
+  const gecerliGun = (gun) => { const t = Date.parse(gun); return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === gun; };
+  // Çözülmüş günler: gün anahtarı → kayıt. Geçersiz tarihli ya da adımı tam sayı olmayan kayıt sayılmaz
   const cozulenGunler = () => {
     const gunler = new Map();
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const ad = localStorage.key(i), e = /^sm_gunluk_(\d{4}-\d{2}-\d{2})$/.exec(ad);
-        if (!e) continue;
+        if (!e || !gecerliGun(e[1])) continue;
         let k = null;
         try { k = JSON.parse(localStorage.getItem(ad)); } catch (_) { /* bozuk kayıt sayılmaz */ }
-        if (k && k.steps >= 1) gunler.set(e[1], k);
+        if (k && Number.isInteger(k.steps) && k.steps >= 1) gunler.set(e[1], k);
       }
     } catch (_) { /* kayıtlar okunamadı: seri 0 */ }
     return gunler;
@@ -244,8 +248,12 @@
     return { bugun, simdi, enUzun };
   };
 
-  // Günlük kartı: seri sayısı, son 7 günün kareleri (ekran okuyucuya metinle) ve akşam uyarısı
+  // Günlük kartı: seri sayısı, son 7 günün kareleri (ekran okuyucuya metinle) ve akşam uyarısı.
+  // Kayıtlar ana ekranda değişmez: kart ana ekran açılınca ve TRT saati değişince (uyarı, gün) yeniden çizilir
+  const trtSaat = () => WordLadder.trtNow().toISOString().slice(0, 13);
+  let cizilenSaat = "";
   function seriCiz() {
+    cizilenSaat = trtSaat();
     const gunler = cozulenGunler();
     const { bugun, simdi } = seriler(gunler);
     al("seriSayi").textContent = simdi;
@@ -259,9 +267,10 @@
     });
     al("hafta").setAttribute("aria-label", "Son 7 gün: " + okunan.join(", "));
     // Akşam (TRT 18.00'den sonra) bugün bitmemişse seriyi hatırlatır; bildirim yok, yalnızca kartta
-    const uyar = simdi > 0 && !gunler.has(bugun) && !oyun.dailyShown() && WordLadder.trtNow().getUTCHours() >= 18;
+    const uyar = !!SERI_UYARI && simdi > 0 && !gunler.has(bugun) && !oyun.dailyShown() && WordLadder.trtNow().getUTCHours() >= 18;
     al("seriUyari").hidden = !uyar;
-    al("seriUyari").textContent = uyar ? `Serini korumak için bugün çöz · ${Math.ceil(oyun.msUntilTrtMidnight() / 3600000)} saat kaldı` : "";
+    al("seriUyari").textContent = !uyar ? "" : SERI_UYARI.metin +
+      (SERI_UYARI.sayac ? ` · ${Math.ceil(oyun.msUntilTrtMidnight() / 3600000)} saat kaldı` : "");
   }
 
   // Geçmiş bir günün bulmacası şimdiki words.json'dan: app.js'in dailyPuzzle'ı o günün numarasıyla çağrılır
@@ -405,10 +414,10 @@
   P.tickCountdown = function (...arg) {
     const s = asilTick.apply(this, arg);
     al("anaGeriSayim").textContent = this.el.countdown.textContent;
-    // Ana ekranda: gün değişince kart yeni bulmacayı, saat geçtikçe seri uyarısını gösterir
+    // Ana ekranda: gün değişince kart yeni bulmacayı, TRT saati değişince seri uyarısını gösterir
     if (oyun && ekran === "ana") {
       if (anaGun !== this.dayNumber()) anaCiz();
-      else seriCiz();
+      else if (cizilenSaat !== trtSaat()) seriCiz();
     }
     return s;
   };
