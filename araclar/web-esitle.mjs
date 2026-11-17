@@ -43,7 +43,8 @@ export const CSP = [
 ].join("; ");
 
 // Siteden değiştirilmeden kopyalananlar
-export const AYNEN = ["app.js", "style.css", "words.json",
+// anlam.json (kelime anlamları) zorunludur: yoksa eşitleme durur; sessizce atlanırsa uygulama anlamsız çıkardı.
+export const AYNEN = ["app.js", "style.css", "words.json", "anlam.json",
   "fonts/young-serif.woff2", "fonts/OFL.txt"];
 // Uygulamanın kendi dosyaları (web/ içinde)
 export const KENDI = ["yerel.js", "uygulama.js", "uygulama.css", "gizlilik.html", "lisanslar.html"];
