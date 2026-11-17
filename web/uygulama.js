@@ -11,7 +11,7 @@
  *   - "Nasıl oynanır?" sayfanın altında değil, pencere olarak açılır
  *   - oyun başlığında menü: ana menü, yeni serbest oyun, yardım, titreşim/ses
  *   - oyuna ilk girişte bir kez kısa, canlı örnekli "nasıl oynanır" kartı
- *   - menüde büyük yazı
+ *   - günlük kartında seri ve son 7 gün; menüde büyük yazı
  * İşaretlemeyi araclar/web-esitle.mjs ekler (araclar/arayuz.mjs), görünüm
  * uygulama.css'tedir. app.js'e yalnızca aşağıdaki metotlar sarılarak bağlanılır;
  * her biri testler/paket.test.mjs içinde aranır (site değişirse test kırılır).
@@ -204,7 +204,65 @@
       ? `Kaldığın bulmaca: ${s.start} → ${s.target} · ${s.chain.length - 1} adım`
       : "İstediğin kadar oyna. Zorluğu ve uzunluğu sen seç.";
     al("btnSerbest").textContent = yarim ? "Devam et" : "Oyna";
+    seriCiz();
   };
+
+  /* ---------- Seri: yalnızca günün bulmacası, sm_gunluk_<YYYY-AA-GG> kayıtlarından ----------
+     Yeni kayıt yazılmaz, hepsi cihazda hesaplanır. Çözülmüş gün app.js'in dailyRecord'undaki gibi steps ≥ 1:
+     "Sonucu göster" ile biten gün ({steps: 0, gosterildi: true}) çözülmüş sayılmaz, seriyi bozar. Bugün henüz
+     bitmediyse seri dünden sayılır. Günler app.js'in TRT gün anahtarıdır (todayKey). */
+  const GUN_MS = 86400000;
+  // Gün anahtarına n gün ekler (anahtar UTC gece yarısı okunur: yaz saati yok, ay/yıl geçişi Date'in)
+  const kaydir = (gun, n) => new Date(Date.parse(gun) + n * GUN_MS).toISOString().slice(0, 10);
+  const gunAdi = (gun, weekday) => new Intl.DateTimeFormat("tr-TR", { weekday, timeZone: "UTC" }).format(Date.parse(gun));
+  // Çözülmüş günler: gün anahtarı → kayıt
+  const cozulenGunler = () => {
+    const gunler = new Map();
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const ad = localStorage.key(i), e = /^sm_gunluk_(\d{4}-\d{2}-\d{2})$/.exec(ad);
+        if (!e) continue;
+        let k = null;
+        try { k = JSON.parse(localStorage.getItem(ad)); } catch (_) { /* bozuk kayıt sayılmaz */ }
+        if (k && k.steps >= 1) gunler.set(e[1], k);
+      }
+    } catch (_) { /* kayıtlar okunamadı: seri 0 */ }
+    return gunler;
+  };
+  const seriler = (gunler) => {
+    const bugun = oyun.todayKey();
+    let gun = gunler.has(bugun) || oyun.dailyShown() ? bugun : kaydir(bugun, -1);
+    let simdi = 0;
+    for (; gunler.has(gun); gun = kaydir(gun, -1)) simdi++;
+    let enUzun = 0;
+    for (const bas of gunler.keys()) {
+      if (gunler.has(kaydir(bas, -1))) continue;          // dizinin başı değil
+      let n = 1;
+      while (gunler.has(kaydir(bas, n))) n++;
+      enUzun = Math.max(enUzun, n);
+    }
+    return { bugun, simdi, enUzun };
+  };
+
+  // Günlük kartı: seri sayısı, son 7 günün kareleri (ekran okuyucuya metinle) ve akşam uyarısı
+  function seriCiz() {
+    const gunler = cozulenGunler();
+    const { bugun, simdi } = seriler(gunler);
+    al("seriSayi").textContent = simdi;
+    const okunan = [];
+    [...al("hafta").children].forEach((kutu, i) => {
+      const gun = kaydir(bugun, i - 6), cozuldu = gunler.has(gun), bugunMu = i === 6;
+      kutu.classList.toggle("cozuldu", cozuldu);
+      kutu.classList.toggle("bugun", bugunMu);
+      kutu.lastChild.textContent = bugunMu ? "Bugün" : gunAdi(gun, "short");
+      okunan.push(bugunMu ? (cozuldu ? "bugün çözüldü" : "bugün henüz çözülmedi") : `${gunAdi(gun, "long")} ${cozuldu ? "çözüldü" : "çözülmedi"}`);
+    });
+    al("hafta").setAttribute("aria-label", "Son 7 gün: " + okunan.join(", "));
+    // Akşam (TRT 18.00'den sonra) bugün bitmemişse seriyi hatırlatır; bildirim yok, yalnızca kartta
+    const uyar = simdi > 0 && !gunler.has(bugun) && !oyun.dailyShown() && WordLadder.trtNow().getUTCHours() >= 18;
+    al("seriUyari").hidden = !uyar;
+    al("seriUyari").textContent = uyar ? `Serini korumak için bugün çöz · ${Math.ceil(oyun.msUntilTrtMidnight() / 3600000)} saat kaldı` : "";
+  }
 
   const yardimAc = (ac) => {
     govde.classList.toggle("yardim", ac);
@@ -286,7 +344,11 @@
   P.tickCountdown = function (...arg) {
     const s = asilTick.apply(this, arg);
     al("anaGeriSayim").textContent = this.el.countdown.textContent;
-    if (oyun && ekran === "ana" && anaGun !== this.dayNumber()) anaCiz();
+    // Ana ekranda: gün değişince kart yeni bulmacayı, saat geçtikçe seri uyarısını gösterir
+    if (oyun && ekran === "ana") {
+      if (anaGun !== this.dayNumber()) anaCiz();
+      else seriCiz();
+    }
     return s;
   };
 

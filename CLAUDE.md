@@ -157,6 +157,13 @@ köprüsü gerektirmez (tarayıcı testinde de çalışır). Farklar:
   "Daha fazla" yardım penceresini açar. Escape ve dışarı dokunuş da kapatır; açılınca odak "Başla"da, Tab kartta
   döner, açıkken ekran tuşları ve bağlı klavye yazmaz. Kapanınca `sm_ilk_yardim` yazılır (oyunu, hakları
   değiştirmez); güncelleyen eski oyuncular da bir kez görür. Çözüm penceresi açılırsa kart kapanır.
+- **Günlük kartında seri** (sahip kararı 2A, site issue #47, 17 Kasım 2026). Sayı ("4 günlük seri") ve son 7 günün
+  kareleri (çözülen yeşil, çözülmeyen boş, bugün kiremit çerçeveli; şerit `role="img"`, günler `aria-label`'da metinle).
+  Yalnızca mevcut `sm_gunluk_<YYYY-AA-GG>` kayıtlarından, TRT günüyle (`todayKey`); yeni kayıt yok. Çözülmüş gün
+  `steps ≥ 1` (`dailyRecord` gibi): "Sonucu göster" ile biten gün (`{steps: 0, gosterildi: true}`) seriyi bozar
+  (bugün gösterildiyse seri 0); bugün henüz bitmediyse seri dünden sayılır. TRT 18.00'den sonra bugün bitmemiş ve
+  seri ≥ 1 ise kartta "Serini korumak için bugün çöz · N saat kaldı" (`#seriUyari`). Bildirim ve izin yok. Kart her
+  saniye (`tickCountdown`) tazelenir. Varsayılanlar sahip değiştirebilir.
 - **Büyük yazı** (5A; menüde `role="switch"`, `sm_yazi` = `"1"`, kapatınca silinir; `gizlilik.html` sayar).
   `html.buyuk-yazi { font-size: 119% }`: sitenin rem belirteçleri birlikte büyür (gövde 19 px, klavye harfi ~21 px);
   harf blokları ve tuş/düğme boyları px'tir, yerleşim aynı kalır. "Ekran kaymaz", mod adı ve menü testleri büyük

@@ -750,8 +750,10 @@ test("gelir kancası: StoreKit doğrulaması takılırsa 5 sn sonra reklam akı�
  * Arayüz Capacitor köprüsü gerektirmez. Yazma ekran tuşlarına dokunarak (bas) ya da bağlı
  * klavye olaylarıyla (yaz). iOS'taki gerçek yerleşim simülatörde ölçülür (araclar/otomatik-oyna.js). */
 
-async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {}, ilkYardim = false } = {}) {
+// saat: sabit "şimdi" (Date; zamanlayıcılar normal işler), ör. TRT 20.00 için "2026-11-17T20:00:00+03:00"
+async function arayuzSayfasi({ secenek = TELEFON, kayitlar = {}, ilkYardim = false, saat } = {}) {
   const baglam = await tarayici.newContext(secenek);
+  if (saat) await baglam.clock.setFixedTime(new Date(saat));
   await baglam.addInitScript((k) => {
     if (sessionStorage.getItem("__kuruldu")) return;      // yalnızca ilk açılışta: yenileme kayıtları ezmesin
     sessionStorage.setItem("__kuruldu", "1");
@@ -2108,7 +2110,90 @@ test("uygulama arayüzü: açık ipucu ana ekrana gidip dönünce ve yeniden aç
   await baglam.close();
 });
 
-/* ---------- Büyük yazı (sahip kararı, site issue #47: 5A) ---------- */
+/* ---------- Seri, büyük yazı (sahip kararları, site issue #47: 2A, 5A) ----------
+ * Seri yalnızca sm_gunluk_<YYYY-AA-GG> kayıtlarından hesaplanır; yeni kayıt yalnızca sm_yazi. */
+
+// O TRT gününün bulmacası, app.js'ten bağımsız: 4 harfli havuz, gün numarası (15 Temmuz 2026 = 1) havuz boyuna göre
+function gunBulmacasi(gun) {
+  const hepsi = JSON.parse(readFileSync(join(WWW, "words.json"), "utf8"))["4"].puzzles;
+  const no = Math.round((Date.parse(gun) - Date.UTC(2026, 6, 15)) / 86400000) + 1;
+  return hepsi[((no % hepsi.length) + hepsi.length) % hepsi.length];
+}
+// O günün çözüm kaydı: en az adımdan `fazla` adım uzun zincir (istatistik yalnızca zincirin uçlarına bakar)
+function cozum(gun, fazla) {
+  const [bas, hedef, enAz] = gunBulmacasi(gun);
+  return JSON.stringify({ steps: enAz + fazla, grid: "", chain: [bas, ...Array(enAz + fazla - 1).fill("ARA"), hedef] });
+}
+const GOSTERILDI = JSON.stringify({ steps: 0, gosterildi: true });
+const seriOku = (sayfa) => sayfa.evaluate(() => ({
+  sayi: document.getElementById("seriSayi").textContent,
+  // ■ çözüldü, □ çözülmedi, * bugün
+  kareler: [...document.querySelectorAll("#hafta > span")].map((k) => (k.classList.contains("cozuldu") ? "■" : "□") + (k.classList.contains("bugun") ? "*" : "")).join(""),
+  adlar: [...document.querySelectorAll("#hafta small")].map((k) => k.textContent),
+  okunan: document.getElementById("hafta").getAttribute("aria-label"),
+  uyari: document.getElementById("seriUyari").hidden ? null : document.getElementById("seriUyari").textContent,
+}));
+// Kart her saniye (tickCountdown) tazelenir: kayıt değişince bir sonraki turu bekler
+const seriBekle = (sayfa, sayi) => sayfa.waitForFunction((n) => document.getElementById("seriSayi").textContent === n, sayi);
+
+test("seri: gösterilen gün bozar, bugün çözülmemişse dünden sayılır; ay ve yıl geçişi; son 7 günün şeridi metinle de okunur", async () => {
+  // Bugün 2 Ocak 2027 Cumartesi (TRT öğle). 24–27 Aralık çözüldü, 28'inde sonuç gösterildi, 29'u boş, 30 Aralık–1 Ocak çözüldü
+  const kayitlar = { "sm_gunluk_2026-12-28": GOSTERILDI };
+  for (const g of ["2026-12-24", "2026-12-25", "2026-12-26", "2026-12-27", "2026-12-30", "2026-12-31", "2027-01-01"]) kayitlar[`sm_gunluk_${g}`] = cozum(g, 0);
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ kayitlar, saat: "2027-01-02T12:00:00+03:00" });
+  await anaEkran(sayfa);
+  assert.deepEqual(await seriOku(sayfa), {
+    sayi: "3", kareler: "■□□■■■□*", uyari: null,
+    adlar: ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Bugün"],
+    okunan: "Son 7 gün: Pazar çözüldü, Pazartesi çözülmedi, Salı çözülmedi, Çarşamba çözüldü, Perşembe çözüldü, Cuma çözüldü, bugün henüz çözülmedi",
+  }, "bugün çözülmemiş: seri dünden (30 Aralık–1 Ocak, yıl geçişi) sayılır; gösterilen gün çözülmüş sayılmaz");
+  assert.equal(await sayfa.textContent(".seri-sayi"), "3 günlük seri");
+
+  // Bugün çözülünce seri bugünü de sayar
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2027-01-02", k), cozum("2027-01-02", 2));
+  await seriBekle(sayfa, "4");
+  assert.equal((await seriOku(sayfa)).kareler, "■□□■■■■*");
+  // Bugün "Sonucu göster" ile biterse seri bozulur
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2027-01-02", k), GOSTERILDI);
+  await seriBekle(sayfa, "0");
+  assert.equal((await seriOku(sayfa)).kareler, "■□□■■■□*");
+  // Ay geçişi (30 Kasım → 1 Aralık): bugün 1 Aralık, dün ve önceki gün çözülü
+  await baglam.clock.setFixedTime(new Date("2026-12-01T09:00:00+03:00"));
+  await sayfa.evaluate((k) => { localStorage.clear(); localStorage.setItem("sm_ilk_yardim", "1"); localStorage.setItem("sm_gunluk_2026-11-29", k[0]); localStorage.setItem("sm_gunluk_2026-11-30", k[1]); },
+    [cozum("2026-11-29", 0), cozum("2026-11-30", 1)]);
+  await seriBekle(sayfa, "2");
+  assert.equal((await seriOku(sayfa)).kareler, "□□□□■■□*");
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
+
+test("seri: akşam uyarısı yalnızca TRT 18.00'den sonra (cihaz saat diliminden bağımsız), seri varken ve bugün bitmemişken", async () => {
+  // Cihaz New York saatinde: uyarı TRT'ye göre çıkar
+  const { baglam, sayfa, kayit } = await arayuzSayfasi({ secenek: { ...TELEFON, timezoneId: "America/New_York" },
+    kayitlar: { "sm_gunluk_2026-11-16": cozum("2026-11-16", 1) }, saat: "2026-11-17T17:59:00+03:00" });
+  await anaEkran(sayfa);
+  const saat = async (t) => { await baglam.clock.setFixedTime(new Date(t)); await sayfa.waitForTimeout(1300); };
+  assert.equal((await seriOku(sayfa)).uyari, null, "17.59: uyarı yok");
+  await saat("2026-11-17T18:00:00+03:00");
+  assert.equal((await seriOku(sayfa)).uyari, "Serini korumak için bugün çöz · 6 saat kaldı");
+  assert.ok(await gorunur(sayfa, "#seriUyari"));
+  if (process.env.EKRAN_DIZINI) await sayfa.screenshot({ path: join(process.env.EKRAN_DIZINI, "8-seri-uyari.png") });
+  await saat("2026-11-17T23:30:00+03:00");
+  assert.equal((await seriOku(sayfa)).uyari, "Serini korumak için bugün çöz · 1 saat kaldı");
+  // Bugün çözülünce ya da sonuç gösterilince uyarı kalkar
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2026-11-17", k), cozum("2026-11-17", 0));
+  await seriBekle(sayfa, "2");
+  assert.equal((await seriOku(sayfa)).uyari, null, "bugün çözüldü");
+  await sayfa.evaluate((k) => localStorage.setItem("sm_gunluk_2026-11-17", k), GOSTERILDI);
+  await seriBekle(sayfa, "0");
+  assert.equal((await seriOku(sayfa)).uyari, null, "bugün gösterildi: korunacak seri yok");
+  // Seri yokken (dün çözülmemiş) akşam da uyarı yok
+  await sayfa.evaluate(() => { localStorage.removeItem("sm_gunluk_2026-11-17"); localStorage.removeItem("sm_gunluk_2026-11-16"); });
+  await sayfa.waitForTimeout(1300);
+  assert.deepEqual([(await seriOku(sayfa)).sayi, (await seriOku(sayfa)).uyari], ["0", null]);
+  assert.deepEqual(kayit.hatalar, []);
+  await baglam.close();
+});
 
 test("büyük yazı: menüdeki anahtar kök yazıyı %119 yapar (klavye harfi 18 → ~21 px), sm_yazi'de kalıcı; kapatınca kayıt silinir", async () => {
   const { baglam, sayfa, kayit } = await arayuzSayfasi();

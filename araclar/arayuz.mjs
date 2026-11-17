@@ -26,6 +26,13 @@ const ISARET = `<svg class="isaret" viewBox="0 0 320 320" aria-hidden="true" foc
       <rect class="i-hedef" x="164" y="218" width="84" height="84" rx="16"/></g>
     </svg>`;
 
+// Günlük kartındaki seri: sayı ve son 7 günün kareleri (en sağda bugün). Kareleri, gün adlarını ve
+// ekran okuyucunun okuduğu metni (aria-label) uygulama.js yazar; kayıtlar sm_gunluk_*'tan okunur
+const SERI = `<div class="seri">
+        <p class="seri-sayi"><strong id="seriSayi">0</strong> <span>günlük seri</span></p>
+        <div class="hafta" id="hafta" role="img" aria-label="">${"<span><i></i><small></small></span>".repeat(7)}</div>
+      </div>`;
+
 // Açılış ekranı (sözlük yüklenene dek durur) ve ana ekran: iki büyük seçenek
 // Ana ekranın üst satırı: ses düğmesi uygulama.js ile buraya taşınır
 export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
@@ -45,8 +52,10 @@ export const ANA_EKRAN = `<div class="acilis" id="acilis" aria-hidden="true">
       <h2 id="kartGunlukBaslik">Günün Bulmacası</h2>
       <p class="kart-bulmaca" id="gunlukBulmaca"></p>
       <p class="kart-durum" id="gunlukDurum"></p>
+      <p class="kart-uyari" id="seriUyari" hidden></p>
       <button class="btn-primary" id="btnGunluk" type="button">Oyna</button>
       <p class="kart-alt" id="gunlukSonraki" hidden>Yeni bulmaca <strong id="anaGeriSayim">--:--:--</strong> sonra</p>
+      ${SERI}
     </div>
     <div class="kart" role="group" aria-labelledby="kartSerbestBaslik">
       <h2 id="kartSerbestBaslik">Serbest Oyun</h2>
