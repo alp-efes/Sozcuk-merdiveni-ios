@@ -1,0 +1,51 @@
+# Uygulamayı tek bir App Store bölgesinde satıştan kaldırır (sahip isteği, 18 Kasım 2026: Çin anakarası).
+# Yalnızca elle ve yalnızca main'den çalışır. Başka ülkeye dokunmaz, ülke eklemez.
+# Aynı gizli bilgiler testflight ortamındadır.
+name: Ülkeden kaldır
+
+on:
+  workflow_dispatch:
+    inputs:
+      ulke:
+        description: "App Store bölge kodu (3 büyük harf, ör. CHN)"
+        required: true
+        default: CHN
+      kuru:
+        description: "Kuru çalıştırma: yalnızca okur, ne yapacağını yazar"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency: ulke-kaldir
+
+jobs:
+  ulke:
+    # Ortam yalnızca main'den çalışmaya izin verir; if: ikinci kilit
+    environment: testflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Ülkeden kaldır
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ULKE: ${{ inputs.ulke }}
+          KURU: ${{ inputs.kuru }}
+        run: |
+          set -euo pipefail
+          [[ "$ULKE" =~ ^[A-Z]{3}$ ]] || { echo "::error::ülke 3 büyük harf olmalı"; exit 1; }
+          arg=(--ulke "$ULKE")
+          [ "$KURU" = "true" ] && arg+=(--kuru)
+          node araclar/ulke-kaldir.mjs "${arg[@]}"

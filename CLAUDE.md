@@ -48,6 +48,8 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   yalnızca `main` (testle korunur); `pull_request` tetikleyicisi eklenmez.
   İkinci elle çalışan iş (sahip isteği, 14 Kasım 2026): `test-grubu.yml` bir derlemeyi dış test grubu "1. Seviye Test"e ekler
   (kullanıcı eklemez/silmez); aynı kurallar.
+  Üçüncü (sahip isteği, 18 Kasım 2026): `ulke-kaldir.yml` uygulamayı tek bir App Store bölgesinde satıştan kaldırır
+  (Çin anakarası, CHN: oyun lisansı, AI/güvenlik değerlendirmesi uyum maddeleri); ülke eklemez, kuru varsayılan; aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
