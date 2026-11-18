@@ -8,7 +8,7 @@ const S = (id, certificateType, name) => ({ id, attributes: { certificateType, n
 const VERI = [
   S("C1", "DEVELOPMENT", "Apple Development: Created via API (ABCDE12345)"),
   S("C2", "IOS_DEVELOPMENT", "iOS Development: Created via API"),
-  S("C3", "DEVELOPMENT", "Apple Development: Alp Efes (XYZ9876543)"),
+  S("C3", "DEVELOPMENT", "Apple Development: Deneme Kişi (XYZ9876543)"),
   S("C4", "DISTRIBUTION", "Apple Distribution: Created via API"),
 ];
 function sahte() {
@@ -23,6 +23,13 @@ const silinen = (i) => i.filter((x) => x.method === "DELETE").map((x) => x.yol);
 
 test("yalnızca API ile oluşturulmuş geliştirme sertifikaları seçilir", () => {
   assert.deepEqual(VERI.filter(bulutSertifikasi).map((s) => s.id), ["C1", "C2"]);
+});
+
+test("liste: bulut dışı sertifikanın adı günlüğe yazılmaz", async () => {
+  const { f } = sahte(); const satirlar = [];
+  await sertifika({ fetch: f, token: "t", islem: "liste", log: (x) => satirlar.push(x) });
+  assert.ok(!satirlar.join("\n").includes("Deneme Kişi"));
+  assert.ok(satirlar.join("\n").includes("Created via API"));
 });
 
 test("temizle: kendi sertifikasına ve dağıtım sertifikasına dokunmaz; kuru ve liste yazmaz", async () => {

@@ -24,7 +24,9 @@ export async function sertifika({ fetch: f = fetch, token, islem, kuru = true, l
   const hepsi = (await api("GET", "/v1/certificates?limit=200&fields[certificates]=name,displayName,certificateType,platform,expirationDate")).data;
   for (const s of hepsi) {
     const a = s.attributes ?? {};
-    log(`${bulutSertifikasi(s) ? "[bulut] " : "        "}${a.certificateType} · ${a.name ?? "-"} · ${a.displayName ?? "-"} · ${String(a.expirationDate ?? "").slice(0, 10)}`);
+    // Depo herkese açık, günlükler de: bulut dışı sertifikanın adı (kişi adı) yazılmaz
+    const ad = bulutSertifikasi(s) ? ` · ${a.name ?? "-"}` : "";
+    log(`${bulutSertifikasi(s) ? "[bulut] " : "        "}${a.certificateType} · ${s.id}${ad} · ${String(a.expirationDate ?? "").slice(0, 10)}`);
   }
   const silinecek = hepsi.filter(bulutSertifikasi);
   log(`Toplam ${hepsi.length}; bulut geliştirme sertifikası ${silinecek.length}.`);

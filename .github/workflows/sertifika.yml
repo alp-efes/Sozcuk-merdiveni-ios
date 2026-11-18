@@ -21,7 +21,8 @@ on:
 permissions:
   contents: read
 
-concurrency: sertifika
+# TestFlight derlemesiyle aynı sıra: arşivin az önce oluşturduğu sertifika derleme sürerken iptal edilmesin
+concurrency: testflight
 
 jobs:
   sertifika:
