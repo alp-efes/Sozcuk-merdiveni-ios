@@ -173,7 +173,9 @@ değişmiş olabilir):
   **Evet**: sözlük Zemberek-NLP'den (Apache 2.0) üretildi. Lisans bunu
   kullanmaya izin veriyor; gereken bildirimler uygulamanın *Lisanslar*
   sayfasında.
-- **Age Rating:** **4+** hedeflenir (reklamlar G sınıfıyla sınırlı: `maxAdContentRating`).
+- **Age Rating:** **4+** hedeflenir (reklamlar G sınıfıyla sınırlı: `maxAdContentRating`). **Güncelleme (18 Kasım 2026,
+  sahip kararı 2A):** kaba ve aşağılayıcı sözler sözlükte ve anlamları gösteriliyor; "Profanity or Crude Humor" =
+  **Infrequent/Mild** (`araclar/inceleme.mjs` → `YAS_BEYANI`, gönderirken yazar). Çıkan sınıf 4+ olmayabilir.
   Uygulamada şiddet, kumar, korku, kullanıcı içeriği, mesajlaşma ve uygulama içi
   tarayıcı yok → "Yok/Hayır". **Reklam artık var:** anketteki reklam/"Advertising"
   sorusuna **Evet** denir (soru metni ve etkisi **doğrulanmadı**; Apple'ın güncel anketi

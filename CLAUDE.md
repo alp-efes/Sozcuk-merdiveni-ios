@@ -50,6 +50,9 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   (kullanıcı eklemez/silmez); aynı kurallar.
   Üçüncü (sahip isteği, 18 Kasım 2026): `ulke-kaldir.yml` uygulamayı tek bir App Store bölgesinde satıştan kaldırır
   (Çin anakarası, CHN: oyun lisansı, AI/güvenlik değerlendirmesi uyum maddeleri); ülke eklemez, kuru varsayılan; aynı kurallar.
+  Dördüncü (sahip isteği, 18 Kasım 2026, "resubmit et, tüm yetkileri veriyorum"): `inceleme.yml` bekleyen App Store
+  gönderimini geri çeker (`iptal`) ya da sürümü incelemeye gönderir (`gonder`; önce yaş beyanını `YAS_BEYANI`'na göre günceller:
+  kaba söz seyrek/hafif, sahip kararı 2A); yayına alma (release) yapmaz, kuru varsayılan; aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
