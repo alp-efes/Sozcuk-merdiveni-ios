@@ -25,7 +25,7 @@ jobs:
     # çalışmaya izin verir (SAHIP-ADIMLARI 5). Böylece başka bir dala konan iş
     # akışı anahtarı okuyamaz.
     environment: testflight
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     env:
       SITE_DEPOSU: ${{ github.workspace }}/site
