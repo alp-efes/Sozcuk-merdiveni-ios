@@ -52,8 +52,8 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   (Çin anakarası, CHN: oyun lisansı, AI/güvenlik değerlendirmesi uyum maddeleri); ülke eklemez, kuru varsayılan; aynı kurallar.
   Dördüncü (sahip isteği, 18 Kasım 2026, "resubmit et, tüm yetkileri veriyorum"): `inceleme.yml` bekleyen App Store
   gönderimini geri çeker (`iptal`) ya da sürümü incelemeye gönderir (`gonder`; önce yaş beyanını `YAS_BEYANI`'na göre günceller:
-  kaba söz, alkol/uyuşturucu göndermesi ve yetişkin temalar seyrek/hafif: sahip kararı 2A ve anlam tanımları; yayın türünü
-  MANUAL yapar: yayına alma sahibindir; gonder sürüme bağlı derlemenin numarasını ister); kuru varsayılan; aynı kurallar.
+  kaba söz, alkol/uyuşturucu göndermesi ve yetişkin temalar seyrek/hafif: sahip kararı 2A ve anlam tanımları; yayın
+  türüne dokunmaz: sahibin seçimi (AFTER_APPROVAL); gonder sürüme bağlı derlemenin numarasını ister); kuru varsayılan; aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.

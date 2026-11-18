@@ -53,7 +53,11 @@ export async function inceleme({ fetch: f = fetch, token, bundleId, islem, derle
     // CANCELING bitene dek bekle (en çok ~3 dk)
     for (let i = 0; i < 36; i++) {
       const durum = [];
-      for (const b of bekleyen) durum.push((await api("GET", `/v1/reviewSubmissions/${b.id}`)).data.attributes.state);
+      // İptal bitince Apple gönderimi siler: 404 = geri çekildi
+      for (const b of bekleyen) {
+        try { durum.push((await api("GET", `/v1/reviewSubmissions/${b.id}`)).data.attributes.state); }
+        catch (e) { if (e.durum === 404) durum.push("SILINDI"); else throw e; }
+      }
       log(`durum: ${durum.join(",")}`);
       if (durum.every((d) => !["CANCELING", ...GERI_CEKILIR].includes(d))) { log("Bitti: gönderim geri çekildi."); return; }
       await bekle(5000);
@@ -72,10 +76,9 @@ export async function inceleme({ fetch: f = fetch, token, bundleId, islem, derle
   if (derleme.attributes?.version !== derlemeNo)
     throw new Error(`Sürüme bağlı derleme ${derleme.attributes?.version}, beklenen ${derlemeNo}; önce magaza-kayit.yml ile doğru derlemeyi bağlayın.`);
   log(`gönderilecek: ${surum.attributes.versionString} (derleme ${derleme.attributes?.version})`);
-  // Yayına alma sahibindir: onaydan sonra kendiliğinden çıkmasın (releaseType MANUAL)
-  log(`releaseType: ${surum.attributes.releaseType ?? "-"}`);
-  if (surum.attributes.releaseType !== "MANUAL")
-    await yaz("PATCH", `/v1/appStoreVersions/${surum.id}`, { data: { type: "appStoreVersions", id: surum.id, attributes: { releaseType: "MANUAL" } } });
+  // Yayın türü sahibin App Store Connect'teki seçimidir; değiştirilmez, yalnızca yazılır
+  // (18 Kasım 2026: sahip AFTER_APPROVAL seçmiş; onaydan sonra kendiliğinden yayına çıkar)
+  log(`releaseType: ${surum.attributes.releaseType ?? "-"} (değiştirilmedi)`);
 
   const bilgi = (await api("GET", `/v1/apps/${app.id}/appInfos`)).data
     .find(({ attributes: a }) => (a.state ?? a.appStoreState) !== "READY_FOR_DISTRIBUTION");
