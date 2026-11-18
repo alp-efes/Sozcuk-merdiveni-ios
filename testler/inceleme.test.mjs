@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { YAS_BEYANI, inceleme } from "../araclar/inceleme.mjs";
 
-function sahte({ gonderimler = [], surumDurum = "DEVELOPER_REJECTED", derleme = true, yas = "NONE", iptalSonra = "COMPLETE" } = {}) {
+function sahte({ gonderimler = [], surumDurum = "DEVELOPER_REJECTED", derleme = true, yas = "NONE", iptalSonra = "COMPLETE", yayin = "MANUAL" } = {}) {
   const istekler = [];
   let iptalEdildi = false;
   const yanit = (j) => ({ ok: true, status: 200, text: async () => JSON.stringify(j) });
@@ -13,7 +13,7 @@ function sahte({ gonderimler = [], surumDurum = "DEVELOPER_REJECTED", derleme = 
     istekler.push({ method, yol, body: body && JSON.parse(body) });
     if (yol.startsWith("/v1/apps?")) return yanit({ data: [{ id: "A1" }] });
     if (yol.startsWith("/v1/apps/A1/reviewSubmissions")) return yanit({ data: gonderimler.map((g) => ({ ...g, attributes: { state: iptalEdildi ? iptalSonra : g.state } })) });
-    if (yol.startsWith("/v1/apps/A1/appStoreVersions")) return yanit({ data: [{ id: "V1", attributes: { versionString: "1.0", appVersionState: surumDurum } }] });
+    if (yol.startsWith("/v1/apps/A1/appStoreVersions")) return yanit({ data: [{ id: "V1", attributes: { versionString: "1.0", appVersionState: surumDurum, releaseType: yayin } }] });
     if (yol === "/v1/appStoreVersions/V1/build") return yanit({ data: derleme ? { id: "B11", attributes: { version: "11" } } : null });
     if (yol === "/v1/apps/A1/appInfos") return yanit({ data: [{ id: "I1", attributes: { state: "PREPARE_FOR_SUBMISSION" } }] });
     if (yol === "/v1/appInfos/I1/ageRatingDeclaration") return yanit({ data: { id: "Y1", attributes: { profanityOrCrudeHumor: yas } } });
@@ -47,6 +47,12 @@ test("gonder: yaş beyanı güncellenir, yeni gönderim oluşturulur, sürüm ek
   assert.deepEqual(i.at(-1).body.data.attributes, { submitted: true });
 });
 
+test("gonder: yayın türü MANUAL değilse önce MANUAL yapılır (yayına alma sahibindir)", async () => {
+  const i = await calistir({ yayin: "AFTER_APPROVAL", yas: "INFREQUENT_OR_MILD" }, { islem: "gonder", kuru: false });
+  assert.equal(yazmalar(i)[0], "PATCH /v1/appStoreVersions/V1");
+  assert.deepEqual(i.find((x) => x.yol === "/v1/appStoreVersions/V1" && x.method === "PATCH").body.data.attributes, { releaseType: "MANUAL" });
+});
+
 test("gonder: yaş güncelse yazılmaz; READY_FOR_REVIEW gönderim yeniden kullanılır", async () => {
   const i = await calistir({ gonderimler: [{ id: "R5", state: "READY_FOR_REVIEW" }], yas: "INFREQUENT_OR_MILD" }, { islem: "gonder", kuru: false });
   assert.deepEqual(yazmalar(i), ["POST /v1/reviewSubmissionItems", "PATCH /v1/reviewSubmissions/R5"]);
@@ -64,7 +70,13 @@ test("iş akışı: yalnızca elle, main, testflight ortamı, kuru varsayılan",
   const w = readFileSync(new URL("../.github/workflows/inceleme.yml", import.meta.url), "utf8");
   assert.match(w, /^on:\n  workflow_dispatch:/m);
   assert.doesNotMatch(w, /^  (push|pull_request|schedule):/m);
-  assert.match(w, /environment: testflight/);
-  assert.match(w, /if: github\.ref == 'refs\/heads\/main'/);
-  assert.match(w, /kuru:\n(?:        .*\n)*?        default: true/);
+  assert.doesNotMatch(w, /^  (push|pull_request|pull_request_target|schedule):/m);
+  assert.match(w, /^    environment: testflight$/m);
+  assert.match(w, /^    if: github\.ref == 'refs\/heads\/main'$/m);
+  assert.match(w, /^      kuru:\n(?:        .*\n)*?        default: true$/m);
+  // Aynı gizli bilgi adları testflight.yml'dekilerle; yeni ad yok. Betik gizli bilgiyi yazdırmaz.
+  const tf = readFileSync(new URL("../.github/workflows/testflight.yml", import.meta.url), "utf8");
+  for (const ad of w.match(/secrets\.\w+/g)) assert.ok(tf.includes(ad), `${ad} testflight.yml'de yok`);
+  const betik = readFileSync(new URL("../araclar/inceleme.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(betik, /console\.log\([^)]*(P8|KEY)/);
 });

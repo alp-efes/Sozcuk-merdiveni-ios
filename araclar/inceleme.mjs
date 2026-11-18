@@ -63,6 +63,10 @@ export async function inceleme({ fetch: f = fetch, token, bundleId, islem, kuru 
   const derleme = (await api("GET", `/v1/appStoreVersions/${surum.id}/build`)).data;
   if (!derleme) throw new Error("Sürüme bağlı derleme yok; önce magaza-kayit.yml ile derleme bağlayın.");
   log(`gönderilecek: ${surum.attributes.versionString} (derleme ${derleme.attributes?.version})`);
+  // Yayına alma sahibindir: onaydan sonra kendiliğinden çıkmasın (releaseType MANUAL)
+  log(`releaseType: ${surum.attributes.releaseType ?? "-"}`);
+  if (surum.attributes.releaseType !== "MANUAL")
+    await yaz("PATCH", `/v1/appStoreVersions/${surum.id}`, { data: { type: "appStoreVersions", id: surum.id, attributes: { releaseType: "MANUAL" } } });
 
   const bilgi = (await api("GET", `/v1/apps/${app.id}/appInfos`)).data
     .find(({ attributes: a }) => (a.state ?? a.appStoreState) !== "READY_FOR_DISTRIBUTION");
