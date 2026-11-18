@@ -54,6 +54,9 @@ Bunları değiştiren PR sahip onayı ister (KURALLAR 8) ve ilgili testi bilerek
   gönderimini geri çeker (`iptal`) ya da sürümü incelemeye gönderir (`gonder`; önce yaş beyanını `YAS_BEYANI`'na göre günceller:
   kaba söz, alkol/uyuşturucu göndermesi ve yetişkin temalar seyrek/hafif: sahip kararı 2A ve anlam tanımları; yayın
   türüne dokunmaz: sahibin seçimi (AFTER_APPROVAL); gonder sürüme bağlı derlemenin numarasını ister); kuru varsayılan; aynı kurallar.
+  Beşinci (18 Kasım 2026, derleme 13 sertifika sınırına takıldı): `sertifika.yml` bulut derlemelerinin bıraktığı
+  geliştirme sertifikalarını listeler/iptal eder; yalnızca adında "Created via API" geçen DEVELOPMENT/IOS_DEVELOPMENT,
+  sahibin kendi ve dağıtım sertifikalarına dokunmaz; kuru varsayılan; aynı kurallar.
 - **Site dosyaları burada düzenlenmez.** Oyun hatası site deposunda `[oyun]`
   issue'sudur. Uygulamaya özgü fark `araclar/web-esitle.mjs` (+ `araclar/arayuz.mjs`),
   `web/yerel.js`, `web/uygulama.js` ve `web/uygulama.css`'tedir.
