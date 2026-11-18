@@ -1,0 +1,55 @@
+# Bulut derlemelerinin bıraktığı geliştirme sertifikalarını listeler ya da iptal eder (yalnızca "Created via API").
+# 18 Kasım 2026: derleme 13 sertifika sınırına takıldı. Yalnızca elle ve yalnızca main'den çalışır.
+# Aynı gizli bilgiler testflight ortamındadır.
+name: Sertifika temizliği
+
+on:
+  workflow_dispatch:
+    inputs:
+      islem:
+        description: "liste ya da temizle"
+        type: choice
+        options:
+          - liste
+          - temizle
+        required: true
+      kuru:
+        description: "Kuru çalıştırma: yalnızca okur, ne yapacağını yazar"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# TestFlight derlemesiyle aynı sıra: arşivin az önce oluşturduğu sertifika derleme sürerken iptal edilmesin
+concurrency: testflight
+
+jobs:
+  sertifika:
+    # Ortam yalnızca main'den çalışmaya izin verir; if: ikinci kilit
+    environment: testflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Sertifika
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ISLEM: ${{ inputs.islem }}
+          KURU: ${{ inputs.kuru }}
+        run: |
+          set -euo pipefail
+          [[ "$ISLEM" == "liste" || "$ISLEM" == "temizle" ]] || { echo "::error::işlem liste ya da temizle olmalı"; exit 1; }
+          arg=(--islem "$ISLEM")
+          [ "$KURU" = "true" ] && arg+=(--kuru)
+          node araclar/sertifika.mjs "${arg[@]}"
