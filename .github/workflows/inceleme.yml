@@ -1,0 +1,60 @@
+# App Store incelemesi: bekleyen gönderimi geri çeker (iptal) ya da sürümü incelemeye gönderir (gonder).
+# Sahip isteği (18 Kasım 2026): yeniden gönderimi ekip yapar. Yalnızca elle ve yalnızca main'den çalışır.
+# Aynı gizli bilgiler testflight ortamındadır.
+name: İnceleme
+
+on:
+  workflow_dispatch:
+    inputs:
+      islem:
+        description: "iptal (bekleyen gönderimi geri çek) ya da gonder (incelemeye gönder)"
+        type: choice
+        options:
+          - iptal
+          - gonder
+        required: true
+      derleme:
+        description: "gonder için: sürüme bağlı olması gereken derleme numarası (rakam)"
+        default: ""
+      kuru:
+        description: "Kuru çalıştırma: yalnızca okur, ne yapacağını yazar"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency: inceleme
+
+jobs:
+  inceleme:
+    # Ortam yalnızca main'den çalışmaya izin verir; if: ikinci kilit
+    environment: testflight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: İnceleme
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ISLEM: ${{ inputs.islem }}
+          DERLEME: ${{ inputs.derleme }}
+          KURU: ${{ inputs.kuru }}
+        run: |
+          set -euo pipefail
+          [[ "$ISLEM" == "iptal" || "$ISLEM" == "gonder" ]] || { echo "::error::işlem iptal ya da gonder olmalı"; exit 1; }
+          [[ -z "$DERLEME" || "$DERLEME" =~ ^[0-9]+$ ]] || { echo "::error::derleme bir sayı olmalı"; exit 1; }
+          arg=(--islem "$ISLEM")
+          [ -n "$DERLEME" ] && arg+=(--derleme "$DERLEME")
+          [ "$KURU" = "true" ] && arg+=(--kuru)
+          node araclar/inceleme.mjs "${arg[@]}"
