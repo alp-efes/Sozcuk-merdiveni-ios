@@ -49,10 +49,25 @@ test("gonder: yaş beyanı güncellenir, yeni gönderim oluşturulur, sürüm ek
   assert.deepEqual(i.at(-1).body.data.attributes, { submitted: true });
 });
 
-test("gonder: yayın türü MANUAL değilse önce MANUAL yapılır (yayına alma sahibindir)", async () => {
+test("gonder: yayın türü sahibin seçimidir, değiştirilmez", async () => {
   const i = await calistir({ yayin: "AFTER_APPROVAL", yas: "INFREQUENT_OR_MILD" }, { islem: "gonder", kuru: false });
-  assert.equal(yazmalar(i)[0], "PATCH /v1/appStoreVersions/V1");
-  assert.deepEqual(i.find((x) => x.yol === "/v1/appStoreVersions/V1" && x.method === "PATCH").body.data.attributes, { releaseType: "MANUAL" });
+  assert.ok(!yazmalar(i).includes("PATCH /v1/appStoreVersions/V1"));
+});
+
+test("iptal: Apple gönderimi silerse (404) geri çekilmiş sayılır", async () => {
+  const istekler = [];
+  const yanit = (j, d = 200) => ({ ok: d < 400, status: d, text: async () => JSON.stringify(d < 400 ? j : { errors: [{ title: "Not found", detail: "x" }] }) });
+  const f = async (url, { method, body }) => {
+    const yol = url.replace("https://api.appstoreconnect.apple.com", "");
+    istekler.push({ method, yol });
+    if (yol.startsWith("/v1/apps?")) return yanit({ data: [{ id: "A1" }] });
+    if (yol.startsWith("/v1/apps/A1/reviewSubmissions")) return yanit({ data: [{ id: "R1", attributes: { state: "WAITING_FOR_REVIEW" } }] });
+    if (yol.startsWith("/v1/apps/A1/appStoreVersions")) return yanit({ data: [] });
+    if (yol === "/v1/reviewSubmissions/R1" && method === "GET") return yanit(null, 404);
+    return yanit({ data: {} });
+  };
+  await inceleme({ fetch: f, token: "t", bundleId: "x.y", islem: "iptal", kuru: false, log: () => {}, bekle: async () => {} });
+  assert.deepEqual(istekler.filter((x) => x.method !== "GET").map((x) => x.yol), ["/v1/reviewSubmissions/R1"]);
 });
 
 test("gonder: yaş güncelse yazılmaz; READY_FOR_REVIEW gönderim yeniden kullanılır", async () => {
