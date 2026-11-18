@@ -13,6 +13,9 @@ on:
           - iptal
           - gonder
         required: true
+      derleme:
+        description: "gonder için: sürüme bağlı olması gereken derleme numarası (rakam)"
+        default: ""
       kuru:
         description: "Kuru çalıştırma: yalnızca okur, ne yapacağını yazar"
         type: boolean
@@ -45,10 +48,13 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           ISLEM: ${{ inputs.islem }}
+          DERLEME: ${{ inputs.derleme }}
           KURU: ${{ inputs.kuru }}
         run: |
           set -euo pipefail
           [[ "$ISLEM" == "iptal" || "$ISLEM" == "gonder" ]] || { echo "::error::işlem iptal ya da gonder olmalı"; exit 1; }
+          [[ -z "$DERLEME" || "$DERLEME" =~ ^[0-9]+$ ]] || { echo "::error::derleme bir sayı olmalı"; exit 1; }
           arg=(--islem "$ISLEM")
+          [ -n "$DERLEME" ] && arg+=(--derleme "$DERLEME")
           [ "$KURU" = "true" ] && arg+=(--kuru)
           node araclar/inceleme.mjs "${arg[@]}"
