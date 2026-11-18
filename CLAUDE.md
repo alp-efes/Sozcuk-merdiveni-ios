@@ -252,6 +252,11 @@ depoda `1` kalır; TestFlight iş akışı çalıştırma sayısını kullanır.
 gösterir; paylaşılan `#gün` sonuçları uyuşmaz. `words.json` değişikliği yeni
 bir uygulama sürümü gerektirir. `GUN_BASLANGIC_UTC` için de aynısı geçerli.
 
+**Derleme makinesi `xcode-27` (18 Kasım 2026).** Apple ITMS-90725: Nisan 2027'den itibaren App Store'a yükleme
+iOS 27 SDK (Xcode 27) ister; `macos-*` görüntülerinde Xcode 27 yok, GitHub'ın ayrı `xcode-27` görüntüsünde var
+(ilk çalıştırma: Xcode 27.1, 27A9275). `simulator.yml` ve `testflight.yml` onu kullanır; `macos-26`'ya geri
+çevirmeyin. Xcode alt sürümü görüntünün varsayılanıdır (sabitlenmedi).
+
 **Xcode burada yok.** Bulut oturumları Linux'tur; `npx cap sync ios` çalışır ama
 derleme yalnızca TestFlight iş akışında (macOS) yapılır. Derlemeyi görmeden
 "derleniyor" demeyin.
