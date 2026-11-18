@@ -185,7 +185,8 @@ değişmiş olabilir):
   giden bağlantılar (e-posta bağlantısı gibi) için ebeveyn kapısı ister,
   uygulamada yok.
 - **Kullanılabilirlik (Pricing and Availability):** ilk sürümde **AB ülkeleri
-  hariç bütün ülkeler** seçilir. Neden: AB'deki App Store'da yayın için hesap
+  ve Çin anakarası hariç bütün ülkeler** seçilir (Çin: oyunlar için devlet onay numarası/ISBN ve
+  App Compliance'taki güvenlik/AI beyanları gerekir; sahip kararı, 18 Kasım 2026; `ulke-kaldir.yml`). Neden: AB'deki App Store'da yayın için hesap
   düzeyinde **DSA "trader" beyanı** gerekir (App Store Connect → *Business*;
   menü yeri doğrulanmadı); *trader* beyanında adres, telefon ve e-postanız
   Apple'ca doğrulanır ve AB ürün sayfasında herkese görünür. AB, sonradan
@@ -299,7 +300,7 @@ Uygulama → *Monetization* → *In-App Purchases* → **+**:
 | Reference Name | `Plus` |
 | Product ID | `com.sozcukyolu.sozcukmerdiveni.plus` (**tam olarak**; kodda ve `gelir.json`'da böyle) |
 | Fiyat (öneri) | **99,99 TL** düzeyinde bir fiyat basamağı (~3 USD). Apple diğer ülkeleri çevirir; kodda sabit fiyat yok, StoreKit'in `displayPrice`'ı gösterilir |
-| Kullanılabilirlik | Uygulamayla aynı ülkeler (AB hariç) |
+| Kullanılabilirlik | Uygulamayla aynı ülkeler (AB ve Çin anakarası hariç) |
 | Aile Paylaşımı | Kapalı (öneri) |
 | Görünen ad (Türkçe) | `Sözcük Merdiveni Plus` |
 | Açıklama (Türkçe) | `Reklamları kaldırır; sınırsız ipucu, geri al ve tekrar` |
